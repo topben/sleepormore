@@ -387,10 +387,13 @@ export class BedroomScene {
 
   /**
    * 結局圖卡用的截圖:用 w × h(沒有 HUD 遮擋)重新取景畫一張,複製到 2D canvas,再恢復原本的畫面。
+   * 預設拍寬一點(約 2:1):圖卡的框比較窄時只裁掉兩側的空白,床不會被切到。
    * 同一個 task 內做完,瀏覽器不會畫出中間狀態。CSS 濾鏡(閉眼、灰階)不會進截圖。
    */
-  snapshot(w = 1200, h = 900): HTMLCanvasElement | null {
+  snapshot(w = 1320, h = 630): HTMLCanvasElement | null {
     if (this.disposed) return null;
+    const prevDpr = this.renderer.getPixelRatio();
+    const prev = this.renderer.getSize(new THREE.Vector2());
     try {
       this.renderer.setPixelRatio(1);
       this.renderer.setSize(w, h, false);
@@ -408,6 +411,11 @@ export class BedroomScene {
       console.warn('scene snapshot failed', err);
       return null;
     } finally {
+      // 直接還原畫布與取景(容器剛好被收起來時 layout() 會略過,不能只靠它)
+      this.renderer.setPixelRatio(prevDpr);
+      this.renderer.setSize(prev.x, prev.y, false);
+      if (prev.x >= 2 && prev.y >= 2) this.frameCamera(prev.x, prev.y, this.insets.top, this.insets.bottom);
+      this.updateCamera(0);
       this.layoutKey = '';
       this.layout();
     }
