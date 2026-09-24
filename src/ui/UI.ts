@@ -4,13 +4,13 @@ import { greenCenter, suggestAction } from '../game/hints';
 import { forceWindow, projectedNoise, wakeThreshold } from '../game/rules';
 import type { ActionId, AvailableAction, Eyes, GameEvent, GameState, Role } from '../game/types';
 import { partnerOf } from '../game/types';
-import { fmt, m, onLocaleChange, setLocale, speechLine, type Locale } from '../i18n';
+import { fmt, getLocale, m, onLocaleChange, setLocale, speechLine, type Locale } from '../i18n';
 import { Bubbles, type BubbleTone } from './bubbles';
 import { h } from './dom';
 import { ForceMeter } from './forceMeter';
 import { Hud } from './hud';
 import type { LogItem } from './log';
-import { endingBanner, endingCard, goalScreen, helpScreen, settingsScreen, startScreen, toast } from './screens';
+import { endingBanner, endingCard, goalScreen, helpScreen, languagePicker, settingsScreen, startScreen, toast } from './screens';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import './style.css';
 
@@ -65,7 +65,7 @@ export class GameUI {
   private lastNoise: number | null = null;
   private busy = false;
   private goalResolve: (() => void) | null = null;
-  private modal: 'help' | 'settings' | null = null;
+  private modal: 'help' | 'settings' | 'lang' | null = null;
   private endingTimer = 0;
   private lastInsets = '';
 
@@ -91,6 +91,7 @@ export class GameUI {
       toggleEyes: () => this.toggleEyes(),
       help: () => this.openModal('help'),
       settings: () => this.openModal('settings'),
+      language: () => this.openModal('lang'),
       sound: () => this.updateSettings({ ...this.settings, sound: !this.settings.sound }),
       hideHints: () => this.updateSettings({ ...this.settings, hints: false }),
     });
@@ -126,7 +127,7 @@ export class GameUI {
       startScreen({
         onRole: (r) => this.handlers.onStart(r),
         onHelp: () => this.openModal('help'),
-        onLocale: (l) => void this.changeLocale(l),
+        onLanguage: () => this.openModal('lang'),
       }),
     );
     this.reportLayout();
@@ -246,6 +247,7 @@ export class GameUI {
     }
     this.youTag.textContent = `▼ ${m().ui.common.you}`;
     this.youTag.className = `you-tag show ${s.playerRole}`;
+    this.youTag.lang = getLocale();
     if (this.youRaf) return;
     const tick = () => {
       const st = this.state;
@@ -337,11 +339,12 @@ export class GameUI {
     const k = e.key.toLowerCase();
     if (k === 'e' && this.screen === 'game') this.toggleEyes();
     else if (k === 'h' || e.key === '?') this.openModal('help');
+    else if (k === 'l') this.openModal('lang');
   }
 
   // ───────────── 設定 / 說明 / 語言 ─────────────
 
-  private openModal(which: 'help' | 'settings') {
+  private openModal(which: 'help' | 'settings' | 'lang') {
     this.modal = which;
     this.renderModal();
   }
@@ -356,7 +359,15 @@ export class GameUI {
     const el =
       this.modal === 'help'
         ? helpScreen(() => this.closeModal())
-        : settingsScreen(this.settings, {
+        : this.modal === 'lang'
+          ? languagePicker({
+              onPick: (l) => {
+                this.closeModal();
+                void this.changeLocale(l);
+              },
+              onClose: () => this.closeModal(),
+            })
+          : settingsScreen(this.settings, {
             inGame: this.screen === 'game',
             onClose: () => this.closeModal(),
             onChange: (s) => this.updateSettings(s),
@@ -397,6 +408,7 @@ export class GameUI {
       if (this.screenLayer.firstChild) this.renderEndingCard();
     }
     this.renderHud();
+    this.updateYouTag(); // 「你」標籤也要換語言
     if (this.modal) this.renderModal();
   }
 

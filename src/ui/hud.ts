@@ -6,7 +6,7 @@ import { clueLean, goalProgress, suggestAction, type Suggestion } from '../game/
 import { breathRate, isFakingSleep, noiseRisk, projectedNoise, snoreLevel, wakeThreshold } from '../game/rules';
 import type { ActionCategory, ActionId, AvailableAction, CharacterState, GameState, Role } from '../game/types';
 import { partnerOf } from '../game/types';
-import { fmt, m } from '../i18n';
+import { currentLocaleInfo, fmt, m } from '../i18n';
 import { h } from './dom';
 import { describe, type LogItem } from './log';
 
@@ -65,6 +65,7 @@ export interface HudHandlers {
   toggleEyes(): void;
   help(): void;
   settings(): void;
+  language(): void;
   sound(): void;
   hideHints(): void;
 }
@@ -109,6 +110,7 @@ export class Hud {
   private goalFill = h('i');
   private goalText = h('span', { class: 'goal-text' });
   private goalShort = h('span', { class: 'goal-text short' });
+  private langBtn: HTMLButtonElement;
   private helpBtn: HTMLButtonElement;
   private soundBtn: HTMLButtonElement;
   private gearBtn: HTMLButtonElement;
@@ -167,8 +169,9 @@ export class Hud {
   private logList = h('ol', { class: 'log-list', 'aria-live': 'polite' });
 
   constructor(private hnd: HudHandlers) {
+    this.langBtn = h('button', { class: 'icon-btn lang-tool', type: 'button', 'aria-haspopup': 'dialog', onClick: () => hnd.language() });
     this.helpBtn = h('button', { class: 'icon-btn', type: 'button', onClick: () => hnd.help() }, '❓');
-    this.soundBtn = h('button', { class: 'icon-btn', type: 'button', onClick: () => hnd.sound() }, '🔊');
+    this.soundBtn = h('button', { class: 'icon-btn sound-tool', type: 'button', onClick: () => hnd.sound() }, '🔊');
     this.gearBtn = h('button', { class: 'icon-btn', type: 'button', onClick: () => hnd.settings() }, '⚙️');
     this.hintHide = h('button', { class: 'hint-x', type: 'button', onClick: () => hnd.hideHints() }, '✕');
     this.hintEl.append(h('span', { class: 'hint-icon', 'aria-hidden': 'true', text: '💡' }), this.hintText, this.hintHide);
@@ -182,7 +185,7 @@ export class Hud {
       { class: 'topbar' },
       h('div', { class: 'clock' }, this.timeEl, h('span', { class: 'clock-sub' }, this.turnEl, this.dotsEl)),
       this.goalEl,
-      h('div', { class: 'tools' }, this.helpBtn, this.soundBtn, this.gearBtn),
+      h('div', { class: 'tools' }, this.langBtn, this.helpBtn, this.soundBtn, this.gearBtn),
     );
 
     this.meCard.append(this.meTitle, this.meSleep.el, this.meWarm.el, this.meMood.el, this.meRest.el, this.meNumb.el, this.meBreath.el, this.meSnore.el);
@@ -267,6 +270,10 @@ export class Hud {
     this.goalText.textContent = `${fmt(t.hud.progress[prog.goal], { v: prog.value, t: prog.target })} · ${t.hud.status[prog.status]}`;
     this.goalShort.textContent = `${prog.value}/${prog.target} · ${t.hud.status[prog.status]}`;
     this.goalEl.title = `${g.goal[prog.goal]} — ${this.goalText.textContent}`;
+    const loc = currentLocaleInfo();
+    this.langBtn.replaceChildren(h('span', { 'aria-hidden': 'true', text: '🌐' }), h('span', { class: 'lang-short', lang: loc.id, text: loc.short }));
+    this.langBtn.title = `${t.settings.language} · Language: ${loc.name}`;
+    this.langBtn.setAttribute('aria-label', this.langBtn.title);
     this.helpBtn.title = t.hud.help;
     this.helpBtn.setAttribute('aria-label', t.hud.help);
     this.soundBtn.textContent = view.sound ? '🔊' : '🔇';

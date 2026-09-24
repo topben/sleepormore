@@ -3,7 +3,7 @@ import { BAL, MAX_TURNS, SLEEP_WIN_SCORE } from '../game/constants';
 import { morningLine } from '../game/endings';
 import type { GameState, Role } from '../game/types';
 import { partnerOf } from '../game/types';
-import { LOCALES, fmt, getLocale, m, speechLine, type Locale } from '../i18n';
+import { LOCALES, currentLocaleInfo, fmt, getLocale, m, speechLine, type Locale } from '../i18n';
 import { h } from './dom';
 import type { Settings } from './settings';
 
@@ -17,7 +17,64 @@ export function languageSelect(onChange: (l: Locale) => void, cls = ''): HTMLEle
   return h('label', { class: `lang ${cls}` }, h('span', { 'aria-hidden': 'true', text: '🌐' }), sel);
 }
 
-export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLocale(l: Locale): void }): HTMLElement {
+/** 明顯的語言按鈕:🌐 + 目前語言(用該語言自己的寫法)*/
+export function languageButton(onOpen: () => void, cls = ''): HTMLButtonElement {
+  const cur = currentLocaleInfo();
+  const label = `${m().ui.settings.language} · Language: ${cur.name}`;
+  return h(
+    'button',
+    { class: `lang-btn ${cls}`, type: 'button', 'aria-haspopup': 'dialog', 'aria-label': label, title: label, onClick: onOpen },
+    h('span', { class: 'lang-globe', 'aria-hidden': 'true', text: '🌐' }),
+    h('span', { class: 'lang-name', lang: cur.id, text: cur.name }),
+    h('span', { class: 'lang-caret', 'aria-hidden': 'true', text: '▾' }),
+  );
+}
+
+/** 語言選擇:7 個大按鈕,各自用自己的語言寫(看不懂目前語言也找得到自己的) */
+export function languagePicker(opts: { onPick(l: Locale): void; onClose(): void }): HTMLElement {
+  const t = m().ui;
+  const cur = getLocale();
+  const closeBtn = h('button', { class: 'icon-btn close', type: 'button', 'aria-label': t.common.close, onClick: opts.onClose }, '✕');
+  const choices = LOCALES.map((l) =>
+    h(
+      'button',
+      {
+        class: `lang-choice${l.id === cur ? ' current' : ''}`,
+        type: 'button',
+        lang: l.id,
+        'aria-pressed': String(l.id === cur),
+        'data-locale': l.id,
+        onClick: () => opts.onPick(l.id),
+      },
+      h('span', { text: l.name }),
+      l.id === cur ? h('span', { class: 'lang-check', 'aria-hidden': 'true', text: '✓' }) : null,
+    ),
+  );
+  queueMicrotask(() => choices.find((b) => b.classList.contains('current'))?.focus());
+  return h(
+    'div',
+    {
+      class: 'screen modal',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-label': `${t.settings.language} · Language`,
+      onClick: (e: Event) => e.target === e.currentTarget && opts.onClose(),
+    },
+    h(
+      'div',
+      { class: 'panel lang-panel' },
+      h(
+        'div',
+        { class: 'panel-head' },
+        h('h2', {}, `🌐 ${t.settings.language}`, cur === 'en' ? null : h('span', { class: 'lang-en', text: ' · Language' })),
+        closeBtn,
+      ),
+      h('div', { class: 'panel-body lang-grid' }, ...choices),
+    ),
+  );
+}
+
+export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLanguage(): void }): HTMLElement {
   const t = m().ui.start;
   const roleBtn = (r: Role) =>
     h(
@@ -30,7 +87,6 @@ export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLoc
   return h(
     'div',
     { class: 'screen start' },
-    languageSelect(opts.onLocale, 'corner'),
     h(
       'div',
       { class: 'start-card' },
@@ -39,7 +95,12 @@ export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLoc
       h('p', { class: 'tagline', text: t.tagline }),
       h('div', { class: 'choose', text: t.chooseRole }),
       h('div', { class: 'roles' }, roleBtn('male'), roleBtn('female')),
-      h('button', { class: 'link-btn', type: 'button', onClick: opts.onHelp }, `❓ ${t.howToPlay}`),
+      h(
+        'div',
+        { class: 'start-links' },
+        h('button', { class: 'link-btn', type: 'button', onClick: opts.onHelp }, `❓ ${t.howToPlay}`),
+        languageButton(opts.onLanguage),
+      ),
       h('p', { class: 'footnote', text: t.footnote }),
     ),
   );

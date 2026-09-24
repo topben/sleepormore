@@ -101,17 +101,46 @@ describe('GameUI: a new game is always playable', () => {
 });
 
 describe('GameUI: language switching', () => {
-  it('a locale that fails to load keeps the current language and resets the selector', async () => {
+  const langChoices = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLButtonElement>('.lang-choice'));
+
+  it('the start screen and the in-game top bar both have a visible language button that opens the picker', async () => {
+    const { root, ui } = mount();
+    ui.showStart();
+    root.querySelector<HTMLButtonElement>('.start-card .lang-btn')!.click();
+    expect(langChoices(root).map((b) => b.dataset.locale)).toEqual(['zh-TW', 'zh-CN', 'ja', 'ko', 'vi', 'en', 'es']);
+    expect(root.querySelector('.lang-choice.current')!.getAttribute('data-locale')).toBe('zh-TW');
+    root.querySelector<HTMLButtonElement>('.lang-panel .close')!.click();
+    expect(langChoices(root)).toHaveLength(0);
+
+    await begin(ui, root, createGame('male', 7));
+    const tool = root.querySelector<HTMLButtonElement>('.tools .lang-tool')!;
+    expect(tool.textContent).toContain('繁中');
+    tool.click();
+    expect(langChoices(root)).toHaveLength(7);
+  });
+
+  it('a locale that fails to load keeps the current language and says so', async () => {
     const { root, ui } = mount();
     ui.showStart();
     const i18n = await import('../src/i18n');
     const spy = vi.spyOn(i18n, 'setLocale').mockRejectedValueOnce(new Error('chunk failed'));
-    const sel = root.querySelector<HTMLSelectElement>('.lang-select')!;
-    const before = sel.value;
-    sel.value = 'ja';
-    sel.dispatchEvent(new Event('change'));
+    root.querySelector<HTMLButtonElement>('.start-card .lang-btn')!.click();
+    root.querySelector<HTMLButtonElement>('.lang-choice[data-locale="ja"]')!.click();
     await vi.waitFor(() => expect(root.querySelector('.toast')).not.toBeNull());
-    expect(root.querySelector<HTMLSelectElement>('.lang-select')!.value).toBe(before);
+    expect(root.querySelector('.start-card .lang-btn .lang-name')!.textContent).toBe('繁體中文');
     spy.mockRestore();
+  });
+
+  it('picking a language from the in-game button switches the whole UI', async () => {
+    const { root, ui } = mount();
+    await begin(ui, root, createGame('female', 8));
+    root.querySelector<HTMLButtonElement>('.tools .lang-tool')!.click();
+    root.querySelector<HTMLButtonElement>('.lang-choice[data-locale="en"]')!.click();
+    await vi.waitFor(() => expect(document.documentElement.lang).toBe('en'));
+    expect(langChoices(root)).toHaveLength(0); // 選完就關
+    expect(root.querySelector('.tools .lang-tool')!.textContent).toContain('EN');
+    expect(root.querySelector('.act[data-id="whisper"] .act-label')!.textContent).toBe('Whisper');
+    const { setLocale } = await import('../src/i18n');
+    await setLocale('zh-TW'); // 還原,避免影響其他測試
   });
 });

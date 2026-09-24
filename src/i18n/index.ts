@@ -6,15 +6,18 @@ import zhTWUi from './zh-TW/ui';
 
 export type { GameMessages, Locale, Messages, UiMessages } from './types';
 
-export const LOCALES: ReadonlyArray<{ id: Locale; name: string }> = [
-  { id: 'zh-TW', name: '繁體中文' },
-  { id: 'zh-CN', name: '简体中文' },
-  { id: 'ja', name: '日本語' },
-  { id: 'ko', name: '한국어' },
-  { id: 'vi', name: 'Tiếng Việt' },
-  { id: 'en', name: 'English' },
-  { id: 'es', name: 'Español' },
+/** name = 該語言自己的寫法;short = 窄空間(遊戲中上方列)用的短標籤 */
+export const LOCALES: ReadonlyArray<{ id: Locale; name: string; short: string }> = [
+  { id: 'zh-TW', name: '繁體中文', short: '繁中' },
+  { id: 'zh-CN', name: '简体中文', short: '简中' },
+  { id: 'ja', name: '日本語', short: '日本語' },
+  { id: 'ko', name: '한국어', short: '한국어' },
+  { id: 'vi', name: 'Tiếng Việt', short: 'VI' },
+  { id: 'en', name: 'English', short: 'EN' },
+  { id: 'es', name: 'Español', short: 'ES' },
 ];
+
+export const currentLocaleInfo = () => LOCALES.find((l) => l.id === current) ?? LOCALES[0];
 
 const ZH_TW: Messages = { game: zhTWGame, ui: zhTWUi };
 
