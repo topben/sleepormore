@@ -144,3 +144,20 @@ describe('GameUI: language switching', () => {
     await setLocale('zh-TW'); // 還原,避免影響其他測試
   });
 });
+
+describe('GameUI: start screen plug', () => {
+  it('links to bridgetime.org in a new tab and follows the language', async () => {
+    const { root, ui } = mount();
+    ui.showStart();
+    const plug = () => root.querySelector<HTMLAnchorElement>('.start-card a.plug')!;
+    expect(plug().getAttribute('href')).toBe('https://bridgetime.org');
+    expect(plug().getAttribute('target')).toBe('_blank');
+    expect(plug().getAttribute('rel')).toContain('noopener');
+    expect(plug().textContent).toBe('[無情業配]喬個時間睡覺吧bridgetime.org ↗');
+    root.querySelector<HTMLButtonElement>('.start-card .lang-btn')!.click();
+    root.querySelector<HTMLButtonElement>('.lang-choice[data-locale="en"]')!.click();
+    await vi.waitFor(() => expect(plug().textContent).toBe('[Shameless plug]Let’s find a time to sleepbridgetime.org ↗'));
+    const { setLocale } = await import('../src/i18n');
+    await setLocale('zh-TW'); // 還原,避免影響其他測試
+  });
+});

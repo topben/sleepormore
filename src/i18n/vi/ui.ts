@@ -33,6 +33,8 @@ const ui: UiMessages = {
     howToPlay: 'Cách chơi',
     footnote: '12 lượt · khoảng 5 phút · dành cho người lớn nhưng không lộ liễu',
     language: 'Ngôn ngữ',
+    plugTag: '[Quảng cáo lộ liễu]',
+    plug: 'Chốt lịch đi ngủ nào',
   },
 
   goal: {

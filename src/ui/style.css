@@ -313,6 +313,39 @@ input:focus-visible {
   font-size: 12px;
   margin-top: 8px;
 }
+/* 業配:作者另一個產品的小字連結(開始畫面最下方) */
+.plug {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 8px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 2px auto 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+.plug:hover,
+.plug:focus-visible {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+.plug-tag {
+  color: var(--gold);
+  font-weight: 700;
+}
+.plug-url {
+  color: #cfc7ff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
 .start-links {
   display: flex;
   flex-wrap: wrap;

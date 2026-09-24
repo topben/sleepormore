@@ -33,6 +33,8 @@ const ui: UiMessages = {
     howToPlay: 'How to play',
     footnote: '12 turns · about 5 min · adult themes, never explicit',
     language: 'Language',
+    plugTag: '[Shameless plug]',
+    plug: 'Let’s find a time to sleep',
   },
 
   goal: {

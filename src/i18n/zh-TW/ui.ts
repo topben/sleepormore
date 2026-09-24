@@ -32,6 +32,9 @@ export default {
     howToPlay: '怎麼玩',
     footnote: '12 回合 · 約 5 分鐘 · 成人向但不露骨',
     language: '語言',
+    // 開始畫面最下方的小廣告(作者的另一個產品 bridgetime.org);標籤是自嘲的「業配」,標語玩「喬時間」的梗
+    plugTag: '[無情業配]',
+    plug: '喬個時間睡覺吧',
   },
 
   goal: {

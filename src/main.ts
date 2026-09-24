@@ -1,4 +1,5 @@
 // 組裝入口:createGame / BedroomScene / GameUI;回合流程與時序(SCENE-RIG §5)。
+import { inject } from '@vercel/analytics';
 import { listAvailableActions } from './game/actions';
 import { randomSeed } from './game/rng';
 import { createGame, playTurn, splitPhases, toggleEyes } from './game/turn';
@@ -155,4 +156,6 @@ async function boot() {
   }
 }
 
+// Vercel Web Analytics:部署在 Vercel 時記錄瀏覽量;開發時只在 console 印出、不送出
+inject({ mode: import.meta.env.DEV ? 'development' : 'production' });
 void boot();
