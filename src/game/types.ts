@@ -50,15 +50,19 @@ export interface AvailableAction {
   reason?: string;
 }
 
+export type Eyes = 'open' | 'closed';
+
 export interface CharacterState {
   role: Role;
   goal: Goal;
   posture: Posture;
+  eyes: Eyes; // 閉眼才能累積睡意/裝睡;張眼才看得到對方狀態(§1.1)
   lateral: number; // -1..1
   sleep: number; // 0..100
   mood: number; // 0..100
   annoyance: number; // 0..100
   warmth: number; // 0..100
+  restless: number; // 0..100 翻身指數;>=50 會被清醒的對方察覺「你根本沒睡」
   lastAction: ActionId | null;
 }
 
@@ -78,10 +82,15 @@ export type EndingId =
   | 'kickedOff'
   | 'fellOff';
 
+/** 結局演出風格:wasted = GTA「WASTED」式失敗演出;passed = 金色過關;neutral = 平手 */
+export type EndingStyle = 'wasted' | 'passed' | 'neutral';
+
 export interface Ending {
   id: EndingId;
   outcome: 'win' | 'lose' | 'draw';
-  title: string;
+  style: EndingStyle;
+  title: string; // 大字(zh-TW),例:「被踢下床」
+  caption: string; // 英文小字,例:"KICKED OUT"
   description: string;
 }
 
@@ -98,8 +107,12 @@ export interface GameState {
   seed: number;
 }
 
+export type TurnPhase = 'player' | 'partner' | 'endOfTurn';
+
 export type GameEvent =
-  | { type: 'action'; who: Role; action: ActionId; force: number; band: ForceBand; success: boolean; note?: string }
+  | { type: 'phase'; phase: TurnPhase } // playTurn 保證 events 依 phase 分段,場景/UI 以此切段
+  | { type: 'action'; who: Role; action: ActionId; force: number; band: ForceBand; noise: number; success: boolean; note?: string } // noise = 實際 N(§4)
+  | { type: 'eyes'; who: Role; eyes: Eyes } // 切換閉眼/張眼(玩家由 toggleEyes 發;AI 由 resolveAction 依規則發)
   | { type: 'speech'; who: Role; text: string }
   | { type: 'wake'; who: Role; by: Role }
   | { type: 'intimacy'; delta: number }
@@ -112,6 +125,8 @@ export type GameEvent =
   | { type: 'armPillow'; offered: boolean; inUse: boolean }
   | { type: 'cold'; who: Role }
   | { type: 'numb'; who: Role }
+  | { type: 'noticed'; who: Role; by: Role } // by 察覺 who 其實醒著
+  | { type: 'snore'; who: Role; level: 1 | 2 | 3 } // who 在打呼(回合末發,level 依姿勢/深度)
   | { type: 'push'; who: Role; target: Role }
   | { type: 'kick'; who: Role; target: Role }
   | { type: 'fell'; who: Role }
