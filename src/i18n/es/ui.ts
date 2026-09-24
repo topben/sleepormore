@@ -34,6 +34,8 @@ const ui: UiMessages = {
     howToPlay: 'Cómo jugar',
     footnote: '12 turnos · unos 5 minutos · para adultos, sin contenido explícito',
     language: 'Idioma',
+    plugTag: '[Publicidad descarada]',
+    plug: 'Agendemos una hora para dormir',
   },
 
   goal: {

@@ -74,6 +74,10 @@ export function languagePicker(opts: { onPick(l: Locale): void; onClose(): void 
   );
 }
 
+/** 作者的另一個產品(開始畫面最下方的業配連結) */
+const PLUG_URL = 'https://bridgetime.org';
+const PLUG_HOST = 'bridgetime.org';
+
 export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLanguage(): void }): HTMLElement {
   const t = m().ui.start;
   const roleBtn = (r: Role) =>
@@ -102,6 +106,13 @@ export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLan
         languageButton(opts.onLanguage),
       ),
       h('p', { class: 'footnote', text: t.footnote }),
+      h(
+        'a',
+        { class: 'plug', href: PLUG_URL, target: '_blank', rel: 'noopener' },
+        h('span', { class: 'plug-tag', text: t.plugTag }),
+        h('span', { class: 'plug-text', text: t.plug }),
+        h('span', { class: 'plug-url' }, PLUG_HOST, h('span', { 'aria-hidden': 'true', text: ' ↗' })),
+      ),
     ),
   );
 }

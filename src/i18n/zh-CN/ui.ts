@@ -33,6 +33,8 @@ const ui: UiMessages = {
     howToPlay: '怎么玩',
     footnote: '12 回合 · 约 5 分钟 · 成人向但不露骨',
     language: '语言',
+    plugTag: '[无情硬广]',
+    plug: '凑个时间睡觉吧',
   },
 
   goal: {

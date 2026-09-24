@@ -33,6 +33,8 @@ const ui: UiMessages = {
     howToPlay: '게임 방법',
     footnote: '12턴 · 약 5분 · 성인향이지만 순한 맛',
     language: '언어',
+    plugTag: '[대놓고 광고]',
+    plug: '잘 시간 좀 맞춰 보자',
   },
 
   goal: {

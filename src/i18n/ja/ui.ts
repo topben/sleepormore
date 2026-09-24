@@ -33,6 +33,8 @@ const ui: UiMessages = {
     howToPlay: '遊び方',
     footnote: '12 ターン · 約 5 分 · 大人向け(露骨な表現なし)',
     language: '言語',
+    plugTag: '【露骨な宣伝】',
+    plug: '寝る時間、すり合わせよう',
   },
 
   goal: {
