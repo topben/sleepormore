@@ -123,7 +123,7 @@ export interface GameMemo {
 export interface RoleTally {
   /** 做過的動作次數(不論成功與否) */
   acts: Partial<Record<ActionId, number>>;
-  /** 翻身(換姿勢)次數 */
+  /** 自己翻身(選了換姿勢的動作)的次數 */
   turned: number;
   /** 冷到發抖的次數 */
   cold: number;

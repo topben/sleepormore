@@ -114,4 +114,4 @@ export class ContactShadows {
   }
 }
 
-const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const clamp01 = (x: number) => THREE.MathUtils.clamp(x, 0, 1);

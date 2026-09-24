@@ -19,18 +19,18 @@ export async function shareText(text: string, url: string): Promise<ShareResult>
   } catch {
     /* 沒有剪貼簿權限 → 舊方法 */
   }
+  const ta = document.createElement('textarea');
   try {
-    const ta = document.createElement('textarea');
     ta.value = full;
     ta.setAttribute('readonly', '');
     ta.style.position = 'fixed';
     ta.style.opacity = '0';
     document.body.append(ta);
     ta.select();
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok ? 'copied' : 'failed';
+    return document.execCommand('copy') ? 'copied' : 'failed';
   } catch {
     return 'failed';
+  } finally {
+    ta.remove();
   }
 }

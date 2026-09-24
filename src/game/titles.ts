@@ -24,6 +24,8 @@ export const PERSONA_EMOJI: Record<Persona, string> = {
 export type ComboId = `${Persona}_${Persona}`;
 export const COMBO_IDS: readonly ComboId[] = PERSONAS.flatMap((a) => PERSONAS.map((b) => `${a}_${b}` as ComboId));
 
+const LIE_ACTIONS = new Set<ActionId>(['lieSupine', 'lieSideFacing', 'lieSideAway', 'lieProne']);
+
 /** 床緣:|lateral| 超過這個值(且在自己那側)算貼在床邊 */
 export const EDGE_LATERAL = 0.85;
 
@@ -52,11 +54,10 @@ export function tallyTurn(s: GameState, events: GameEvent[], turnNo = s.turn): v
       case 'action': {
         const a = t[e.who].acts;
         a[e.action] = (a[e.action] ?? 0) + 1;
+        // 只算自己翻身(被拍到翻身、被推開、枕上手臂時被擺成側躺都不算)
+        if (e.success && LIE_ACTIONS.has(e.action)) t[e.who].turned += 1;
         break;
       }
-      case 'posture':
-        t[e.who].turned += 1;
-        break;
       case 'cold':
         t[e.who].cold += 1;
         break;
@@ -102,7 +103,8 @@ export function personaMetrics(s: GameState, role: Role): Record<Persona, number
     talker: n(t, 'whisper'),
     koala: n(t, 'hug', 'kiss', 'caress') + 0.5 * n(t, 'scootIn') + 0.25 * all.embraced + 0.4 * n(t, 'restOnArm'),
     nanny: n(t, 'pat', 'tuckBlanket') + (male ? 0.7 * n(t, 'offerArm') + 0.15 * all.pillow : 0),
-    sleeper: t.slept + 0.5 * t.snored + (t.asleepAt >= 1 && t.asleepAt <= 4 ? 1 : 0),
+    // 認真想睡(一直選「睡覺」)也算:被吵到睡不著的人不會因此被當成裝睡
+    sleeper: t.slept + 0.5 * t.snored + 0.5 * n(t, 'sleep') + (t.asleepAt >= 1 && t.asleepAt <= 4 ? 1 : 0),
     // 閉眼卻一直沒真的睡著(真的睡很多的人不算裝睡)
     faker: Math.max(0, t.faked + 2 * t.caught - 0.6 * t.slept),
     spinner: Math.max(0, t.turned - 1),
@@ -122,9 +124,9 @@ export const PERSONA_NORM: Record<'player' | 'partner', Norm> = {
     talker: [1.07, 1.76],
     koala: [2.08, 2.47],
     nanny: [2.31, 2.32],
-    sleeper: [1.49, 3.78],
+    sleeper: [2.37, 5.24],
     faker: [2.19, 2.99],
-    spinner: [1.25, 2.01],
+    spinner: [1.23, 2],
     iceberg: [1.56, 1.75],
   },
   partner: {
@@ -132,9 +134,9 @@ export const PERSONA_NORM: Record<'player' | 'partner', Norm> = {
     talker: [1.05, 1.44],
     koala: [3.45, 3.8],
     nanny: [0.75, 1.09],
-    sleeper: [4.55, 5],
+    sleeper: [6.44, 6.58],
     faker: [0.2, 0.62],
-    spinner: [0.38, 0.71],
+    spinner: [0.37, 0.67],
     iceberg: [0.18, 0.6],
   },
 };
@@ -146,14 +148,14 @@ export type Rarity = 'N' | 'R' | 'SR' | 'SSR';
  * 列 = 你、行 = 對方,順序同 PERSONAS。
  */
 const RARITY_GRID = [
-  ['N', 'R', 'N', 'R', 'R', 'R', 'R', 'R'], // bandit
+  ['N', 'R', 'N', 'R', 'R', 'SR', 'R', 'R'], // bandit
   ['SR', 'N', 'N', 'R', 'R', 'SR', 'R', 'R'], // talker
-  ['SSR', 'N', 'N', 'N', 'SR', 'N', 'SR', 'N'], // koala
+  ['SSR', 'N', 'N', 'N', 'SR', 'N', 'SR', 'R'], // koala
   ['R', 'N', 'N', 'N', 'N', 'SR', 'N', 'R'], // nanny
-  ['N', 'SR', 'SSR', 'SR', 'N', 'SSR', 'N', 'SR'], // sleeper
+  ['N', 'R', 'SSR', 'SR', 'N', 'SSR', 'N', 'SR'], // sleeper
   ['SR', 'N', 'N', 'SSR', 'SR', 'SSR', 'SSR', 'SSR'], // faker
   ['R', 'SR', 'N', 'R', 'N', 'SSR', 'R', 'SR'], // spinner
-  ['R', 'N', 'N', 'N', 'R', 'R', 'R', 'R'], // iceberg
+  ['R', 'N', 'N', 'N', 'N', 'R', 'R', 'R'], // iceberg
 ] as const satisfies readonly (readonly Rarity[])[];
 
 export function comboRarity(id: ComboId): Rarity {

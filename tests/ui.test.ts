@@ -5,6 +5,7 @@ import { listAvailableActions } from '../src/game/actions';
 import { makeEnding } from '../src/game/endings';
 import { createGame } from '../src/game/turn';
 import { newTally } from '../src/game/titles';
+import { loadCollection, recordCombo } from '../src/ui/collection';
 import type { GameState } from '../src/game/types';
 import { GameUI, type UIHandlers } from '../src/ui/UI';
 
@@ -227,5 +228,17 @@ describe('GameUI: combo endings (you × partner), collection and sharing', () =>
     root.querySelector<HTMLButtonElement>('.combo-share')!.click();
     await vi.waitFor(() => expect(root.querySelector('.toast')).not.toBeNull());
     expect(writeText.mock.calls[0][0]).toContain('邊聊邊翻身');
+  });
+});
+
+describe('collection storage', () => {
+  it('when storage is blocked (private mode), a combo is NEW once per session and the count stays consistent', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    expect(recordCombo('faker_faker')).toBe(true);
+    expect(recordCombo('faker_faker')).toBe(false);
+    expect(loadCollection().has('faker_faker')).toBe(true);
+    spy.mockRestore();
   });
 });

@@ -7,8 +7,9 @@ import { blanketNormalTexture, blanketTexture, quiltHeight } from './textures';
 
 const WIDTH = 1.8;
 const LENGTH = 1.62; // 規格 1.6(從胸口蓋到床尾並垂下)
-const SEG_X = 45;
-const SEG_Z = 40;
+// 鋪棉的細節靠法線貼圖,幾何只需要看得出輪廓與皺摺(每格約 5 cm)
+const SEG_X = 36;
+const SEG_Z = 32;
 /** 棉被靠床頭那條邊的世界 z(胸口) */
 const TOP_Z = -0.2; // 規格 −0.35;露出肩膀與睡衣顏色
 export const BLANKET_Z = TOP_Z + LENGTH / 2;

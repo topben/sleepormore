@@ -328,7 +328,7 @@ export function galleryScreen(opts: { unlocked: Set<ComboId>; highlight?: ComboI
     for (const el of cells) el.classList.toggle('selected', el.dataset.combo === id);
   };
   const cells: HTMLButtonElement[] = [];
-  const grid = h('div', { class: 'gallery-grid', role: 'grid', 'aria-label': t.axes });
+  const grid = h('div', { class: 'gallery-grid', role: 'group', 'aria-label': t.axes });
   grid.append(h('span', { class: 'gallery-corner', 'aria-hidden': 'true' }));
   for (const b of PERSONAS) grid.append(h('span', { class: 'gallery-axis col', title: g.persona[b].name, text: PERSONA_EMOJI[b] }));
   for (const a of PERSONAS) {

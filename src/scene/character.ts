@@ -133,7 +133,7 @@ function onHead(obj: THREE.Object3D, x: number, y: number, z: number, r: number)
   obj.quaternion.setFromUnitVectors(Z_AXIS, n);
 }
 
-const smooth = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+const smooth = (x: number) => THREE.MathUtils.smoothstep(x, 0, 1);
 
 export class Character {
   readonly role: Role;
@@ -199,7 +199,11 @@ export class Character {
   private deep = false;
   private bubbleK = 0;
   private popT = 0;
+  /** 進入熟睡後的呼吸次數(每 4 次破一次泡泡) */
   private breaths = 0;
+  /** 每幀的手臂伸長 / 彎曲(重複使用,不配置) */
+  private readonly armStretch: Record<ArmName, number> = { armL: 1, armR: 1 };
+  private readonly armBend: Record<ArmName, number> = { armL: 1, armR: 1 };
 
   private readonly tmpA = new THREE.Vector3();
   private readonly tmpB = new THREE.Vector3();
@@ -356,8 +360,7 @@ export class Character {
       mesh(g.leg, pantsMat, grp, 0, -0.33, 0);
       const c = mesh(g.legCuff, trim, grp, 0, -0.535, 0);
       c.rotation.x = Math.PI / 2;
-      const foot = mesh(g.foot, skin, grp, 0, -0.6, 0.02);
-      foot.scale.set(1, 0.92, 1.22);
+      mesh(g.foot, skin, grp, 0, -0.6, 0.02); // 圓腳丫(拉長會戳出被子)
     }
     this.limbs = { armL, armR, legL, legR, head: this.head };
 
@@ -432,7 +435,11 @@ export class Character {
     if (posture === 'sideFacing' || posture === 'sideAway') {
       const lDown = this.croll.to > 0; // roll > 0 → 左側在下
       arm = lDown ? 'armR' : 'armL';
-    } else arm = this.role === 'male' ? 'armL' : 'armR'; // 內側 = 朝對方
+    } else {
+      // 內側 = 朝對方:仰躺時男方左手、女方右手;趴著(roll = π)左右對調
+      const inner: ArmName = this.role === 'male' ? 'armL' : 'armR';
+      arm = posture === 'prone' ? (inner === 'armL' ? 'armR' : 'armL') : inner;
+    }
     if (pillowBusy && this.role === 'male' && arm === 'armL') arm = 'armR';
     return arm;
   }
@@ -551,8 +558,12 @@ export class Character {
     this.snore = level;
   }
 
-  /** 熟睡(鼻涕泡泡) */
+  /** 熟睡(鼻涕泡泡);剛睡熟時從頭數呼吸,泡泡先慢慢脹大 */
   setDeepSleep(on: boolean): void {
+    if (on && !this.deep) {
+      this.breaths = 0;
+      this.popT = 0;
+    }
     this.deep = on;
   }
 
@@ -587,6 +598,8 @@ export class Character {
     this.flopT.armL = this.flopT.armR = 0;
     this.deep = false;
     this.bubbleK = 0;
+    this.popT = 0;
+    this.breaths = 0;
     this.setDarkCircles(false);
   }
 
@@ -640,8 +653,12 @@ export class Character {
     this.headLift += (lift - this.headLift) * Math.min(1, dt * 8);
     this.head.position.z = this.headLift;
 
-    const stretch: Record<ArmName, number> = { armL: this.cstretch.armL.cur, armR: this.cstretch.armR.cur };
-    const bend: Record<ArmName, number> = { armL: 1, armR: 1 };
+    const stretch = this.armStretch;
+    const bend = this.armBend;
+    for (const a of ARMS) {
+      stretch[a] = this.cstretch[a].cur;
+      bend[a] = 1;
+    }
     this.applyGestures(dt, stretch);
 
     // 手麻:>= 75 顫抖(每幀 rotation.z ± 0.02·sin(30t));numb 事件再加一段明顯顫抖
@@ -795,10 +812,10 @@ export class Character {
     // 腿
     a.setFromMatrixPosition(this.limbs.legL.matrixWorld);
     b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(this.limbs.legL.matrixWorld);
-    i = putSegment(out, i, a, b, 0.085 + thick, 0.2 + wide, 1);
+    i = putSegment(out, i, a, b, 0.095 + thick, 0.2 + wide, 1); // 腿(含腳丫)
     a.setFromMatrixPosition(this.limbs.legR.matrixWorld);
     b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(this.limbs.legR.matrixWorld);
-    return putSegment(out, i, a, b, 0.085 + thick, 0.2 + wide, 1);
+    return putSegment(out, i, a, b, 0.095 + thick, 0.2 + wide, 1);
   }
 
   dispose(): void {
