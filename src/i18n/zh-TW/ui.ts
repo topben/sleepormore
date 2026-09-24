@@ -30,6 +30,7 @@ export default {
     sideLeft: '睡左邊',
     sideRight: '睡右邊',
     howToPlay: '怎麼玩',
+    gallery: '圖鑑',
     footnote: '12 回合 · 約 5 分鐘 · 成人向但不露骨',
     language: '語言',
     // 開始畫面最下方的小廣告(作者的另一個產品 bridgetime.org);標籤是自嘲的「業配」,標語玩「喬時間」的梗
@@ -236,6 +237,23 @@ export default {
     again: '再玩一次',
     changeRole: '換角色',
     outcome: { win: '勝利', lose: '失敗', draw: '平手' },
+    comboLabel: '今晚的組合',
+    newCombo: 'NEW!',
+    collection: '圖鑑 {n}/{max}',
+    gallery: '看圖鑑',
+    share: '分享',
+    /** 分享文字(後面會接網址) */
+    shareText: '我在《同床異夢》解鎖了{rarity}組合【{name}】{a} × {b},你能收集到幾種?',
+    copied: '已複製!貼給朋友看看吧',
+    rarity: { N: '普通', R: '稀有', SR: '超稀有', SSR: '傳說' },
+  },
+
+  gallery: {
+    title: '組合圖鑑',
+    progress: '已收集 {n}/{max}',
+    axes: '橫列 = 你 · 直行 = 對方',
+    locked: '還沒解鎖',
+    lockedHint: '換個玩法,或許就會遇到。',
   },
 
   help: {

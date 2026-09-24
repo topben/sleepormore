@@ -134,3 +134,37 @@ export function resolvePose(role: Role, state: PoseState): Pose {
   }
   return pose;
 }
+
+// ───────────── 伸手(橡皮管手臂)─────────────
+
+/** 肩 → 手心的長度(手臂靜止時朝 −y) */
+export const ARM_LEN = 0.47;
+/** 肩膀(手臂 pivot)在角色局部座標的位置 */
+export const SHOULDER: Record<'armL' | 'armR', readonly [number, number, number]> = {
+  armL: [0.2, 0.65, 0.06],
+  armR: [-0.2, 0.65, 0.06],
+};
+
+/**
+ * 讓手臂(靜止朝 −y)指向局部方向 d 的 Euler(order XYZ,y 分量固定 0)。
+ * R = Rx(a)·Rz(c) 作用在 (0,−1,0) 得 (sin c, −cos c·cos a, −cos c·sin a) → c = asin(dx)、a = atan2(−dz, −dy)。
+ */
+export function aimEuler(dx: number, dy: number, dz: number): Euler3 {
+  const len = Math.hypot(dx, dy, dz) || 1;
+  const x = dx / len;
+  const y = dy / len;
+  const z = dz / len;
+  const c = Math.asin(Math.max(-1, Math.min(1, x)));
+  const a = Math.atan2(-z, -y);
+  return [a, 0, c];
+}
+
+/** 從肩膀伸到局部座標 target:回傳 Euler 與伸長倍率(橡皮管可以拉長一點,但有上限) */
+export function reachArm(arm: 'armL' | 'armR', tx: number, ty: number, tz: number, maxStretch = 1.45): { euler: Euler3; stretch: number } {
+  const [sx, sy, sz] = SHOULDER[arm];
+  const dx = tx - sx;
+  const dy = ty - sy;
+  const dz = tz - sz;
+  const dist = Math.hypot(dx, dy, dz);
+  return { euler: aimEuler(dx, dy, dz), stretch: Math.max(0.75, Math.min(maxStretch, dist / ARM_LEN)) };
+}

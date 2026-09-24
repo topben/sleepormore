@@ -2,16 +2,31 @@
 import { ACTIONS } from '../game/actions';
 import { greenCenter, suggestAction } from '../game/hints';
 import { forceWindow, projectedNoise, wakeThreshold } from '../game/rules';
+import { comboOf, comboRarity } from '../game/titles';
 import type { ActionId, AvailableAction, Eyes, GameEvent, GameState, Role } from '../game/types';
 import { partnerOf } from '../game/types';
 import { fmt, getLocale, m, onLocaleChange, setLocale, speechLine, type Locale } from '../i18n';
 import { Bubbles, type BubbleTone } from './bubbles';
+import { loadCollection, recordCombo } from './collection';
 import { h } from './dom';
 import { ForceMeter } from './forceMeter';
 import { Hud } from './hud';
 import type { LogItem } from './log';
-import { endingBanner, endingCard, goalScreen, helpScreen, languagePicker, settingsScreen, startScreen, toast } from './screens';
+import {
+  endingBanner,
+  endingCard,
+  galleryScreen,
+  goalScreen,
+  helpScreen,
+  languagePicker,
+  personaLabel,
+  settingsScreen,
+  startScreen,
+  toast,
+  type ComboView,
+} from './screens';
 import { loadSettings, saveSettings, type Settings } from './settings';
+import { shareText } from './share';
 import './style.css';
 
 export interface UIHandlers {
@@ -65,7 +80,9 @@ export class GameUI {
   private lastNoise: number | null = null;
   private busy = false;
   private goalResolve: (() => void) | null = null;
-  private modal: 'help' | 'settings' | 'lang' | null = null;
+  private modal: 'help' | 'settings' | 'lang' | 'gallery' | null = null;
+  /** 這一局的組合結局(showEnding 算一次;換語言重畫時沿用,NEW 不會因此消失) */
+  private combo: ComboView | null = null;
   private endingTimer = 0;
   private lastInsets = '';
 
@@ -128,6 +145,8 @@ export class GameUI {
         onRole: (r) => this.handlers.onStart(r),
         onHelp: () => this.openModal('help'),
         onLanguage: () => this.openModal('lang'),
+        onGallery: () => this.openModal('gallery'),
+        collected: loadCollection().size,
       }),
     );
     this.reportLayout();
@@ -136,6 +155,7 @@ export class GameUI {
   showGoal(state: GameState): Promise<void> {
     this.screen = 'goal';
     this.state = state;
+    this.combo = null;
     this.busy = false;
     this.meter.reset();
     this.log = [];
@@ -206,6 +226,9 @@ export class GameUI {
     this.state = state;
     this.screen = 'ending';
     this.meter.cancel();
+    const c = comboOf(state);
+    const isNew = recordCombo(c.id);
+    this.combo = { ...c, rarity: comboRarity(c.id), isNew, collected: loadCollection().size };
     this.bannerLayer.replaceChildren(endingBanner(state));
     document.body.classList.add(`ending-${state.ending!.style}`);
     this.endingTimer = window.setTimeout(() => this.renderEndingCard(), 2500);
@@ -218,8 +241,23 @@ export class GameUI {
       endingCard(this.state, {
         onAgain: () => this.handlers.onReplay(),
         onChangeRole: () => this.handlers.onRestart(),
+        combo: this.combo,
+        onShare: () => void this.shareCombo(),
+        onGallery: () => this.openModal('gallery'),
       }),
     );
+  }
+
+  /** 分享這一局的組合(手機:系統分享選單;電腦:複製文字) */
+  private async shareCombo() {
+    const c = this.combo;
+    if (!c) return;
+    const t = m().ui.ending;
+    const text = fmt(t.shareText, { rarity: t.rarity[c.rarity], name: m().game.combo[c.id].name, a: personaLabel(c.me), b: personaLabel(c.partner) });
+    const url = `${location.origin}${location.pathname}`;
+    const r = await shareText(text, url);
+    if (r === 'copied') toast(this.toastLayer, t.copied);
+    else if (r === 'failed') toast(this.toastLayer, `${text} ${url}`, 6000);
   }
 
   private clearEnding() {
@@ -344,7 +382,7 @@ export class GameUI {
 
   // ───────────── 設定 / 說明 / 語言 ─────────────
 
-  private openModal(which: 'help' | 'settings' | 'lang') {
+  private openModal(which: 'help' | 'settings' | 'lang' | 'gallery') {
     this.modal = which;
     this.renderModal();
   }
@@ -359,7 +397,13 @@ export class GameUI {
     const el =
       this.modal === 'help'
         ? helpScreen(() => this.closeModal())
-        : this.modal === 'lang'
+        : this.modal === 'gallery'
+          ? galleryScreen({
+              unlocked: loadCollection(),
+              highlight: this.screen === 'ending' ? this.combo?.id : undefined,
+              onClose: () => this.closeModal(),
+            })
+          : this.modal === 'lang'
           ? languagePicker({
               onPick: (l) => {
                 this.closeModal();

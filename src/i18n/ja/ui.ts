@@ -31,6 +31,7 @@ const ui: UiMessages = {
     sideLeft: '左側で寝る',
     sideRight: '右側で寝る',
     howToPlay: '遊び方',
+    gallery: '図鑑',
     footnote: '12 ターン · 約 5 分 · 大人向け(露骨な表現なし)',
     language: '言語',
     plugTag: '【露骨な宣伝】',
@@ -236,6 +237,23 @@ const ui: UiMessages = {
     again: 'もう一度遊ぶ',
     changeRole: 'キャラクターを変える',
     outcome: { win: '勝利', lose: '敗北', draw: '引き分け' },
+    comboLabel: '今夜のコンビ',
+    newCombo: 'NEW!',
+    collection: '図鑑 {n}/{max}',
+    gallery: '図鑑を見る',
+    share: 'シェア',
+    /** シェア用テキスト(このあとに URL が続く) */
+    shareText: '『同床異夢』で{a} × {b}の{rarity}コンビ【{name}】をゲット!あなたは何種類集められる?',
+    copied: 'コピーしました!友だちに送ってみよう',
+    rarity: { N: 'ノーマル', R: 'レア', SR: '激レア', SSR: 'レジェンド' },
+  },
+
+  gallery: {
+    title: 'コンビ図鑑',
+    progress: '収集済み {n}/{max}',
+    axes: '横の行 = あなた · 縦の列 = 相手',
+    locked: '未発見',
+    lockedHint: '遊び方を変えれば、出会えるかも。',
   },
 
   help: {

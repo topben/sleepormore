@@ -31,6 +31,7 @@ const ui: UiMessages = {
     sideLeft: 'Sleeps on the left',
     sideRight: 'Sleeps on the right',
     howToPlay: 'How to play',
+    gallery: 'Collection',
     footnote: '12 turns · about 5 min · adult themes, never explicit',
     language: 'Language',
     plugTag: '[Shameless plug]',
@@ -236,6 +237,23 @@ const ui: UiMessages = {
     again: 'Play again',
     changeRole: 'Switch roles',
     outcome: { win: 'Victory', lose: 'Defeat', draw: 'Draw' },
+    comboLabel: 'Tonight’s combo',
+    newCombo: 'NEW!',
+    collection: 'Collection {n}/{max}',
+    gallery: 'View collection',
+    share: 'Share',
+    /** Share text (a link is appended after it) */
+    shareText: 'I unlocked the {rarity} combo “{name}” ({a} × {b}) in Same Bed, Different Dreams. How many can you collect?',
+    copied: 'Copied! Now paste it and show your friends.',
+    rarity: { N: 'Common', R: 'Rare', SR: 'Super Rare', SSR: 'Legendary' },
+  },
+
+  gallery: {
+    title: 'Combo collection',
+    progress: 'Collected {n}/{max}',
+    axes: 'Rows = you · Columns = your partner',
+    locked: 'Not unlocked yet',
+    lockedHint: 'Try playing a different way — you might just run into it.',
   },
 
   help: {

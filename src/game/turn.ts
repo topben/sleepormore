@@ -5,6 +5,7 @@ import { checkEnding } from './endings';
 import { choosePartnerAction } from './partner';
 import { mulberry32, turnRng } from './rng';
 import { bump, emitSpeech, endOfTurn, resolveAction } from './rules';
+import { newTally, tallyTurn } from './titles';
 import { ZH, type MsgKey } from './text';
 import type { ActionId, CharacterState, Ending, Eyes, GameEvent, GameState, Goal, Role, TurnResult } from './types';
 import { partnerOf } from './types';
@@ -64,6 +65,7 @@ export function createGame(role: Role, seed: number, opts: GameOptions = {}): Ga
       pullStreak: 0,
       pushedOff: false,
       clues: { sleep: 0, intimacy: 0 },
+      tally: newTally(),
     },
   };
 }
@@ -126,6 +128,7 @@ export function playTurn(state: GameState, actionId: ActionId, force: number): T
   const mid = checkEnding(s, 'mid');
   if (mid) {
     finish(s, mid, events, rng);
+    tallyTurn(s, events, s.turn + 1);
     return { state: s, intermediate: s, events };
   }
   const intermediate = cloneState(s);
@@ -147,6 +150,7 @@ export function playTurn(state: GameState, actionId: ActionId, force: number): T
   events.push({ type: 'turnEnd', turn: s.turn });
   const end = checkEnding(s, 'end');
   if (end) finish(s, end, events, rng);
+  tallyTurn(s, events);
   return { state: s, intermediate, events };
 }
 

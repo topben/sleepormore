@@ -1,6 +1,7 @@
 // 全螢幕畫面:開始、目標卡、說明、設定、結局(banner + 卡片)、toast。
 import { BAL, MAX_TURNS, SLEEP_WIN_SCORE } from '../game/constants';
 import { morningLine } from '../game/endings';
+import { COMBO_IDS, comboRarity, PERSONA_EMOJI, PERSONAS, type Combo, type ComboId, type Persona, type Rarity } from '../game/titles';
 import type { GameState, Role } from '../game/types';
 import { partnerOf } from '../game/types';
 import { LOCALES, currentLocaleInfo, fmt, getLocale, m, speechLine, type Locale } from '../i18n';
@@ -78,7 +79,7 @@ export function languagePicker(opts: { onPick(l: Locale): void; onClose(): void 
 const PLUG_URL = 'https://bridgetime.org';
 const PLUG_HOST = 'bridgetime.org';
 
-export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLanguage(): void }): HTMLElement {
+export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLanguage(): void; onGallery(): void; collected: number }): HTMLElement {
   const t = m().ui.start;
   const roleBtn = (r: Role) =>
     h(
@@ -103,6 +104,7 @@ export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLan
         'div',
         { class: 'start-links' },
         h('button', { class: 'link-btn', type: 'button', onClick: opts.onHelp }, `❓ ${t.howToPlay}`),
+        h('button', { class: 'link-btn gallery-link', type: 'button', onClick: opts.onGallery }, `🏆 ${t.gallery} ${opts.collected}/${COMBO_IDS.length}`),
         languageButton(opts.onLanguage),
       ),
       h('p', { class: 'footnote', text: t.footnote }),
@@ -227,7 +229,52 @@ export function endingBanner(s: GameState): HTMLElement {
   );
 }
 
-export function endingCard(s: GameState, opts: { onAgain(): void; onChangeRole(): void }): HTMLElement {
+/** 結局卡上的組合資訊(showEnding 時算一次,換語言重畫時沿用) */
+export interface ComboView extends Combo {
+  rarity: Rarity;
+  isNew: boolean;
+  /** 圖鑑已收集幾種(含這次) */
+  collected: number;
+}
+
+const RARITY_STARS: Record<Rarity, string> = { N: '★', R: '★★', SR: '★★★', SSR: '★★★★' };
+
+export function rarityBadge(r: Rarity): HTMLElement {
+  return h('span', { class: `rarity rarity-${r}` }, h('span', { class: 'rarity-stars', 'aria-hidden': 'true', text: RARITY_STARS[r] }), ` ${m().ui.ending.rarity[r]}`);
+}
+
+export const personaLabel = (p: Persona): string => `${PERSONA_EMOJI[p]} ${m().game.persona[p].name}`;
+
+/** 今晚的組合:你的人格 × 對方的人格 → 組合名稱、稀有度、分享、圖鑑 */
+function comboSection(c: ComboView, opts: { onShare(): void; onGallery(): void }): HTMLElement {
+  const t = m().ui.ending;
+  const tx = m().game.combo[c.id];
+  return h(
+    'section',
+    { class: `ending-combo rarity-box-${c.rarity}` },
+    h('div', { class: 'combo-head' }, h('span', { class: 'mini-title', text: `🎲 ${t.comboLabel}` }), rarityBadge(c.rarity), c.isNew ? h('span', { class: 'combo-new', text: t.newCombo }) : null),
+    h('div', { class: 'combo-name', text: tx.name }),
+    h(
+      'div',
+      { class: 'combo-pair' },
+      h('span', { class: 'combo-chip' }, h('small', { text: m().ui.common.you }), personaLabel(c.me)),
+      h('span', { class: 'combo-x', 'aria-hidden': 'true', text: '×' }),
+      h('span', { class: 'combo-chip' }, h('small', { text: m().ui.common.partner }), personaLabel(c.partner)),
+    ),
+    h('p', { class: 'combo-desc', text: tx.desc }),
+    h(
+      'div',
+      { class: 'combo-actions' },
+      h('button', { class: 'secondary combo-share', type: 'button', onClick: opts.onShare }, `📤 ${t.share}`),
+      h('button', { class: 'secondary combo-gallery', type: 'button', onClick: opts.onGallery }, `🏆 ${fmt(t.collection, { n: c.collected, max: COMBO_IDS.length })}`),
+    ),
+  );
+}
+
+export function endingCard(
+  s: GameState,
+  opts: { onAgain(): void; onChangeRole(): void; combo: ComboView | null; onShare(): void; onGallery(): void },
+): HTMLElement {
   const e = s.ending!;
   const t = m().ui.ending;
   const tx = m().game.ending[e.id];
@@ -246,6 +293,7 @@ export function endingCard(s: GameState, opts: { onAgain(): void; onChangeRole()
       h('h2', { class: 'ending-title', text: tx.title }),
       h('div', { class: 'ending-caption', text: e.caption }),
       h('p', { class: 'ending-desc', text: tx.description }),
+      opts.combo ? comboSection(opts.combo, opts) : null,
       h('div', { class: 'ending-reveal' }, h('span', { text: t.partnerWanted }), h('strong', { class: qGoal, text: qGoal === 'sleep' ? t.goalSleep : t.goalIntimacy })),
       h('div', { class: 'ending-morning' }, h('div', { class: 'mini-title', text: `☀️ ${t.morning}` }), h('p', { text: speechLine(ml.key, ml.index) })),
       h(
@@ -258,6 +306,75 @@ export function endingCard(s: GameState, opts: { onAgain(): void; onChangeRole()
       ),
       h('div', { class: 'ending-tip' }, h('div', { class: 'mini-title', text: `💡 ${t.tip}` }), h('p', { text: fmt(tx.tip, { n: BAL.sleepyMood }) })),
       h('div', { class: 'ending-actions' }, again, h('button', { class: 'secondary', type: 'button', onClick: opts.onChangeRole }, t.changeRole)),
+    ),
+  );
+}
+
+/** 組合圖鑑:8 × 8(列 = 你、行 = 對方);點格子看名稱與說明,沒解鎖的只看得到稀有度 */
+export function galleryScreen(opts: { unlocked: Set<ComboId>; highlight?: ComboId; onClose(): void }): HTMLElement {
+  const t = m().ui.gallery;
+  const g = m().game;
+  const closeBtn = h('button', { class: 'icon-btn close', type: 'button', 'aria-label': m().ui.common.close, onClick: opts.onClose }, '✕');
+  queueMicrotask(() => closeBtn.focus());
+  const detail = h('div', { class: 'gallery-detail', 'aria-live': 'polite' });
+  const show = (id: ComboId) => {
+    const [a, b] = id.split('_') as [Persona, Persona];
+    const open = opts.unlocked.has(id);
+    detail.replaceChildren(
+      h('div', { class: 'gallery-detail-head' }, rarityBadge(comboRarity(id)), h('span', { class: 'gallery-detail-pair', text: `${personaLabel(a)} × ${personaLabel(b)}` })),
+      h('div', { class: 'gallery-detail-name', text: open ? g.combo[id].name : `🔒 ${t.locked}` }),
+      h('p', { class: 'gallery-detail-desc', text: open ? g.combo[id].desc : t.lockedHint }),
+    );
+    for (const el of cells) el.classList.toggle('selected', el.dataset.combo === id);
+  };
+  const cells: HTMLButtonElement[] = [];
+  const grid = h('div', { class: 'gallery-grid', role: 'group', 'aria-label': t.axes });
+  grid.append(h('span', { class: 'gallery-corner', 'aria-hidden': 'true' }));
+  for (const b of PERSONAS) grid.append(h('span', { class: 'gallery-axis col', title: g.persona[b].name, text: PERSONA_EMOJI[b] }));
+  for (const a of PERSONAS) {
+    grid.append(h('span', { class: 'gallery-axis row', title: g.persona[a].name, text: PERSONA_EMOJI[a] }));
+    for (const b of PERSONAS) {
+      const id = `${a}_${b}` as ComboId;
+      const open = opts.unlocked.has(id);
+      const r = comboRarity(id);
+      const cell = h(
+        'button',
+        {
+          class: `gallery-cell rarity-cell-${r}${open ? ' open' : ''}${id === opts.highlight ? ' latest' : ''}`,
+          type: 'button',
+          'data-combo': id,
+          'aria-label': open ? `${g.persona[a].name} × ${g.persona[b].name}: ${g.combo[id].name}` : `${g.persona[a].name} × ${g.persona[b].name}: ${t.locked}`,
+          onClick: () => show(id),
+        },
+        open ? '★' : '?',
+      );
+      cells.push(cell);
+      grid.append(cell);
+    }
+  }
+  const legend = h(
+    'ul',
+    { class: 'gallery-legend' },
+    ...PERSONAS.map((p) => h('li', {}, h('span', { 'aria-hidden': 'true', text: PERSONA_EMOJI[p] }), h('strong', { text: g.persona[p].name }), h('small', { text: g.persona[p].desc }))),
+  );
+  const first = opts.highlight ?? COMBO_IDS.find((id) => opts.unlocked.has(id));
+  if (first) show(first);
+  else detail.replaceChildren(h('p', { class: 'gallery-detail-desc', text: t.lockedHint }));
+  return h(
+    'div',
+    { class: 'screen modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': t.title, onClick: (e: Event) => e.target === e.currentTarget && opts.onClose() },
+    h(
+      'div',
+      { class: 'panel gallery' },
+      h('div', { class: 'panel-head' }, h('h2', { text: `🏆 ${t.title}` }), closeBtn),
+      h(
+        'div',
+        { class: 'panel-body' },
+        h('div', { class: 'gallery-progress' }, h('strong', { text: fmt(t.progress, { n: opts.unlocked.size, max: COMBO_IDS.length }) }), h('span', { text: t.axes })),
+        grid,
+        detail,
+        legend,
+      ),
     ),
   );
 }

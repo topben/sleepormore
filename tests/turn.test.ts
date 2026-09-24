@@ -6,6 +6,7 @@ import { choosePartnerAction } from '../src/game/partner';
 import { mulberry32, turnRng } from '../src/game/rng';
 import { aiEyes, endOfTurn, resolveAction } from '../src/game/rules';
 import { createGame, playTurn, splitPhases, toggleEyes } from '../src/game/turn';
+import { tallyTurn } from '../src/game/titles';
 import type { ActionId, GameEvent, GameState, Role, TurnResult } from '../src/game/types';
 import { partnerOf } from '../src/game/types';
 import { asleep, deepFreeze, ofType, scene } from './helpers';
@@ -382,6 +383,7 @@ describe('playTurn: order of resolution', () => {
           endOfTurn(m, rng, ev);
           m.turn += 1;
           ev.push({ type: 'turnEnd', turn: m.turn });
+          tallyTurn(m, ev); // 組合結局用的行為統計(不耗 RNG)
           expect(r.state, `${role}/${seed} t${t}`).toEqual(m);
           expect(r.events, `${role}/${seed} t${t}`).toEqual(ev);
           s = r.state;

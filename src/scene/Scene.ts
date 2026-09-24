@@ -7,10 +7,11 @@ import { partnerOf } from '../game/types';
 import { SceneAudio } from './audio';
 import { buildBed, type Bed } from './bed';
 import { Blanket } from './blanket';
-import { Character, CharacterKit, SEGMENT_STRIDE, SEGMENTS_PER_CHAR } from './character';
+import { ARMS, Character, CharacterKit, SEGMENT_STRIDE, SEGMENTS_PER_CHAR } from './character';
 import { Effects } from './effects';
 import { basePose, resolvePose, RIG, type Euler3, type Limbs } from './postures';
 import { BG_COLOR, buildRoom, LAMP_COLOR, LIGHT, MOON_COLOR, type Room } from './room';
+import { ContactShadows, type ShadowSource } from './shadows';
 import { type Channel, type TweenOpts, Tweens } from './tween';
 
 const ROLES: readonly Role[] = ['male', 'female'];
@@ -78,6 +79,8 @@ export class BedroomScene {
   private readonly bed: Bed;
   private readonly blanket = new Blanket();
   private readonly effects: Effects;
+  private readonly shadows = new ContactShadows();
+  private readonly shadowSrc: ShadowSource[] = ROLES.map((role) => ({ role, head: new THREE.Vector3(), hip: new THREE.Vector3(), fallen: false }));
   private readonly audio = new SceneAudio();
   private readonly segs = new Float32Array(SEGMENT_STRIDE * SEGMENTS_PER_CHAR * 2);
   private readonly ro: ResizeObserver;
@@ -88,7 +91,13 @@ export class BedroomScene {
   private readonly blushT: Record<Role, number> = { male: 0, female: 0 };
   /** 結局時已經醒來的玩家不再冒 Z */
   private readonly zOff: Record<Role, boolean> = { male: false, female: false };
-  private blushBase = false;
+  /** 依狀態的臉紅等級 0..3(親密度 / 擁抱 / 手臂枕) */
+  private blushBase = 0;
+  /** 棉被拉扯張力(依棉被位移速度)與上一幀的位置 */
+  private tension = 0;
+  private lastBlanketX = 0;
+  /** 手麻時下一道電流的倒數 */
+  private zapT = 0;
   private insets = { top: 0, bottom: 0 };
   /** 上次 layout() 的 (尺寸, DPR, insets);相同就略過 */
   private layoutKey = '';
@@ -135,6 +144,8 @@ export class BedroomScene {
   private readonly tmp2 = new THREE.Vector3();
   private readonly tmpP = new THREE.Vector3();
   private readonly tmpC = new THREE.Color();
+  private readonly tmpG = new THREE.Vector3();
+  private readonly tmpH = new THREE.Vector3();
   private readonly hemiSky = new THREE.Color(0x2a2f55);
 
   constructor(container: HTMLElement) {
@@ -157,7 +168,7 @@ export class BedroomScene {
     this.chars = { male: new Character('male', this.tw, this.kit), female: new Character('female', this.tw, this.kit) };
     for (const r of ROLES) this.scene.add(this.chars[r].root);
     this.effects = new Effects((r, out) => this.chars[r].headWorld(out));
-    this.scene.add(this.effects.group);
+    this.scene.add(this.effects.group, this.shadows.group);
 
     const rt = this.rt;
     this.chBlanketX = this.tw.chan('blanket.x');
@@ -207,6 +218,9 @@ export class BedroomScene {
     }
     this.chBlanketX.snap(state.blanketOffset * 0.9);
     this.lastBlanket = state.blanketOffset;
+    this.lastBlanketX = this.chBlanketX.cur;
+    this.tension = 0;
+    this.zapT = 0;
     this.bedShakeT = this.camShakeT = this.rippleT = this.clockShakeT = 0;
     this.blanket.rippleAmp = 1;
     this.room.clock.position.x = this.room.clockBaseX;
@@ -228,6 +242,7 @@ export class BedroomScene {
   /** 補間到 state,並依 events 觸發特效(SCENE-RIG §4–§6)。每回合最多兩次:玩家段、對方+回合末段 */
   applyState(state: GameState, events: GameEvent[]): void {
     if (this.disposed) return;
+    const prev = this.state;
     this.state = state;
 
     let band: ForceBand = 'gentle';
@@ -272,6 +287,11 @@ export class BedroomScene {
     }
     for (const e of events) if (!frozen || e.type !== 'eyes') this.trigger(e, state, events);
     for (const r of ROLES) if (tumbling[r]) this.tumble(r);
+    // 手麻的手臂一放開(她起身 / 他抽手)就軟趴趴地晃
+    const pa = prev?.armPillow;
+    if (pa && pa.numbness >= 60 && ((pa.inUse && !state.armPillow.inUse) || (pa.offered && !state.armPillow.offered)) && !this.fallen.male) {
+      this.chars.male.flop('armL', 1.6);
+    }
 
     this.room.setClock(state.turn);
     if (!frozen) {
@@ -346,6 +366,7 @@ export class BedroomScene {
       if (ending.id === 'intimacyWin') {
         this.setColor(this.chLamp, PINK, 1.5);
         this.blushT.male = this.blushT.female = 99;
+        this.blushBase = 3;
         this.effects.hearts(4);
         this.realTimer(1.5, () => {
           this.rt.set('fx.dark', 1, 2.2);
@@ -387,6 +408,7 @@ export class BedroomScene {
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.mq?.removeEventListener('change', this.onMotionPref);
     this.effects.dispose();
+    this.shadows.dispose();
     this.blanket.dispose();
     this.bed.dispose();
     this.room.dispose();
@@ -401,7 +423,7 @@ export class BedroomScene {
   // ═════════════════════════ 狀態 → 可見參數 ═════════════════════════
 
   private syncVisuals(s: GameState, snap: boolean): void {
-    this.blushBase = s.embrace || s.intimacy >= 60 || s.armPillow.inUse;
+    this.blushBase = s.intimacy >= 80 ? 3 : s.embrace || s.intimacy >= 60 || s.armPillow.inUse ? 2 : s.intimacy >= 40 ? 1 : 0;
     for (const r of ROLES) {
       const c = s.chars[r];
       const ch = this.chars[r];
@@ -415,6 +437,7 @@ export class BedroomScene {
       ch.setExpression(this.fallen[r] || c.annoyance >= 50 ? 'frown' : c.mood >= 60 && c.annoyance < 25 ? 'smile' : 'neutral');
       const ap = s.armPillow;
       ch.setNumb(r === 'male' && (ap.offered || ap.inUse) ? ap.numbness : 0);
+      ch.setDeepSleep(c.sleep >= 90 && c.eyes === 'closed' && !this.fallen[r]);
     }
   }
 
@@ -437,13 +460,25 @@ export class BedroomScene {
     switch (e.type) {
       case 'action':
         this.noiseRings(e, s, events);
+        this.actionGesture(e, s);
         break;
       case 'wake':
         this.effects.mark(e.who, 'bang', 1);
         this.chars[e.who].forceEyesOpen(1.2);
         break;
       case 'annoyed':
-        if (e.delta > 0) this.effects.mark(e.who, 'bang', 1);
+        if (e.delta > 0) this.effects.mark(e.who, 'vein', 1.6); // 💢
+        break;
+      case 'mood':
+        if (e.delta >= 5) this.effects.sparkle(e.who);
+        else if (e.delta <= -5 && !this.refused(events, e.who)) this.effects.mark(e.who, 'gloom', 1.8);
+        break;
+      case 'speech':
+        // 被拒絕的那一方:額頭三條線
+        if (e.key === 'refuseAnnoyed' || e.key === 'refuseMood') this.effects.mark(partnerOf(e.who), 'gloom', 1.8);
+        break;
+      case 'push':
+        if (!this.fallen[e.target]) this.effects.mark(e.target, 'sweat', 1.4);
         break;
       case 'intimacy':
         if (e.delta > 0) {
@@ -453,17 +488,22 @@ export class BedroomScene {
         break;
       case 'cold':
         this.chars[e.who].shiver(0.8);
+        this.effects.mark(e.who, 'shiver', 1.3);
         break;
       case 'noticed': {
         const ch = this.chars[e.by];
         ch.forceEyesOpen(1.5);
         ch.lookAtPartner(1.5);
         this.effects.mark(e.by, 'what', 1.5);
+        this.effects.mark(e.who, 'sweat', 1.6); // 裝睡被抓包
         break;
       }
-      case 'numb':
+      case 'numb': {
         this.chars[e.who].tremble(1.2);
+        const hand = this.chars[e.who].handWorld('armL', this.tmpG);
+        for (let i = 0; i < 3; i++) this.effects.zap(hand);
         break;
+      }
       case 'snore':
         this.audio.snore(e.level);
         if (!this.fallen[e.who]) this.effects.puffZ(e.who, 1.3);
@@ -473,6 +513,69 @@ export class BedroomScene {
         break;
       case 'eyes':
         this.chars[e.who].setEyes(e.eyes === 'open');
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** 這批事件裡 who 是不是被拒絕了(拒絕已經畫三條線,心情變差就不重複畫) */
+  private refused(events: GameEvent[], who: Role): boolean {
+    return events.some((x) => x.type === 'speech' && x.who !== who && (x.key === 'refuseAnnoyed' || x.key === 'refuseMood'));
+  }
+
+  /** 動作的肢體演出(伸手拍拍、摸摸、抓被子往回扯、推、靠過去、扭一扭);只是動畫,不影響狀態 */
+  private actionGesture(e: ActionEvent, s: GameState): void {
+    if (!e.success || this.fallen[e.who] || this.inEnding) return;
+    const me = this.chars[e.who];
+    const you = this.chars[partnerOf(e.who)];
+    const dir = -SIDE[e.who]; // 朝對方
+    const slow = e.band === 'timid' ? 1.3 : e.band === 'rough' ? 0.75 : e.band === 'firm' ? 0.9 : 1;
+    const reach = e.band === 'timid' ? 0.8 : 1;
+    const ap = s.armPillow;
+    const pillowBusy = e.who === 'male' && (ap.offered || ap.inUse);
+    const arm = me.freeArm(s.chars[e.who].posture, pillowBusy);
+    const t = this.tmpG;
+    switch (e.action) {
+      case 'pat':
+        you.nearShoulderWorld(me.root.position, t).y += 0.07; // 拍對方靠自己這側的肩膀
+        me.gesture(arm, t, { dur: 1.05 * slow, wobble: 'pat', reach });
+        break;
+      case 'tuckBlanket':
+        you.chestWorld(t).add(this.tmpH.set(dir * 0.1, 0.12, 0.2)); // 對方肩膀外側的被緣
+        me.gesture(arm, t, { dur: 1.0 * slow, wobble: 'pat', reach, maxStretch: 1.6 });
+        break;
+      case 'caress':
+        you.headWorld(t).add(this.tmpH.set(-dir * 0.12, -0.05, 0.05)); // 靠自己這側的臉頰
+        me.gesture(arm, t, { dur: 1.1 * slow, wobble: 'stroke', reach });
+        break;
+      case 'pullBlanket': {
+        // 抓住兩人之間的被子上緣(看得到的地方),往自己這邊扯
+        const mid = (me.root.position.x + you.root.position.x) / 2;
+        t.set(mid + dir * 0.12, 0.84, -0.24);
+        const back = this.tmpH.copy(me.root.position).setY(0.9).setZ(-0.28);
+        back.x -= dir * 0.22;
+        me.gesture(arm, t, { dur: 0.95 * slow, wobble: 'yank', maxStretch: e.band === 'rough' ? 1.7 : 1.5, inT: 0.22 }, back);
+        break;
+      }
+      case 'push':
+        you.chestWorld(t).add(this.tmpH.set(0, 0.08, 0));
+        for (const a of ARMS) if (!(pillowBusy && a === 'armL')) me.gesture(a, t, { dur: 0.75, wobble: 'shove', maxStretch: 1.6, inT: 0.15 });
+        break;
+      case 'kiss':
+        me.lean(dir, 0.1, 0.95 * slow);
+        me.lookAtPartner(0.95);
+        break;
+      case 'whisper':
+        me.lean(dir, 0.06, 1.0);
+        me.lookAtPartner(1.1);
+        break;
+      case 'hug':
+        this.worldTimer(0.55 * slow, () => me.squeeze(arm, 0.6));
+        break;
+      case 'scootIn':
+      case 'scootOut':
+        me.scootWiggle(0.6 * slow);
         break;
       default:
         break;
@@ -528,7 +631,10 @@ export class BedroomScene {
       ch.cy.set(0.3, 0.12, { ease: 'out', force: true });
       ch.tweenLimbs(SPRAWL, 0.45, { force: true });
     });
-    this.worldTimer(1.32, () => ch.cy.set(0.22, 0.28, { ease: 'inOut', force: true }));
+    this.worldTimer(1.32, () => {
+      ch.cy.set(0.22, 0.28, { ease: 'inOut', force: true });
+      this.effects.dizzy(role, true); // 眼冒金星
+    });
     this.effects.zOn[role] = false;
     this.effects.mark(role, 'bang', 1.4);
     ch.forceEyesOpen(4);
@@ -761,20 +867,45 @@ export class BedroomScene {
     }
     this.bed.group.position.y = shake;
 
+    // 棉被:位移速度 → 拉扯張力;偏向某人 → 那人被春捲、那一側堆摺子
+    const bx = this.chBlanketX.cur;
+    const offset = bx / 0.9;
+    const vel = dt > 0 ? (bx - this.lastBlanketX) / dt : 0;
+    this.lastBlanketX = bx;
+    this.tension += (Math.max(-1, Math.min(1, vel / 1.2)) - this.tension) * Math.min(1, dt * 10);
+
     let n = 0;
     for (const r of ROLES) {
       const ch = this.chars[r];
       ch.bedShake = this.fallen[r] ? 0 : shake;
       if (this.blushT[r] > 0) this.blushT[r] -= dt;
-      ch.setBlush(this.blushBase || this.blushT[r] > 0);
+      ch.setBlush(Math.max(this.blushBase, this.blushT[r] > 0 ? 2 : 0));
       ch.update(dt, this.wt);
       ch.root.updateMatrixWorld(true);
-      n = ch.writeSegments(this.segs, n);
+      const toward = SIDE[r] * offset; // 棉被往自己這側偏多少
+      n = ch.writeSegments(this.segs, n, this.fallen[r] ? 0 : Math.max(0, Math.min(1, (toward - 0.35) / 0.5)));
+      const src = this.shadowSrc[r === 'male' ? 0 : 1];
+      ch.headWorld(src.head);
+      src.hip.copy(ch.root.position);
+      src.fallen = this.fallen[r];
+    }
+
+    // 手麻(>= 75):手邊不時閃電流
+    const ap = this.state?.armPillow;
+    if (ap && (ap.offered || ap.inUse) && ap.numbness >= 75 && !this.fallen.male) {
+      this.zapT -= dt;
+      if (this.zapT <= 0) {
+        this.zapT = 0.45 + Math.random() * 0.6;
+        this.effects.zap(this.chars.male.handWorld('armL', this.tmpG));
+      }
     }
 
     const bl = this.blanket;
-    bl.mesh.position.x = this.chBlanketX.cur;
+    bl.mesh.position.x = bx;
     bl.mesh.position.y = shake;
+    bl.tension = this.tension;
+    bl.bunch = Math.max(0, Math.min(1, (Math.abs(offset) - 0.3) / 0.5));
+    bl.bunchSide = offset >= 0 ? 1 : -1;
     if (this.rippleT > 0) {
       this.rippleT -= dt;
       const k = Math.max(0, this.rippleT / this.rippleDur);
@@ -782,6 +913,7 @@ export class BedroomScene {
       bl.ripplePhase += dt * 14 * k;
     } else bl.rippleAmp = 1;
     bl.rebuild(this.segs, n / SEGMENT_STRIDE);
+    this.shadows.update(this.shadowSrc, bx);
 
     this.effects.update(dt, this.wt);
 

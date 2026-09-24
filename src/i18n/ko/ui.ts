@@ -31,6 +31,7 @@ const ui: UiMessages = {
     sideLeft: '왼쪽에서 자요',
     sideRight: '오른쪽에서 자요',
     howToPlay: '게임 방법',
+    gallery: '도감',
     footnote: '12턴 · 약 5분 · 성인향이지만 순한 맛',
     language: '언어',
     plugTag: '[대놓고 광고]',
@@ -236,6 +237,23 @@ const ui: UiMessages = {
     again: '한 판 더',
     changeRole: '역할 바꾸기',
     outcome: { win: '승리', lose: '패배', draw: '무승부' },
+    comboLabel: '오늘 밤의 조합',
+    newCombo: 'NEW!',
+    collection: '도감 {n}/{max}',
+    gallery: '도감 보기',
+    share: '공유하기',
+    /** 공유 문구 (뒤에 URL이 붙음). {a}·{b} 뒤에는 조사가 붙지 않게 쓴다 */
+    shareText: '《동상이몽》에서 {rarity} 조합 【{name}】 획득! ({a} × {b}) 너는 몇 개나 모을 수 있을까?',
+    copied: '복사했어요! 친구에게 보내 보세요',
+    rarity: { N: '일반', R: '레어', SR: '에픽', SSR: '레전드' },
+  },
+
+  gallery: {
+    title: '조합 도감',
+    progress: '수집 {n}/{max}',
+    axes: '가로줄 = 나 · 세로줄 = 상대',
+    locked: '아직 잠겨 있어요',
+    lockedHint: '다르게 플레이하면 만날 수 있을지도 몰라요.',
   },
 
   help: {

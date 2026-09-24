@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { listAvailableActions } from '../src/game/actions';
 import { makeEnding } from '../src/game/endings';
 import { createGame } from '../src/game/turn';
+import { newTally } from '../src/game/titles';
+import { loadCollection, recordCombo } from '../src/ui/collection';
 import type { GameState } from '../src/game/types';
 import { GameUI, type UIHandlers } from '../src/ui/UI';
 
@@ -37,6 +39,7 @@ const eyesBtn = (root: HTMLElement) => root.querySelector<HTMLButtonElement>('.e
 afterEach(() => {
   document.body.replaceChildren();
   vi.useRealTimers();
+  localStorage.clear();
 });
 
 describe('GameUI: a new game is always playable', () => {
@@ -159,5 +162,83 @@ describe('GameUI: start screen plug', () => {
     await vi.waitFor(() => expect(plug().textContent).toBe('[Shameless plug]Let’s find a time to sleepbridgetime.org ↗'));
     const { setLocale } = await import('../src/i18n');
     await setLocale('zh-TW'); // 還原,避免影響其他測試
+  });
+});
+
+describe('GameUI: combo endings (you × partner), collection and sharing', () => {
+  /** 玩家(男)一直講悄悄話、對方翻來翻去 → 悄悄話高手 × 翻身陀螺 = 邊聊邊翻身 */
+  function endedNight(): GameState {
+    const s = createGame('male', 9);
+    s.memo.tally = newTally();
+    s.memo.tally.male.acts.whisper = 6;
+    s.memo.tally.female.turned = 5;
+    return { ...s, turn: 12, ending: makeEnding('sleepWin') };
+  }
+  function finish(ui: GameUI, s: GameState) {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    ui.showEnding(s);
+    vi.advanceTimersByTime(2600); // banner → 結局卡
+    vi.useRealTimers();
+  }
+
+  it('the ending card names tonight’s combo with its rarity, NEW only the first time', () => {
+    const { root, ui } = mount();
+    const s = endedNight();
+    finish(ui, s);
+    expect(root.querySelector('.combo-name')!.textContent).toBe('邊聊邊翻身');
+    expect(root.querySelector('.combo-pair')!.textContent).toContain('悄悄話高手');
+    expect(root.querySelector('.combo-pair')!.textContent).toContain('翻身陀螺');
+    expect(root.querySelector('.ending-combo .rarity')).not.toBeNull();
+    expect(root.querySelector('.combo-new')).not.toBeNull();
+
+    ui.showStart();
+    expect(root.querySelector('.gallery-link')!.textContent).toContain('1/64');
+    finish(ui, s);
+    expect(root.querySelector('.combo-new')).toBeNull(); // 第二次就不是新的了
+  });
+
+  it('the gallery shows the 8 × 8 grid with tonight’s combo unlocked', () => {
+    const { root, ui } = mount();
+    finish(ui, endedNight());
+    root.querySelector<HTMLButtonElement>('.combo-gallery')!.click();
+    const cells = root.querySelectorAll('.gallery-cell');
+    expect(cells).toHaveLength(64);
+    const open = root.querySelectorAll('.gallery-cell.open');
+    expect(open).toHaveLength(1);
+    expect((open[0] as HTMLElement).dataset.combo).toBe('talker_spinner');
+    expect(root.querySelector('.gallery-detail-name')!.textContent).toBe('邊聊邊翻身');
+    // 點沒解鎖的格子:只看得到「還沒解鎖」
+    root.querySelector<HTMLButtonElement>('.gallery-cell[data-combo="faker_faker"]')!.click();
+    expect(root.querySelector('.gallery-detail-name')!.textContent).toContain('還沒解鎖');
+  });
+
+  it('sharing uses the system share sheet when there is one, otherwise copies the text', async () => {
+    const { root, ui } = mount();
+    finish(ui, endedNight());
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    root.querySelector<HTMLButtonElement>('.combo-share')!.click();
+    await vi.waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    expect(share.mock.calls[0][0].text).toContain('邊聊邊翻身');
+    expect(share.mock.calls[0][0].url).toMatch(/^https?:/);
+
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    root.querySelector<HTMLButtonElement>('.combo-share')!.click();
+    await vi.waitFor(() => expect(root.querySelector('.toast')).not.toBeNull());
+    expect(writeText.mock.calls[0][0]).toContain('邊聊邊翻身');
+  });
+});
+
+describe('collection storage', () => {
+  it('when storage is blocked (private mode), a combo is NEW once per session and the count stays consistent', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    expect(recordCombo('faker_faker')).toBe(true);
+    expect(recordCombo('faker_faker')).toBe(false);
+    expect(loadCollection().has('faker_faker')).toBe(true);
+    spy.mockRestore();
   });
 });

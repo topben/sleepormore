@@ -1,6 +1,8 @@
-// 特效(SCENE-RIG §6):Zzz、♥、!!、?、聲波環、小鳥。全部用物件池,CanvasTexture 畫可靠字元(不用 emoji)。
+// 特效(SCENE-RIG §6):Zzz、♥、!!、?、聲波環、小鳥;漫畫符號(§14.6):💢 青筋、汗滴、三條線、閃亮、暈眩星星、電流、發抖線。
+// 全部用物件池,CanvasTexture 畫可靠字元與圖形(不用 emoji)。
 import * as THREE from 'three';
 import type { Role } from '../game/types';
+import { symbolTexture, type SymbolKind } from './textures';
 
 const ROLES: readonly Role[] = ['male', 'female'];
 /** Z 往外側飄:男方往左、女方往右,兩人的 Zzz 不會疊在中間 */
@@ -25,12 +27,35 @@ interface Particle {
   alpha: number;
 }
 
+export type MarkKind = 'bang' | 'what' | 'vein' | 'sweat' | 'gloom' | 'shiver';
+
+/**
+ * 頭上/頭邊的符號:dx 以「外側」為正(男方往左、女方往右;負 = 朝對方),dy 在頭心上方。
+ * pop = 彈出、throb = 一跳一跳、slide = 往下滑、fade = 慢慢浮現、jitter = 左右抖。
+ */
+const MARK: Record<MarkKind, { dx: number; dy: number; size: number; aspect: number; anim: 'pop' | 'throb' | 'slide' | 'fade' | 'jitter' }> = {
+  bang: { dx: 0.07, dy: 0.36, size: 0.26, aspect: 1, anim: 'pop' },
+  what: { dx: -0.1, dy: 0.36, size: 0.26, aspect: 1, anim: 'pop' },
+  vein: { dx: 0.15, dy: 0.2, size: 0.15, aspect: 1, anim: 'throb' },
+  sweat: { dx: 0.17, dy: 0.12, size: 0.12, aspect: 1, anim: 'slide' },
+  gloom: { dx: 0, dy: 0.1, size: 0.19, aspect: 1, anim: 'fade' },
+  shiver: { dx: 0, dy: 0.02, size: 0.62, aspect: 0.5, anim: 'jitter' },
+};
+const MARK_KINDS = Object.keys(MARK) as MarkKind[];
+
 interface Mark {
   sprite: THREE.Sprite;
   mat: THREE.SpriteMaterial;
+  kind: MarkKind;
   t: number;
   dur: number;
-  dx: number;
+}
+
+interface Orbit {
+  sprites: THREE.Sprite[];
+  mat: THREE.SpriteMaterial;
+  on: boolean;
+  k: number;
 }
 
 interface Ring {
@@ -50,12 +75,16 @@ export class Effects {
   readonly group = new THREE.Group();
   private readonly headPos: HeadFn;
   private readonly tex: Record<'z' | 'heart' | 'bang' | 'what' | 'bird', THREE.CanvasTexture>;
+  private readonly sym: Record<SymbolKind, THREE.CanvasTexture>;
   private readonly ringGeo = new THREE.RingGeometry(0.9, 1, 48);
   private readonly zs: Record<Role, Particle[]>;
   private readonly zTimer: Record<Role, number> = { male: 0.5, female: 1.2 };
   private readonly heartPool: Particle[] = [];
-  private readonly marks: Record<Role, { bang: Mark; what: Mark }>;
+  private readonly marks: Record<Role, Record<MarkKind, Mark>>;
   private readonly markList: { role: Role; m: Mark }[];
+  private readonly sparkles: Record<Role, Particle[]>;
+  private readonly zaps: Particle[] = [];
+  private readonly orbits: Record<Role, Orbit>;
   private readonly rings: Ring[] = [];
   private readonly birds: Particle[] = [];
   private readonly v = new THREE.Vector3();
@@ -83,22 +112,42 @@ export class Effects {
     this.zs = { male: zs(), female: zs() };
     for (let i = 0; i < 18; i++) this.heartPool.push(this.particle(this.tex.heart));
     for (let i = 0; i < 3; i++) this.birds.push(this.particle(this.tex.bird, true));
-    const mark = (tex: THREE.CanvasTexture, dx: number): Mark => {
-      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, fog: false });
+    this.sym = {
+      vein: symbolTexture('vein'),
+      sweat: symbolTexture('sweat'),
+      gloom: symbolTexture('gloom'),
+      sparkle: symbolTexture('sparkle'),
+      dizzy: symbolTexture('dizzy'),
+      zap: symbolTexture('zap'),
+      shiver: symbolTexture('shiver'),
+    };
+    const markTex = (k: MarkKind): THREE.CanvasTexture => (k === 'bang' || k === 'what' ? this.tex[k] : this.sym[k]);
+    const mark = (kind: MarkKind): Mark => {
+      const mat = new THREE.SpriteMaterial({ map: markTex(kind), transparent: true, depthTest: false, depthWrite: false, fog: false });
       const sprite = new THREE.Sprite(mat);
       sprite.visible = false;
       sprite.renderOrder = 30;
       this.group.add(sprite);
-      return { sprite, mat, t: 0, dur: 1, dx };
+      return { sprite, mat, kind, t: 0, dur: 1 };
     };
-    this.marks = {
-      male: { bang: mark(this.tex.bang, -0.07), what: mark(this.tex.what, 0.1) },
-      female: { bang: mark(this.tex.bang, 0.07), what: mark(this.tex.what, -0.1) },
+    const marksFor = () => Object.fromEntries(MARK_KINDS.map((k) => [k, mark(k)])) as Record<MarkKind, Mark>;
+    this.marks = { male: marksFor(), female: marksFor() };
+    this.markList = ROLES.flatMap((role) => MARK_KINDS.map((k) => ({ role, m: this.marks[role][k] })));
+    const sparks = (): Particle[] => [0, 1, 2, 3].map(() => this.particle(this.sym.sparkle));
+    this.sparkles = { male: sparks(), female: sparks() };
+    for (let i = 0; i < 6; i++) this.zaps.push(this.particle(this.sym.zap));
+    const orbit = (): Orbit => {
+      const mat = new THREE.SpriteMaterial({ map: this.sym.dizzy, transparent: true, depthTest: false, depthWrite: false, fog: false });
+      const sprites = [0, 1, 2].map(() => {
+        const sp = new THREE.Sprite(mat);
+        sp.visible = false;
+        sp.renderOrder = 31;
+        this.group.add(sp);
+        return sp;
+      });
+      return { sprites, mat, on: false, k: 0 };
     };
-    this.markList = ROLES.flatMap((role) => [
-      { role, m: this.marks[role].bang },
-      { role, m: this.marks[role].what },
-    ]);
+    this.orbits = { male: orbit(), female: orbit() };
     for (let i = 0; i < 12; i++) {
       const mat = new THREE.MeshBasicMaterial({
         color: 0xcfe6ff,
@@ -180,11 +229,34 @@ export class Effects {
     this.heartRainT = on ? 0 : -1;
   }
 
-  mark(role: Role, kind: 'bang' | 'what', dur: number): void {
+  mark(role: Role, kind: MarkKind, dur: number): void {
     const m = this.marks[role][kind];
     m.t = dur;
     m.dur = dur;
     m.sprite.visible = true;
+  }
+
+  /** 心情變好:頭邊冒 3–4 顆閃亮 */
+  sparkle(role: Role): void {
+    const h = this.headPos(role, this.v);
+    this.sparkles[role].forEach((p, i) => {
+      const a = (i / 4) * Math.PI * 2 + Math.random() * 0.8;
+      const r = 0.2 + Math.random() * 0.08;
+      this.spawn(p, h.x + Math.cos(a) * r, h.y + 0.12 + Math.sin(a) * r * 0.6, h.z, 0, 0.03, 1.2, 0.07, 0.1);
+      p.age = -i * 0.12;
+    });
+  }
+
+  /** 掉下床後頭上繞圈的暈眩星星(on 直到 clear / off) */
+  dizzy(role: Role, on: boolean): void {
+    this.orbits[role].on = on;
+  }
+
+  /** 手麻:在 at 附近閃一道電流 */
+  zap(at: THREE.Vector3): void {
+    const p = this.take(this.zaps);
+    this.spawn(p, at.x + (Math.random() - 0.5) * 0.08, at.y + 0.04 + Math.random() * 0.05, at.z + (Math.random() - 0.5) * 0.08, 0, 0.05, 0.34, 0.1, 0.13);
+    p.mat.rotation = (Math.random() - 0.5) * 1.2;
   }
 
   /** 聲波環:從 at 平放擴散到 maxR,0.6s 淡出 */
@@ -221,6 +293,14 @@ export class Effects {
       m.t = 0;
       m.sprite.visible = false;
     }
+    for (const r of ROLES) {
+      for (const p of this.sparkles[r]) this.kill(p);
+      const o = this.orbits[r];
+      o.on = false;
+      o.k = 0;
+      for (const sp of o.sprites) sp.visible = false;
+    }
+    for (const p of this.zaps) this.kill(p);
     for (const p of this.heartPool) this.kill(p);
     for (const p of this.birds) this.kill(p);
     for (const r of this.rings) {
@@ -288,13 +368,72 @@ export class Effects {
         m.sprite.visible = false;
         continue;
       }
+      const cfg = MARK[m.kind];
       const head = this.headPos(role, this.v);
       const age = m.dur - m.t;
       const pop = Math.min(1, age / 0.15);
-      const s = 0.26 * (pop < 1 ? pop * (1 + 0.6 * (1 - pop)) : 1);
-      m.sprite.position.set(head.x + m.dx, head.y + 0.36 + 0.025 * Math.sin(t * 9), head.z);
-      m.sprite.scale.set(s, s, 1);
-      m.mat.opacity = Math.min(1, m.t / 0.2);
+      let s = cfg.size * (pop < 1 ? pop * (1 + 0.6 * (1 - pop)) : 1);
+      let x = head.x + OUT[role] * cfg.dx;
+      let y = head.y + cfg.dy;
+      let alpha = Math.min(1, m.t / 0.2);
+      switch (cfg.anim) {
+        case 'pop':
+          y += 0.025 * Math.sin(t * 9);
+          break;
+        case 'throb':
+          s *= 1 + 0.2 * Math.abs(Math.sin(age * 9));
+          break;
+        case 'slide':
+          y -= 0.07 * Math.min(1, age / m.dur);
+          break;
+        case 'fade':
+          s = cfg.size;
+          alpha = Math.min(alpha, age / 0.35);
+          break;
+        case 'jitter':
+          s = cfg.size;
+          x += 0.012 * Math.sin(t * 70);
+          break;
+      }
+      m.sprite.position.set(x, y, head.z);
+      m.sprite.scale.set(s, s * cfg.aspect, 1);
+      m.mat.opacity = alpha;
+    }
+
+    for (const r of ROLES) {
+      for (const p of this.sparkles[r]) {
+        this.stepFloat(p, dt, 0.15, 0.4);
+        if (p.active && p.age >= 0) {
+          const tw = 0.45 + 0.55 * Math.abs(Math.sin(p.age * 9 + p.wob));
+          p.sprite.scale.multiplyScalar(tw);
+          p.mat.rotation = p.age * 1.5;
+        }
+      }
+      const o = this.orbits[r];
+      o.k += ((o.on ? 1 : 0) - o.k) * Math.min(1, dt * 4);
+      const show = o.k > 0.02;
+      if (show) this.headPos(r, this.v);
+      o.sprites.forEach((sp, i) => {
+        sp.visible = show;
+        if (!show) return;
+        const a = t * 3.2 + (i * Math.PI * 2) / 3;
+        sp.position.set(this.v.x + Math.cos(a) * 0.15, this.v.y + 0.2 + 0.02 * Math.sin(t * 5 + i), this.v.z + Math.sin(a) * 0.1);
+        const sc = 0.085 * o.k * (0.85 + 0.15 * Math.sin(a));
+        sp.scale.set(sc, sc, 1);
+      });
+      o.mat.opacity = o.k;
+    }
+    for (const p of this.zaps) {
+      if (!p.active) continue;
+      p.age += dt;
+      if (p.age >= p.life) {
+        this.kill(p);
+        continue;
+      }
+      p.sprite.visible = Math.sin(p.age * 60) > -0.3; // 閃爍
+      p.sprite.position.set(p.x, p.y + p.vy * p.age, p.z);
+      p.sprite.scale.set(p.s1, p.s1, 1);
+      p.mat.opacity = Math.min(1, (p.life - p.age) / 0.12);
     }
 
     for (const r of this.rings) {
@@ -343,6 +482,7 @@ export class Effects {
     });
     for (const m of mats) m.dispose();
     for (const tex of Object.values(this.tex)) tex.dispose();
+    for (const tex of Object.values(this.sym)) tex.dispose();
     this.ringGeo.dispose();
   }
 }
