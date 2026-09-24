@@ -302,9 +302,9 @@ function drawPlanks(g: CanvasRenderingContext2D, w: number, h: number): void {
   }
 }
 
-function drawRug(g: CanvasRenderingContext2D, w: number, h: number): void {
+function drawRug(g: CanvasRenderingContext2D, w: number): void {
   const cx = w / 2;
-  const cy = h / 2;
+  const cy = w / 2;
   const rings = ['#5d4a7c', '#6e5a90', '#5d4a7c', '#7b67a0', '#5d4a7c', '#8e7bb3'];
   for (let i = 0; i < rings.length; i++) {
     g.fillStyle = rings[i];
@@ -318,7 +318,6 @@ function drawRug(g: CanvasRenderingContext2D, w: number, h: number): void {
   g.beginPath();
   g.arc(cx, cy, w / 2 - 8, 0, Math.PI * 2);
   g.stroke();
-  void h;
 }
 
 function drawPicture(g: CanvasRenderingContext2D, w: number, h: number): void {
@@ -425,7 +424,7 @@ function drawBeam(g: CanvasRenderingContext2D, w: number, h: number): void {
   g.globalCompositeOperation = 'source-over';
 }
 
-export function drawGlow(g: CanvasRenderingContext2D, w: number, h: number): void {
+function drawGlow(g: CanvasRenderingContext2D, w: number, h: number): void {
   const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
   r.addColorStop(0, 'rgba(255,255,255,0.9)');
   r.addColorStop(0.25, 'rgba(255,255,255,0.35)');

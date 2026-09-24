@@ -161,7 +161,7 @@ export class Effects {
   puffZ(role: Role, boost = 1): void {
     const h = this.headPos(role, this.v);
     const L = this.zLevel[role];
-    const size = 0.2 * (1 + 0.5 * L) * this.zMult[role] * boost;
+    const size = Math.min(0.85, 0.2 * (1 + 0.5 * L) * this.zMult[role] * boost);
     const o = OUT[role];
     this.spawn(this.take(this.zs[role]), h.x + o * 0.1, h.y + 0.2, h.z + 0.02, o * 0.08, 0.19, Z_LIFE, size * 0.45, size);
   }

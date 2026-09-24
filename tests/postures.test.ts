@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { CharacterState, GameState, Posture, Role } from '../src/game/types';
 import {
+  ARM_PILLOW_CUDDLE,
   ARM_PILLOW_LIFT,
-  ARM_PILLOW_UPPER,
   basePose,
   EMBRACE_ARM,
   LIMB_NAMES,
@@ -203,11 +203,14 @@ describe('resolvePose 疊加規則', () => {
     const s = mk({ male: 'sideFacing', female: 'sideFacing', fLat: 0.15, offered: true, inUse: true });
     const m = resolvePose('male', s);
     expect(m.limbs.armL).toEqual([-H - 0.35, 0, -0.3]);
-    expect(m.limbs.armR).toEqual(ARM_PILLOW_UPPER); // 上面那隻手放下,不擋住枕頭手臂
+    expect(m.limbs.armR).toEqual(basePose('male', 'sideFacing').limbs.armR);
     const f = resolvePose('female', s);
     expect(f.rootYOffset).toBe(ARM_PILLOW_LIFT);
-    const fb = basePose('female', 'sideFacing').limbs;
-    expect(f.limbs).toEqual({ ...fb, armL: ARM_PILLOW_UPPER }); // 只有上面那隻手放下
+    // 只有上面那隻手改成搭在他胸口,其餘肢體不變
+    expect(f.limbs).toEqual({ ...basePose('female', 'sideFacing').limbs, armL: ARM_PILLOW_CUDDLE });
+    const hand = armTip(f, 0.15, 'armL');
+    expect(hand[0]).toBeLessThan(-0.15); // 越過中線搭到他身上
+    expect(hand[2]).toBeGreaterThan(-0.2); // 在胸口(棉被邊緣),不是在臉前
     const tip = armTip(m, -0.35, 'armL');
     expect(tip[0]).toBeGreaterThan(0); // 伸向她那側
     expect(tip[2]).toBeLessThan(-0.5); // 偏向床頭

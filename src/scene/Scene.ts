@@ -240,16 +240,18 @@ export class BedroomScene {
       else if (e.type === 'fell') tumbling[e.who] = true;
     }
     const { dur, opts } = BAND[band];
+    // 結局演出中(playEnding 之後、reset 之前)畫面是定格的:只補特效與翻滾,不重擺姿勢/燈光/濾鏡
+    const frozen = this.inEnding;
 
     for (const r of ROLES) {
-      if (this.fallen[r] || tumbling[r]) continue;
+      if (frozen || this.fallen[r] || tumbling[r]) continue;
       const ch = this.chars[r];
       ch.tweenPose(resolvePose(r, state), dur, opts);
       const x = state.chars[r].lateral * RIG.lateralScale;
       if (pushed[r]) ch.cx.set(x, 0.4, { ease: 'outBack', overshoot: 2.4, force: true });
       else ch.cx.set(x, dur * 0.75, opts);
     }
-    this.chBlanketX.set(state.blanketOffset * 0.9, dur * 0.75, opts);
+    if (!frozen) this.chBlanketX.set(state.blanketOffset * 0.9, dur * 0.75, opts);
 
     if (band === 'firm') this.ripple(2, 0.4);
     else if (band === 'rough') {
@@ -261,13 +263,15 @@ export class BedroomScene {
     if (Math.abs(state.blanketOffset - this.lastBlanket) >= 0.5) this.ripple(2.5, 0.5);
     this.lastBlanket = state.blanketOffset;
 
-    this.syncVisuals(state, false);
-    if (!this.inEnding) this.lightsFor(state, false);
-    for (const e of events) this.trigger(e, state, events);
+    if (!frozen) {
+      this.syncVisuals(state, false);
+      this.lightsFor(state, false);
+    }
+    for (const e of events) if (!frozen || e.type !== 'eyes') this.trigger(e, state, events);
     for (const r of ROLES) if (tumbling[r]) this.tumble(r);
 
     this.room.setClock(state.turn);
-    if (!this.inEnding) {
+    if (!frozen) {
       this.eyesClosed = state.chars[state.playerRole].eyes === 'closed';
       this.writeFilter(false);
     }
