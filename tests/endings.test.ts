@@ -1,7 +1,8 @@
 // Endings (DESIGN §7) + morning line. Direct checkEnding() tests for the priority table and playTurn() tests for
 // how endings are reached in play.
 import { describe, expect, it } from 'vitest';
-import { checkEnding, makeEnding, morningLine } from '../src/game/endings';
+import { ENDING_VARS, checkEnding, makeEnding, morningLine } from '../src/game/endings';
+import { fmt } from '../src/i18n';
 import { ZH } from '../src/game/text';
 import { playTurn } from '../src/game/turn';
 import type { Ending, EndingId, GameState, Goal, Role } from '../src/game/types';
@@ -17,6 +18,11 @@ const SPEC: Record<EndingId, Pick<Ending, 'outcome' | 'style' | 'caption'>> = {
   sleepLoseTired: { outcome: 'lose', style: 'wasted', caption: 'SLEEPLESS' },
   intimacyLoseFellAsleep: { outcome: 'lose', style: 'wasted', caption: 'OUT COLD' },
   intimacyLoseMorning: { outcome: 'lose', style: 'wasted', caption: 'TOO LATE' },
+  // 困難模式(DESIGN §15)
+  intimacyLoseDeadline: { outcome: 'lose', style: 'wasted', caption: "TIME'S UP" },
+  intimacyMorningWin: { outcome: 'win', style: 'passed', caption: 'GOOD MORNING' },
+  intimacyTooEarly: { outcome: 'draw', style: 'neutral', caption: 'TOO EAGER' },
+  intimacyLoseOverslept: { outcome: 'lose', style: 'wasted', caption: 'OVERSLEPT' },
 };
 const ALL_ENDINGS = Object.keys(SPEC) as EndingId[];
 
@@ -30,7 +36,9 @@ describe('Ending objects', () => {
       expect(e[k].trim().length).toBeGreaterThan(0);
     }
     expect(e.title).toBe(ZH.ending[id].title);
-    expect(e.description).toBe(ZH.ending[id].description);
+    // 描述裡的困難模式佔位符({deadline}…)在 makeEnding 時代入
+    expect(e.description).toBe(fmt(ZH.ending[id].description, ENDING_VARS));
+    expect(e.description).not.toMatch(/\{\w+\}/);
   });
 });
 
@@ -236,8 +244,8 @@ describe('morningLine', () => {
                 st.ending = makeEnding(id);
               });
               const { key, index } = morningLine(s);
-              const expected =
-                id === 'intimacyWin' || id === 'accidentalIntimacy'
+              const together: EndingId[] = ['intimacyWin', 'accidentalIntimacy', 'intimacyMorningWin', 'intimacyTooEarly'];
+              const expected = together.includes(id)
                   ? 'morning_together'
                   : id === 'kickedOff' || id === 'fellOff'
                     ? 'morning_floor'

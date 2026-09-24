@@ -78,6 +78,11 @@ const game: GameMessages = {
     wokeYourself: '스스로 잠을 깨 버렸어요',
     partnerStoleBlanket: '상대가 잠결에 이불을 돌돌 말아 가져갔어요',
     partnerBurrito: '상대가 이불 김밥이 되어 버렸어요',
+    // hard mode
+    sleepHot: '더워서 잠이 안 와요',
+    sleepLonely: '마음이 허전해서 깊이 못 자요',
+    partnerKickedBlanket: '상대가 더워서 이불을 걷어찼어요',
+    partnerWokeUp: '상대가 잠에서 깨서 기지개를 켰어요',
   },
 
   posture: {
@@ -90,6 +95,9 @@ const game: GameMessages = {
   band: { timid: '너무 약함', gentle: '부드럽게', firm: '세게', rough: '거칠게' },
 
   goal: { sleep: '꿀잠', intimacy: '스킨십' },
+
+  /** hard mode intimacy: right now / in the morning */
+  timing: { now: '지금 당장 스킨십', morning: '아침 스킨십' },
 
   ending: {
     kickedOff: {
@@ -139,6 +147,31 @@ const game: GameMessages = {
       caption: 'TOO LATE',
       description: '아무 일도 없었어요. 알람이 울려요.',
       tip: '‘마주 보기’ → ‘다가가기’ → ‘뽀뽀’ 순서로 해 보세요. 자고 싶어 하는 상대라면 먼저 기분을 {n}까지 올려야 해요.',
+    },
+    // hard mode
+    intimacyLoseDeadline: {
+      title: '시간 초과',
+      caption: "TIME'S UP",
+      description: '{deadline} 이후로는 분위기가 이미 끝났어요. 상대는 크게 하품하고 돌아누워 잠들었어요.',
+      tip: '‘지금 당장’은 시간 싸움이에요. 첫 턴부터 ‘마주 보기’, ‘다가가기’. 뽀뽀는 조금 세게(노란 구간) 하면 빨라지지만, 거칠면 안 돼요.',
+    },
+    intimacyMorningWin: {
+      title: '굿모닝 뽀뽀',
+      caption: 'GOOD MORNING',
+      description: '푹 자고, 날도 밝았어요. 딱 좋은 아침이에요.',
+      tip: '완벽해요! 먼저 푹 자고, 날이 밝으면 움직이기.',
+    },
+    intimacyTooEarly: {
+      title: '아침까지 못 참았어',
+      caption: 'TOO EAGER',
+      description: '아침까지 기다리기로 했는데…… 뭐, 이것도 나쁘지 않네요.',
+      tip: '‘아침 스킨십’은 먼저 푹 자야 하고(수면 점수 {sleep}), {morning} 이후에만 인정돼요. 밤에 친밀도가 가득 차려고 하면 등을 돌리거나 눈을 감고 자요.',
+    },
+    intimacyLoseOverslept: {
+      title: '늦잠',
+      caption: 'OVERSLEPT',
+      description: '알람이 세 번이나 울렸는데 아직도 눈 감고 뒹굴뒹굴. 아침 계획은 물거품이 됐어요.',
+      tip: '{dawn} 이후에는 다들 잠이 얕아져요. 아침엔 눈을 뜨고 상대와 마주 본 뒤, 깨어 있을 때 뽀뽀하세요(아침 스킨십은 효과 두 배).',
     },
   },
 
@@ -253,6 +286,14 @@ const game: GameMessages = {
     caress: '살살 쓰다듬어요. 힘은 초록 구간에서.',
     whisper: '속삭이며 거리를 좁혀 봐요.',
     almostThere: '조금만 더! 상대가 깨어 있을 때 한 번 더 뽀뽀해요.',
+    // hard mode
+    tooHot: '더워요! 이불을 상대에게 좀 나눠 주세요(‘이불 덮어 주기’).',
+    needCloseness: '마음이 허전해요: 친밀도가 {need} 이상이어야 푹 잘 수 있어요. 안아 주거나 속삭여 보세요.',
+    hurry: '시간이 얼마 없어요! {deadline} 전에 성공해야 해요. 상대가 깨어 있을 때 얼른 뽀뽀하세요.',
+    morningSleepFirst: '먼저 푹 자요. {morning} 이후부터가 아침이에요. 지금 스킨십은 너무 일러요.',
+    tooEarlyWarn: '친밀도가 거의 찼는데 아직 아침이 아니에요! 등을 돌리거나 눈 감고 자요.',
+    morningPrep: '상대가 깨어 있을 때 조금 친해져 두세요(가득 채우진 말고). 아침 스킨십은 효과가 두 배예요.',
+    morningGo: '아침이에요! 눈을 뜨고 상대와 마주 본 뒤, 깨어 있을 때 스킨십하세요.',
   },
 
   speech: {
@@ -301,6 +342,11 @@ const game: GameMessages = {
     intimacyHigh: ['심장이 막 뛰어……', '오늘따라 왜 이렇게 달라붙어?', '분위기가…… 뭔가 다른데?'],
     partnerInitiate: ['피하지 마~', '좀 더 가까이 와~', '왜 이렇게 멀리 있어?'],
     wakeUp: ['일어나~', '어, 자는 거야? 나랑 놀아 줘~', '자지 마!'],
+    // hard mode
+    goodMorning: ['음…… 벌써 아침이야?', '(기지개)…… 좋은 아침~', '깼어?…… 나 일어났어.', '아침이다…… 헤헤.'],
+    giveUp: ['…… 됐어, 잘래.', '흥, 몰라. 잘 자.', '(한숨)…… 자자.'],
+    tooHot: ['더워……', '이불 너 가져, 더워 죽겠어.', '(이불을 걷어찬다)……'],
+    needCuddle: ['자기 전에 한 번만 안아 줘……', '나한테 관심 없지……', '잘 자라고 해 줘.'],
 
     // 엔딩 화면: morning_{내 목표}_{상대 목표}; together = 스킨십 성공, floor = 침대에서 떨어짐
     morning_sleep_sleep: ['“좋은 아침. 어젯밤에 무슨 생각 했어?” “아니, 딱히?”', '“잘 잤다~” “응, 오랜만에 아침까지 푹 잤어.”', '“좋은 아침…… 너 어젯밤에 코 골더라.” “너도.”'],

@@ -156,6 +156,10 @@ export class GameUI {
         onHelp: () => this.openModal('help'),
         onLanguage: () => this.openModal('lang'),
         onGallery: () => this.openModal('gallery'),
+        onMode: (mode) => {
+          if (mode !== this.settings.mode) this.updateSettings({ ...this.settings, mode });
+        },
+        mode: this.settings.mode,
         collected: loadCollection().size,
       }),
     );

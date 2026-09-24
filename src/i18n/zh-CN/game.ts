@@ -77,6 +77,11 @@ const game: GameMessages = {
     wokeYourself: '你把自己弄醒了',
     partnerStoleBlanket: '对方在睡梦中把被子卷走了',
     partnerBurrito: '对方把自己卷成了春卷',
+    // hard mode
+    sleepHot: '好热,睡不好',
+    sleepLonely: '心里不踏实,睡不安稳',
+    partnerKickedBlanket: '对方热得把被子踢开了',
+    partnerWokeUp: '对方醒了,伸了个懒腰',
   },
 
   posture: {
@@ -89,6 +94,9 @@ const game: GameMessages = {
   band: { timid: '太轻', gentle: '温柔', firm: '用力', rough: '粗鲁' },
 
   goal: { sleep: '好好睡觉', intimacy: '亲热' },
+
+  /** hard mode intimacy: right now / in the morning */
+  timing: { now: '立即亲热', morning: '早上亲热' },
 
   ending: {
     kickedOff: {
@@ -138,6 +146,31 @@ const game: GameMessages = {
       caption: 'TOO LATE',
       description: '什么都没发生。闹钟响了。',
       tip: '先侧躺面向对方、挪近,再亲吻。对方想睡的话,得先把对方心情哄到 {n}。',
+    },
+    // hard mode
+    intimacyLoseDeadline: {
+      title: '时间到',
+      caption: "TIME'S UP",
+      description: '{deadline} 了,气氛早就没了。对方打了个大哈欠,翻身睡了。',
+      tip: '立即亲热要抢时间:第一回合就侧躺面向、挪近;亲吻可以用力一点(黄区)加速,但别粗鲁。',
+    },
+    intimacyMorningWin: {
+      title: '早安亲亲',
+      caption: 'GOOD MORNING',
+      description: '睡饱了,天也亮了。这个早晨刚刚好。',
+      tip: '完美!先睡饱,天亮再行动。',
+    },
+    intimacyTooEarly: {
+      title: '等不及天亮',
+      caption: 'TOO EAGER',
+      description: '说好要等到早上的……算了,也不错。',
+      tip: '早上亲热要先睡饱(睡眠分数 {sleep}),{morning} 以后才算。晚上亲密度快满时先背对或闭眼睡。',
+    },
+    intimacyLoseOverslept: {
+      title: '睡过头',
+      caption: 'OVERSLEPT',
+      description: '闹钟响了三次,你还闭着眼睛赖床。早上的计划泡汤了。',
+      tip: '{dawn} 以后大家越睡越浅:早上睁开眼睛、面向对方,趁对方醒着亲下去(早上的亲热效果加倍)。',
     },
   },
 
@@ -251,6 +284,14 @@ const game: GameMessages = {
     caress: '轻抚对方,力道停在绿区。',
     whisper: '说说悄悄话,拉近距离。',
     almostThere: '就差一点!趁对方还醒着再亲一下。',
+    // hard mode
+    tooHot: '好热!把被子分一些给对方(帮对方盖好)。',
+    needCloseness: '心里不踏实:亲密度要 {need} 以上才睡得安稳。抱一抱或说说悄悄话。',
+    hurry: '时间不多了!{deadline} 前要达成,趁对方醒着快亲。',
+    morningSleepFirst: '先好好睡:{morning} 以后才算早上,现在亲热就太早了。',
+    tooEarlyWarn: '亲密度快满了,但还没到早上!先背对或闭眼睡。',
+    morningPrep: '趁对方醒着先培养一点感情(别让亲密度满),早上的亲热效果会加倍。',
+    morningGo: '天亮了!睁开眼睛、面向对方,趁对方醒着亲热。',
   },
 
   speech: {
@@ -299,6 +340,11 @@ const game: GameMessages = {
     intimacyHigh: ['心跳好快……', '你今天怎么这么黏人?', '气氛好像……有点不一样。'],
     partnerInitiate: ['别躲啦。', '过来一点嘛。', '你离我好远哦。'],
     wakeUp: ['起来啦~', '诶,你睡着啦?陪我嘛。', '不许睡!'],
+    // hard mode
+    goodMorning: ['嗯……天亮了?', '(伸懒腰)……早安~', '你醒了吗?……我醒了哦。', '早上了诶……嘿嘿。'],
+    giveUp: ['……算了,睡觉。', '哼,不理你了,晚安。', '(叹气)……睡吧。'],
+    tooHot: ['好热……', '被子给你啦,热死了。', '(把被子踢开)……'],
+    needCuddle: ['睡前抱一下嘛……', '你都不理我……', '说晚安啦。'],
 
     // 结局画面:morning_{玩家目标}_{对方目标};together = 亲热成功、floor = 掉下床
     morning_sleep_sleep: ['“早安。你昨晚有没有什么想法?”“没有啊?”', '“睡得好香啊。”“是啊,难得一觉睡到天亮。”', '“早……你昨晚打呼噜了哦。”“你也打了。”'],

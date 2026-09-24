@@ -27,6 +27,11 @@ const ui: UiMessages = {
     subtitle: 'SLEEP OR MORE',
     tagline: '¿Esta noche solo quieres dormir… o algo más?',
     chooseRole: 'Elige tu personaje',
+    modeLabel: 'Dificultad',
+    mode: {
+      easy: { name: 'Fácil', desc: 'Las reglas de siempre' },
+      hard: { name: 'Difícil', desc: 'La intimidad se divide en ya / mañanera; para dormir cuentan el calor y la cercanía' },
+    },
     playMale: 'Soy él',
     playFemale: 'Soy ella',
     sideLeft: 'Lado izquierdo',
@@ -62,6 +67,36 @@ const ui: UiMessages = {
         'Si tu pareja quiere dormir, sube primero su ánimo hasta {n} con «Susurrar» y «Arropar».',
       ],
     },
+    // hard mode
+    hardBadge: '🔥 Modo difícil',
+    now: {
+      win: 'Lleva la intimidad a 100 antes de las {deadline}, con tu pareja despierta. Si se acaba el tiempo, pierdes.',
+      tips: [
+        'En el primer turno, «Cara a cara»; si estás lejos, «Acercarse».',
+        'Besar con algo más de fuerza (zona amarilla) acelera, pero nunca con brusquedad.',
+        'Si tu pareja quiere dormir, casi nunca da tiempo: fíjate en cómo reacciona.',
+      ],
+    },
+    morning: {
+      win: 'Duerme bien primero (puntuación de sueño {sleep}) y, a partir de las {morning}, lleva la intimidad a 100 con tu pareja despierta. Demasiado pronto no cuenta.',
+      tips: [
+        'De noche, crea algo de complicidad mientras tu pareja esté despierta; luego cierra los ojos y duerme.',
+        'Si la intimidad está casi llena, da la espalda o cierra los ojos para que no se llene de noche.',
+        'A partir de las {dawn} todos duermen más ligero; por la mañana los mimos cuentan el doble, así que besa mientras tu pareja esté despierta.',
+      ],
+    },
+    sleepHard: {
+      win: 'Aguanta hasta las 06:00 con una puntuación de sueño de {n}. Solo los turnos en que duermes a gusto suman un punto entero: temperatura en tu rango cómodo e intimidad suficiente.',
+      tips: [
+        'La temperatura sube y baja, y la madrugada es fría: si tienes calor, comparte la manta («Arropar»); si tienes frío, tápate.',
+        'Sin suficiente intimidad no descansas: susurra o abraza antes de dormir. Mientras uno de los dos duerme, la intimidad no baja.',
+        'A partir de las {dawn} todos duermen más ligero: aprovecha para dormir antes del amanecer.',
+      ],
+    },
+    body: {
+      male: '🐻 El osito es caluroso: está a gusto con temperatura {lo}–{hi} y necesita intimidad {need} o más.',
+      female: '🐰 La conejita de orejas caídas es friolera: está a gusto desde {lo} de temperatura y necesita intimidad {need} o más para sentirse segura.',
+    },
     secret: 'Tu pareja también tiene su propio objetivo (secreto). ¡Adivínalo por lo que dice y hace!',
     hintsToggle: 'Mostrar consejos (ideal para empezar)',
     start: 'Empezar',
@@ -72,6 +107,9 @@ const ui: UiMessages = {
     progress: {
       sleep: 'Puntos de sueño {v}/{t}',
       intimacy: 'Intimidad {v}/{t}',
+      now: 'Intimidad {v}/{t} · antes de las {deadline}',
+      morningSleep: 'Primero dormir {v}/{t}',
+      morningLove: 'Intimidad {v}/{t} · desde las {morning}',
     },
     status: {
       done: '¡Logrado!',
@@ -117,6 +155,9 @@ const ui: UiMessages = {
     eyesState: { open: 'Abiertos', closed: 'Cerrados' },
     snoreLevel: ['No', 'Suave', 'Medio', 'Muy fuerte'],
     cold: '¡Qué frío!',
+    hot: '¡Qué calor!',
+    need: 'Cercanía que necesitas: {n}',
+    hardTag: 'Difícil',
     restlessWarn: 'Cuidado',
     restlessDanger: '¡Casi te descubren!',
     annoyPush: '¡Va a empujar!',
@@ -205,6 +246,7 @@ const ui: UiMessages = {
     armFree: 'El brazo vuelve a su lugar',
     armLeft: 'La cabeza se aparta del brazo',
     cold: { you: 'Tienes frío', partner: 'Tu pareja tiene frío' },
+    hot: { you: 'Tienes calor', partner: 'Tu pareja tiene calor' },
     numb: { you: 'Tienes hormigueo en el brazo', partner: 'Tu pareja tiene hormigueo en el brazo' },
     noticed: { you: 'Tu pareja nota que no duermes', partner: 'Notas que tu pareja no duerme' },
     snore: { you: 'Roncas ({level})', partner: 'Tu pareja ronca ({level})' },
@@ -228,6 +270,7 @@ const ui: UiMessages = {
     partnerWanted: 'En realidad, esta noche tu pareja quería:',
     goalSleep: '😴 Dormir bien',
     goalIntimacy: '💞 Intimidad',
+    hardTag: '🔥 Modo difícil',
     morning: 'A la mañana siguiente',
     stats: 'Estadísticas',
     statTurns: 'Turnos {n}/{max}',
@@ -276,6 +319,14 @@ const ui: UiMessages = {
           'Al empezar te toca un objetivo para la noche: 😴 Dormir bien o 💞 Intimidad. Tu pareja también tiene el suyo, pero es secreto.',
           '😴 Dormir: aguanta hasta las 06:00 con 7 puntos de sueño (+1 por turno durmiendo, +0.5 dormitando).',
           '💞 Intimidad: lleva la intimidad a 100 antes del amanecer, mientras tu pareja siga sin dormir.',
+        ],
+      },
+      {
+        title: '🔥 Modo difícil',
+        body: [
+          'En la pantalla de inicio puedes elegir «Difícil». La intimidad es de dos tipos: ⏱️ ya (antes de las {deadline}, o pierdes) y 🌅 mañanera (primero dormir bien; solo cuenta desde las {morning}, y demasiado pronto es empate).',
+          'Dormir solo puntúa si duermes a gusto: la temperatura sube y baja, la madrugada es fría y la intimidad baja si los dos están despiertos sin hacer nada. El osito es caluroso (temperatura {bearLo}–{bearHi}); la conejita de orejas caídas es friolera ({bunnyLo} o más) y necesita más cercanía.',
+          'A partir de las {dawn} todos duermen más ligero; por la mañana los mimos cuentan el doble.',
         ],
       },
       {

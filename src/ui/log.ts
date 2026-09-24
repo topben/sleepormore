@@ -67,6 +67,8 @@ export function describe(item: LogItem): { text: string; tone: LogTone } | null 
       return { text: ev.inUse ? t.armInUse : ev.offered ? t.armOffered : t.armFree, tone: 'normal' };
     case 'cold':
       return { text: pick(ev.who, t.cold), tone: mine(ev.who) ? 'bad' : 'normal' };
+    case 'hot':
+      return { text: pick(ev.who, t.hot), tone: mine(ev.who) ? 'bad' : 'normal' };
     case 'numb':
       return { text: pick(ev.who, t.numb), tone: 'bad' };
     case 'noticed':

@@ -79,6 +79,11 @@ const game: GameMessages = {
     wokeYourself: 'Te despiertas sin querer',
     partnerStoleBlanket: 'En sueños, tu pareja te roba la manta',
     partnerBurrito: 'Tu pareja se envuelve como un burrito',
+    // hard mode
+    sleepHot: 'Demasiado calor para dormir bien',
+    sleepLonely: 'Te faltan mimos y no descansas bien',
+    partnerKickedBlanket: 'Tu pareja tenía calor y apartó la manta de una patada',
+    partnerWokeUp: 'Tu pareja se despertó y se estiró',
   },
 
   posture: {
@@ -91,6 +96,9 @@ const game: GameMessages = {
   band: { timid: 'Muy suave', gentle: 'Con cariño', firm: 'Firme', rough: 'Brusco' },
 
   goal: { sleep: 'Dormir bien', intimacy: 'Intimidad' },
+
+  /** hard mode intimacy: right now / in the morning */
+  timing: { now: 'Intimidad ya', morning: 'Intimidad mañanera' },
 
   ending: {
     kickedOff: {
@@ -140,6 +148,31 @@ const game: GameMessages = {
       caption: 'TOO LATE',
       description: 'No pasó nada. Suena el despertador.',
       tip: 'Primero «Cara a cara» y «Acercarse»; luego, besa. Si tu pareja quiere dormir, sube antes su ánimo hasta {n}.',
+    },
+    // hard mode
+    intimacyLoseDeadline: {
+      title: 'Se acabó el tiempo',
+      caption: "TIME'S UP",
+      description: 'Ya son más de las {deadline} y el ambiente se esfumó. Tu pareja suelta un bostezo enorme y se da la vuelta para dormir.',
+      tip: '«Intimidad ya» es una carrera contra el reloj: desde el primer turno, «Cara a cara» y «Acercarse»; besar con algo más de fuerza (zona amarilla) acelera, pero nunca con brusquedad.',
+    },
+    intimacyMorningWin: {
+      title: 'Beso de buenos días',
+      caption: 'GOOD MORNING',
+      description: 'Descansaste y ya amaneció. La mañana perfecta.',
+      tip: '¡Perfecto! Primero dormir bien; al amanecer, pasar a la acción.',
+    },
+    intimacyTooEarly: {
+      title: 'No pudiste esperar al amanecer',
+      caption: 'TOO EAGER',
+      description: 'Ibas a esperar hasta la mañana… bueno, tampoco está mal.',
+      tip: 'La intimidad mañanera exige dormir bien antes (puntuación de sueño {sleep}) y solo cuenta desde las {morning}. Si de noche la intimidad está casi llena, da la espalda o cierra los ojos y duerme.',
+    },
+    intimacyLoseOverslept: {
+      title: 'Se te pegaron las sábanas',
+      caption: 'OVERSLEPT',
+      description: 'El despertador sonó tres veces y sigues con los ojos cerrados. Adiós al plan de la mañana.',
+      tip: 'A partir de las {dawn} todos duermen más ligero: por la mañana abre los ojos, ponte cara a cara y besa mientras tu pareja esté despierta (los mimos de la mañana cuentan el doble).',
     },
   },
 
@@ -254,6 +287,14 @@ const game: GameMessages = {
     caress: 'Acaricia a tu pareja, con la fuerza en la zona verde.',
     whisper: 'Susúrrale algo para acortar distancias.',
     almostThere: '¡Ya casi! Otro beso antes de que tu pareja se duerma.',
+    // hard mode
+    tooHot: '¡Qué calor! Comparte algo de manta con tu pareja («Arropar»).',
+    needCloseness: 'Te faltan mimos: necesitas intimidad {need} o más para dormir bien. Abraza o susurra un poco.',
+    hurry: '¡Se acaba el tiempo! Tiene que ser antes de las {deadline}: besa mientras tu pareja esté despierta.',
+    morningSleepFirst: 'Primero duerme: la mañana empieza a las {morning}. Ahora sería demasiado pronto.',
+    tooEarlyWarn: '¡La intimidad está casi llena y todavía no es de mañana! Da la espalda o cierra los ojos y duerme.',
+    morningPrep: 'Mientras tu pareja siga despierta, crea algo de complicidad (sin llenarla). Por la mañana los mimos cuentan el doble.',
+    morningGo: '¡Ya es de mañana! Abre los ojos, ponte cara a cara y busca intimidad mientras tu pareja esté despierta.',
   },
 
   speech: {
@@ -302,6 +343,11 @@ const game: GameMessages = {
     intimacyHigh: ['Se me acelera el corazón…', '¿Qué te pasa hoy, que no me sueltas?', 'Hay algo… distinto en el ambiente.'],
     partnerInitiate: ['No te escondas.', 'Ven, acércate un poquito.', 'Estás tan lejos…'],
     wakeUp: ['¡Despierta~!', 'Oye, ¿ya te dormiste? Hazme compañía.', '¡Prohibido dormir!'],
+    // hard mode
+    goodMorning: ['Mmm… ¿ya es de día?', '(se estira)… buenos días~', '¿Ya te despertaste?… Yo sí.', 'Ya es de mañana… jiji.'],
+    giveUp: ['…déjalo, me duermo.', 'Hmpf. Paso. Buenas noches.', '(suspira)… a dormir.'],
+    tooHot: ['Qué calor…', 'Quédate la manta, me aso.', '(aparta la manta de una patada)…'],
+    needCuddle: ['Un abracito antes de dormir…', 'Ni caso me haces…', 'Dame las buenas noches.'],
 
     // Pantalla final: morning_{objetivo del jugador}_{objetivo de la pareja}; together = intimidad lograda, floor = fuera de la cama
     morning_sleep_sleep: ['«Buenos días. ¿Anoche tenías ganas de algo?» «¿Eh? No. ¿Por?»', '«Qué bien dormí.» «Sí, por fin una noche de un tirón.»', '«Buenas… anoche roncaste.» «Tú también.»'],

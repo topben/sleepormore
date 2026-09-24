@@ -26,6 +26,11 @@ const ui: UiMessages = {
     subtitle: 'SLEEP OR MORE',
     tagline: 'Đêm nay, bạn muốn ngủ thật ngon… hay là?',
     chooseRole: 'Chọn vai của bạn',
+    modeLabel: 'Độ khó',
+    mode: {
+      easy: { name: 'Dễ', desc: 'Luật chơi như cũ' },
+      hard: { name: 'Khó', desc: 'Gần gũi chia thành ngay / buổi sáng; muốn ngủ phải lo cả thân nhiệt lẫn cảm giác an toàn' },
+    },
     playMale: 'Mình là chàng',
     playFemale: 'Mình là nàng',
     sideLeft: 'Nằm bên trái',
@@ -61,6 +66,36 @@ const ui: UiMessages = {
         'Nếu người ấy muốn ngủ, hãy thì thầm, đắp chăn để nâng tâm trạng người ấy lên {n} trước.',
       ],
     },
+    // hard mode
+    hardBadge: '🔥 Chế độ khó',
+    now: {
+      win: 'Đưa độ thân mật lên 100 trước {deadline}, và lúc đó người ấy phải còn thức. Hết giờ là thua.',
+      tips: [
+        'Ngay lượt đầu hãy “Quay mặt vào” người ấy; xa quá thì “Nhích lại gần”.',
+        'Hôn mạnh tay một chút (vùng vàng) sẽ nhanh hơn, nhưng đừng thô bạo.',
+        'Nếu người ấy muốn ngủ thì gần như không kịp — để ý phản ứng của người ấy.',
+      ],
+    },
+    morning: {
+      win: 'Ngủ đủ trước (điểm giấc ngủ {sleep}), rồi từ {morning} mới đưa độ thân mật lên 100 (người ấy phải còn thức). Sớm quá thì không tính.',
+      tips: [
+        'Ban đêm, tranh thủ lúc người ấy còn thức vun đắp chút tình cảm, rồi nhắm mắt ngủ.',
+        'Độ thân mật sắp đầy thì quay lưng hoặc nhắm mắt, đừng để nó đầy ngay trong đêm.',
+        'Sau {dawn} ai cũng ngủ nông dần; gần gũi buổi sáng hiệu quả gấp đôi, hãy hôn khi người ấy còn thức.',
+      ],
+    },
+    sleepHard: {
+      win: 'Trụ tới 06:00 với điểm giấc ngủ {n}. Chỉ những lượt ngủ thoải mái mới được trọn 1 điểm: thân nhiệt vừa phải và độ thân mật đủ cao.',
+      tips: [
+        'Thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh; nóng quá thì chia chăn cho người ấy (“Đắp chăn giúp”), lạnh quá thì kéo lại.',
+        'Độ thân mật thiếu thì ngủ không yên: trước khi ngủ hãy thì thầm hoặc ôm một cái. Khi có người đang ngủ, độ thân mật không giảm.',
+        'Sau {dawn} ai cũng ngủ nông dần, hãy ngủ cho đủ trước khi trời sáng.',
+      ],
+    },
+    body: {
+      male: '🐻 Gấu sợ nóng: thân nhiệt {lo}–{hi} là dễ chịu nhất, độ thân mật cần từ {need} trở lên.',
+      female: '🐰 Thỏ tai cụp sợ lạnh: thân nhiệt từ {lo} trở lên là dễ chịu nhất, độ thân mật từ {need} trở lên mới thấy yên tâm.',
+    },
     secret: 'Người ấy cũng có mục tiêu riêng (bí mật đấy). Hãy đoán qua lời nói và hành động nhé!',
     hintsToggle: 'Hiện gợi ý (khuyên dùng cho người mới)',
     start: 'Bắt đầu',
@@ -71,6 +106,9 @@ const ui: UiMessages = {
     progress: {
       sleep: 'Điểm ngủ {v}/{t}',
       intimacy: 'Độ thân mật {v}/{t}',
+      now: 'Độ thân mật {v}/{t} · trước {deadline}',
+      morningSleep: 'Ngủ đủ trước {v}/{t}',
+      morningLove: 'Độ thân mật {v}/{t} · từ {morning}',
     },
     status: {
       done: 'Đạt rồi!',
@@ -116,6 +154,9 @@ const ui: UiMessages = {
     eyesState: { open: 'Mở', closed: 'Nhắm' },
     snoreLevel: ['Không', 'Nhỏ', 'Vừa', 'Rất to'],
     cold: 'Lạnh quá!',
+    hot: 'Nóng quá!',
+    need: 'Cảm giác an toàn cần có: {n}',
+    hardTag: 'Khó',
     restlessWarn: 'Cẩn thận',
     restlessDanger: 'Sắp bị lộ',
     annoyPush: 'Sắp đẩy bạn ra!',
@@ -205,6 +246,7 @@ const ui: UiMessages = {
     armFree: 'Cánh tay đã rút về',
     armLeft: 'Đầu đã rời khỏi tay',
     cold: { you: 'Bạn đang lạnh', partner: 'Người ấy đang lạnh' },
+    hot: { you: 'Bạn đang nóng', partner: 'Người ấy đang nóng' },
     numb: { you: 'Tay bạn tê rồi', partner: 'Tay người ấy tê rồi' },
     noticed: { you: 'Người ấy phát hiện bạn còn thức', partner: 'Bạn phát hiện người ấy còn thức' },
     snore: { you: 'Bạn đang ngáy ({level})', partner: 'Người ấy đang ngáy ({level})' },
@@ -228,6 +270,7 @@ const ui: UiMessages = {
     partnerWanted: 'Thật ra đêm nay người ấy muốn:',
     goalSleep: '😴 Ngủ thật ngon',
     goalIntimacy: '💞 Gần gũi',
+    hardTag: '🔥 Chế độ khó',
     morning: 'Sáng hôm sau',
     stats: 'Thống kê',
     statTurns: 'Lượt {n}/{max}',
@@ -276,6 +319,14 @@ const ui: UiMessages = {
           'Đầu ván, bạn bốc thăm mục tiêu đêm nay: 😴 Ngủ thật ngon, hoặc 💞 Gần gũi. Người ấy cũng có mục tiêu riêng, nhưng đó là bí mật.',
           '😴 Ngủ: trụ đến 06:00 và đạt 7 điểm ngủ (mỗi lượt đang ngủ +1, lơ mơ +0.5).',
           '💞 Gần gũi: đưa độ thân mật lên 100 trước khi trời sáng, và ngay lúc đó người ấy phải còn thức.',
+        ],
+      },
+      {
+        title: '🔥 Chế độ khó',
+        body: [
+          'Ở màn hình bắt đầu có thể chọn “Khó”. Gần gũi có hai kiểu: ⏱️ gần gũi ngay (phải xong trước {deadline}, hết giờ là thua) và 🌅 gần gũi buổi sáng (ngủ đủ trước, chỉ tính từ {morning}, sớm quá thì hòa).',
+          'Phải ngủ thoải mái mới được điểm: thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh, cả hai cùng thức mà không tương tác thì độ thân mật giảm. Gấu sợ nóng (thân nhiệt {bearLo}–{bearHi}), thỏ tai cụp sợ lạnh (từ {bunnyLo} trở lên) và cần nhiều cảm giác an toàn hơn.',
+          'Sau {dawn} ai cũng ngủ nông dần; gần gũi buổi sáng hiệu quả gấp đôi.',
         ],
       },
       {

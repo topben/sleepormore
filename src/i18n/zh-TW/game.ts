@@ -1,6 +1,8 @@
 // 繁體中文(參考語系):遊戲規則產生的所有文字。其他語系必須有完全相同的結構。
 // speech 每個池的句數與順序要和這裡一致(遊戲用句子序號對應各語系)。
 // 佔位符:{name} 由 fmt() 代入({n} = 規則數值,例如想睡的對方需要的心情門檻)。
+// 困難模式的佔位符:{deadline} 立即親熱的時限、{morning} 早上開始的時間、{dawn} 開始越睡越淺的時間、
+// {sleep} 早上親熱要先睡到的睡眠分數、{need} 你睡得安穩要的親密度。
 
 const SHARED_GOODNIGHT = ['嗯……晚安。', '燈要關嗎?'];
 
@@ -76,6 +78,11 @@ export default {
     wokeYourself: '你把自己弄醒了',
     partnerStoleBlanket: '對方在睡夢中把棉被捲走了',
     partnerBurrito: '對方把自己捲成春捲了',
+    // 困難模式
+    sleepHot: '好熱,睡不好',
+    sleepLonely: '心裡不踏實,睡不安穩',
+    partnerKickedBlanket: '對方熱到把棉被踢開了',
+    partnerWokeUp: '對方醒來了,伸了個懶腰',
   },
 
   posture: {
@@ -88,6 +95,9 @@ export default {
   band: { timid: '太輕', gentle: '溫柔', firm: '用力', rough: '粗魯' },
 
   goal: { sleep: '好好睡覺', intimacy: '親熱' },
+
+  /** 困難模式的親熱:立即 / 早上 */
+  timing: { now: '立即親熱', morning: '早上親熱' },
 
   ending: {
     kickedOff: {
@@ -137,6 +147,31 @@ export default {
       caption: 'TOO LATE',
       description: '什麼都沒發生。鬧鐘響了。',
       tip: '先側躺面向、挪近,再親吻。想睡的對方要先把心情養到 {n}。',
+    },
+    // 困難模式
+    intimacyLoseDeadline: {
+      title: '時間到',
+      caption: "TIME'S UP",
+      description: '{deadline} 了,氣氛早就過了。對方打了個大呵欠,翻身睡了。',
+      tip: '立即親熱要搶時間:第一回合就側躺面向、挪近;親吻可以用力一點(黃區)加速,但別粗魯。',
+    },
+    intimacyMorningWin: {
+      title: '早安親親',
+      caption: 'GOOD MORNING',
+      description: '睡飽了,天也亮了。這個早晨剛剛好。',
+      tip: '完美!先睡飽,天亮再行動。',
+    },
+    intimacyTooEarly: {
+      title: '等不及天亮',
+      caption: 'TOO EAGER',
+      description: '說好要等到早上的……算了,也不錯。',
+      tip: '早上親熱要先睡飽(睡眠分數 {sleep}),{morning} 以後才算。晚上親密度快滿時先背對或閉眼睡。',
+    },
+    intimacyLoseOverslept: {
+      title: '睡過頭',
+      caption: 'OVERSLEPT',
+      description: '鬧鐘響了三次,你還閉著眼睛賴床。早上的計畫泡湯了。',
+      tip: '{dawn} 以後大家越睡越淺:早上張開眼睛、面向對方,趁對方醒著親下去(早上的親熱效果加倍)。',
     },
   },
 
@@ -250,6 +285,14 @@ export default {
     caress: '輕撫對方,力道停在綠區。',
     whisper: '說說悄悄話,拉近距離。',
     almostThere: '就差一點!趁對方還醒著再親一下。',
+    // 困難模式
+    tooHot: '好熱!把棉被分一些給對方(幫對方蓋好)。',
+    needCloseness: '心裡不踏實:親密度要 {need} 以上才睡得安穩。抱抱或說說悄悄話。',
+    hurry: '時間不多了!{deadline} 前要達成,趁對方醒著快親。',
+    morningSleepFirst: '先好好睡:{morning} 以後才算早上,現在親熱就太早了。',
+    tooEarlyWarn: '親密度快滿了,但還沒到早上!先背對或閉眼睡。',
+    morningPrep: '趁對方醒著先培養一點感情(別讓親密度滿),早上的親熱效果會加倍。',
+    morningGo: '天亮了!張開眼睛、面向對方,趁對方醒著親熱。',
   },
 
   speech: {
@@ -298,6 +341,11 @@ export default {
     intimacyHigh: ['心跳好快……', '你今天怎麼這麼黏?', '氣氛好像……不太一樣。'],
     partnerInitiate: ['不要躲啦。', '過來一點嘛。', '你離我好遠喔。'],
     wakeUp: ['起來啦~', '欸,你睡了喔?陪我啦。', '不准睡!'],
+    // 困難模式
+    goodMorning: ['嗯……天亮了?', '(伸懶腰)……早安~', '你醒了嗎?……我醒了喔。', '早上了欸……嘿嘿。'],
+    giveUp: ['……算了,睡覺。', '哼,不理你了,晚安。', '(嘆氣)……睡吧。'],
+    tooHot: ['好熱……', '被子給你啦,熱死了。', '(把被子踢開)……'],
+    needCuddle: ['睡前抱一下嘛……', '你都不理我……', '說晚安啦。'],
 
     // 結局畫面:morning_{玩家目標}_{對方目標};together = 親熱成功、floor = 掉下床
     morning_sleep_sleep: ['「早安。你昨晚有想什麼嗎?」「沒有啊?」', '「睡得好好喔。」「對啊,難得一覺到天亮。」', '「早……你昨晚有打呼喔。」「你也有。」'],

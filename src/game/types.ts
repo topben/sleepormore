@@ -3,6 +3,10 @@
 
 export type Role = 'male' | 'female';
 export type Goal = 'sleep' | 'intimacy';
+/** 難度:easy = 原本的規則;hard = 困難模式(DESIGN §15) */
+export type Mode = 'easy' | 'hard';
+/** 困難模式的親熱分兩種:now = 立即(時限內)、morning = 早上(先睡,天快亮才行動) */
+export type IntimacyTiming = 'now' | 'morning';
 export type Posture = 'supine' | 'sideFacing' | 'sideAway' | 'prone';
 
 export type ActionId =
@@ -56,6 +60,8 @@ export type Eyes = 'open' | 'closed';
 export interface CharacterState {
   role: Role;
   goal: Goal;
+  /** 困難模式、目標是親熱時才有:立即 / 早上 */
+  timing?: IntimacyTiming;
   posture: Posture;
   eyes: Eyes; // 閉眼才能累積睡意/裝睡;張眼才看得到對方狀態(§1.1)
   lateral: number; // -1..1
@@ -81,7 +87,12 @@ export type EndingId =
   | 'intimacyLoseFellAsleep'
   | 'accidentalIntimacy'
   | 'kickedOff'
-  | 'fellOff';
+  | 'fellOff'
+  // 困難模式(DESIGN §15)
+  | 'intimacyLoseDeadline'
+  | 'intimacyMorningWin'
+  | 'intimacyTooEarly'
+  | 'intimacyLoseOverslept';
 
 /** 結局演出風格:wasted = GTA「WASTED」式失敗演出;passed = 金色過關;neutral = 平手 */
 export type EndingStyle = 'wasted' | 'passed' | 'neutral';
@@ -117,6 +128,10 @@ export interface GameMemo {
   clues: Record<Goal, number>;
   /** 本局的行為統計(結局的趣味稱號用) */
   tally: Tally;
+  /** 困難模式:立即親熱的對方過了時限說過「算了」 */
+  gaveUpSpoken?: boolean;
+  /** 困難模式:早上親熱的對方醒來說過早安 */
+  morningSpoken?: boolean;
 }
 
 /** 單一角色本局的行為統計 */
@@ -157,6 +172,8 @@ export interface Tally {
 export interface GameState {
   turn: number; // 0..MAX_TURNS
   playerRole: Role;
+  /** 難度(舊存檔 / 未指定 = easy) */
+  mode?: Mode;
   chars: Record<Role, CharacterState>;
   blanketOffset: number; // -1..1
   intimacy: number; // 0..100
@@ -187,6 +204,7 @@ export type GameEvent =
   | { type: 'embrace'; on: boolean }
   | { type: 'armPillow'; offered: boolean; inUse: boolean }
   | { type: 'cold'; who: Role }
+  | { type: 'hot'; who: Role } // 困難模式:熱到不舒服(回合末)
   | { type: 'numb'; who: Role }
   | { type: 'noticed'; who: Role; by: Role } // by 察覺 who 其實醒著
   | { type: 'snore'; who: Role; level: 1 | 2 | 3 } // who 在打呼(回合末發,level 依姿勢/深度)

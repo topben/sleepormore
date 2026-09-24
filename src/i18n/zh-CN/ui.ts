@@ -26,6 +26,11 @@ const ui: UiMessages = {
     subtitle: 'SLEEP OR MORE',
     tagline: '今晚,你想好好睡……还是?',
     chooseRole: '选择你的角色',
+    modeLabel: '难度',
+    mode: {
+      easy: { name: '简单', desc: '原来的玩法' },
+      hard: { name: '困难', desc: '亲热分立即 / 早上;睡觉要顾体温与安全感' },
+    },
     playMale: '我是男方',
     playFemale: '我是女方',
     sideLeft: '睡左边',
@@ -61,6 +66,36 @@ const ui: UiMessages = {
         '对方想睡的话,先靠悄悄话、盖被子把对方心情哄到 {n}。',
       ],
     },
+    // hard mode
+    hardBadge: '🔥 困难模式',
+    now: {
+      win: '{deadline} 前让亲密度达到 100,而且那时对方醒着。时间一到就输。',
+      tips: [
+        '第一回合就“侧躺面向”对方,离得远就“挪近”。',
+        '亲吻可以用力一点(黄区)加速,但别粗鲁。',
+        '对方想睡的话几乎来不及 —— 留意对方的反应。',
+      ],
+    },
+    morning: {
+      win: '先睡饱(睡眠分数 {sleep}),{morning} 以后再让亲密度达到 100(对方要醒着)。太早满了就不算。',
+      tips: [
+        '晚上趁对方醒着先培养一点感情,然后闭眼睡。',
+        '亲密度快满时先背对或闭眼,别让它在晚上就满了。',
+        '{dawn} 以后大家越睡越浅;早上的亲热效果加倍,趁对方醒着亲下去。',
+      ],
+    },
+    sleepHard: {
+      win: '撑到 06:00,睡眠分数达到 {n}。要“舒服地睡着”才算 1 分:体温在舒服的范围、亲密度也够。',
+      tips: [
+        '体温会乱跳、半夜会变冷;太热就把被子分给对方(“帮对方盖好”),太冷就拉回来。',
+        '亲密度不够会睡不安稳:睡前说说悄悄话、抱一抱。有人睡着时亲密度不会掉。',
+        '{dawn} 以后大家越睡越浅,天亮前多睡一点。',
+      ],
+    },
+    body: {
+      male: '🐻 小熊怕热:体温 {lo}–{hi} 最舒服,亲密度要 {need} 以上。',
+      female: '🐰 垂耳兔怕冷:体温 {lo} 以上最舒服,亲密度要 {need} 以上才有安全感。',
+    },
     secret: '对方也有自己的目标(是秘密哦)。从对话和举动里猜猜看!',
     hintsToggle: '显示提示(新手推荐)',
     start: '开始',
@@ -71,6 +106,9 @@ const ui: UiMessages = {
     progress: {
       sleep: '睡眠分数 {v}/{t}',
       intimacy: '亲密度 {v}/{t}',
+      now: '亲密度 {v}/{t} · {deadline} 前',
+      morningSleep: '先睡饱 {v}/{t}',
+      morningLove: '亲密度 {v}/{t} · {morning} 后',
     },
     status: {
       done: '达标!',
@@ -116,6 +154,9 @@ const ui: UiMessages = {
     eyesState: { open: '睁着', closed: '闭着' },
     snoreLevel: ['没有', '小声', '中等', '很响'],
     cold: '好冷!',
+    hot: '好热!',
+    need: '你要的安全感 {n}',
+    hardTag: '困难',
     restlessWarn: '小心',
     restlessDanger: '快被发现了',
     annoyPush: '要推人了!',
@@ -204,6 +245,7 @@ const ui: UiMessages = {
     armFree: '手臂收回来了',
     armLeft: '头从手臂上挪开了',
     cold: { you: '你好冷', partner: '对方好冷' },
+    hot: { you: '你好热', partner: '对方好热' },
     numb: { you: '你的手麻了', partner: '对方的手麻了' },
     noticed: { you: '对方发现你还醒着', partner: '你发现对方还醒着' },
     snore: { you: '你在打呼噜({level})', partner: '对方在打呼噜({level})' },
@@ -227,6 +269,7 @@ const ui: UiMessages = {
     partnerWanted: '其实今晚对方想:',
     goalSleep: '😴 好好睡觉',
     goalIntimacy: '💞 亲热',
+    hardTag: '🔥 困难模式',
     morning: '第二天早上',
     stats: '统计',
     statTurns: '回合 {n}/{max}',
@@ -276,6 +319,14 @@ const ui: UiMessages = {
           '开局会抽到今晚的目标:😴 好好睡觉,或 💞 亲热。对方也有自己的目标,不过那是秘密。',
           '😴 睡觉:撑到 06:00,睡眠分数达到 7 分(睡着的回合 +1,迷糊 +0.5)。',
           '💞 亲热:天亮前让亲密度达到 100,而且那时对方还醒着。',
+        ],
+      },
+      {
+        title: '🔥 困难模式',
+        body: [
+          '开始画面可以选“困难”。亲热分两种:⏱️ 立即亲热({deadline} 前要达成,时间到就输)、🌅 早上亲热(先睡饱,{morning} 以后才算,太早满了只算平局)。',
+          '睡觉要舒服地睡着才算分:体温会乱跳、半夜会变冷,两人都醒着却没互动时亲密度会掉。小熊怕热(体温 {bearLo}–{bearHi}),垂耳兔怕冷({bunnyLo} 以上)、也更需要安全感。',
+          '{dawn} 以后大家越睡越浅;早上的亲热效果加倍。',
         ],
       },
       {

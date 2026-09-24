@@ -1,8 +1,9 @@
 // 全螢幕畫面:開始、目標卡、說明、設定、結局(banner + 卡片)、toast。
-import { BAL, MAX_TURNS, SLEEP_WIN_SCORE } from '../game/constants';
-import { morningLine } from '../game/endings';
+import { BAL, MAX_TURNS } from '../game/constants';
+import { ENDING_VARS, morningLine, sleepTarget } from '../game/endings';
+import { HARD_TEXT_VARS, hintVars } from '../game/hints';
 import { COMBO_IDS, comboRarity, PERSONA_EMOJI, PERSONAS, type Combo, type ComboId, type Persona, type Rarity } from '../game/titles';
-import type { GameState, Role } from '../game/types';
+import type { CharacterState, GameState, Mode, Role } from '../game/types';
 import { partnerOf } from '../game/types';
 import { LOCALES, currentLocaleInfo, fmt, getLocale, m, speechLine, type Locale } from '../i18n';
 import { h } from './dom';
@@ -79,8 +80,49 @@ export function languagePicker(opts: { onPick(l: Locale): void; onClose(): void 
 const PLUG_URL = 'https://bridgetime.org';
 const PLUG_HOST = 'bridgetime.org';
 
-export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLanguage(): void; onGallery(): void; collected: number }): HTMLElement {
+/** 目標的圖示:困難模式的親熱分 ⏱️ 立即 / 🌅 早上 */
+export function goalEmoji(c: CharacterState, mode: Mode | undefined): string {
+  if (mode === 'hard' && c.goal === 'intimacy' && c.timing) return c.timing === 'now' ? '⏱️' : '🌅';
+  return c.goal === 'sleep' ? '😴' : '💞';
+}
+
+/** 目標名稱(困難模式的親熱顯示「立即親熱 / 早上親熱」) */
+export function goalName(c: CharacterState, mode: Mode | undefined): string {
+  const g = m().game;
+  if (mode === 'hard' && c.goal === 'intimacy' && c.timing) return g.timing[c.timing];
+  return g.goal[c.goal];
+}
+
+export function startScreen(opts: {
+  onRole(r: Role): void;
+  onHelp(): void;
+  onLanguage(): void;
+  onGallery(): void;
+  onMode(mode: Mode): void;
+  mode: Mode;
+  collected: number;
+}): HTMLElement {
   const t = m().ui.start;
+  // 選難度時原地切換(不重畫整個畫面,開場動畫不會重播)
+  const modeBtns: HTMLElement[] = [];
+  const pickMode = (md: Mode) => {
+    for (const b of modeBtns) {
+      const on = b.dataset.mode === md;
+      b.classList.toggle('selected', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+    opts.onMode(md);
+  };
+  const modeBtn = (md: Mode) => {
+    const b = h(
+      'button',
+      { class: `mode-btn ${md}${opts.mode === md ? ' selected' : ''}`, type: 'button', 'data-mode': md, 'aria-pressed': String(opts.mode === md), onClick: () => pickMode(md) },
+      h('span', { class: 'mode-name', text: `${md === 'hard' ? '🔥' : '🌙'} ${t.mode[md].name}` }),
+      h('span', { class: 'mode-desc', text: t.mode[md].desc }),
+    );
+    modeBtns.push(b);
+    return b;
+  };
   const roleBtn = (r: Role) =>
     h(
       'button',
@@ -95,9 +137,10 @@ export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLan
     h(
       'div',
       { class: 'start-card' },
-      h('h1', { class: 'title', text: t.title }),
+      h('h1', { class: [...t.title].length > 8 ? 'title long' : 'title', text: t.title }),
       h('div', { class: 'subtitle', text: t.subtitle }),
       h('p', { class: 'tagline', text: t.tagline }),
+      h('div', { class: 'mode-pick', role: 'group', 'aria-label': t.modeLabel }, modeBtn('easy'), modeBtn('hard')),
       h('div', { class: 'choose', text: t.chooseRole }),
       h('div', { class: 'roles' }, roleBtn('male'), roleBtn('female')),
       h(
@@ -121,10 +164,17 @@ export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLan
 
 export function goalScreen(s: GameState, settings: Settings, opts: { onStart(): void; onHints(on: boolean): void }): HTMLElement {
   const t = m().ui.goal;
-  const g = m().game;
   const P = s.playerRole;
-  const goal = s.chars[P].goal;
-  const info = t[goal];
+  const me = s.chars[P];
+  const goal = me.goal;
+  const hard = s.mode === 'hard';
+  const timing = hard && goal === 'intimacy' ? me.timing : undefined;
+  const info = timing ? t[timing] : hard && goal === 'sleep' ? t.sleepHard : t[goal];
+  const vars = hintVars(s);
+  // win 的 {n} = 睡覺要的睡眠分數;tips 的 {n} = 想睡的對方要的心情
+  const winVars = { ...vars, n: sleepTarget(s) };
+  // 困難模式:要睡覺的目標(睡覺、早上親熱的夜裡)會用到自己的體質
+  const showBody = hard && (goal === 'sleep' || timing === 'morning');
   const hints = h('input', { type: 'checkbox', checked: settings.hints });
   hints.addEventListener('change', () => opts.onHints(hints.checked));
   const startBtn = h('button', { class: 'primary big', type: 'button', onClick: opts.onStart }, t.start);
@@ -134,14 +184,15 @@ export function goalScreen(s: GameState, settings: Settings, opts: { onStart(): 
     { class: 'screen goal' },
     h(
       'div',
-      { class: `goal-card ${goal}` },
-      h('div', { class: 'goal-heading', text: t.heading }),
-      h('div', { class: 'goal-big' }, h('span', { class: 'goal-big-emoji', 'aria-hidden': 'true', text: goal === 'sleep' ? '😴' : '💞' }), h('span', { text: g.goal[goal] })),
+      { class: `goal-card ${goal}${hard ? ' hard' : ''}` },
+      h('div', { class: 'goal-heading' }, h('span', { text: t.heading }), hard ? h('span', { class: 'goal-mode', text: t.hardBadge }) : null),
+      h('div', { class: 'goal-big' }, h('span', { class: 'goal-big-emoji', 'aria-hidden': 'true', text: goalEmoji(me, s.mode) }), h('span', { text: goalName(me, s.mode) })),
       h('p', { class: 'goal-role', text: fmt(t.youAre, { role: P === 'male' ? m().ui.common.male : m().ui.common.female, side: P === 'male' ? t.left : t.right }) }),
       h('h4', { text: t.winLabel }),
-      h('p', { class: 'goal-win', text: fmt(info.win, { n: SLEEP_WIN_SCORE }) }),
+      h('p', { class: 'goal-win', text: fmt(info.win, winVars) }),
+      showBody ? h('p', { class: 'goal-body', text: fmt(t.body[P], vars) }) : null,
       h('h4', { text: t.tipsLabel }),
-      h('ul', { class: 'goal-tips' }, ...info.tips.map((tip) => h('li', { text: fmt(tip, { n: BAL.sleepyMood }) }))),
+      h('ul', { class: 'goal-tips' }, ...info.tips.map((tip) => h('li', { text: fmt(tip, vars) }))),
       h('p', { class: 'goal-secret', text: `🤫 ${t.secret}` }),
       h('label', { class: 'check' }, hints, h('span', { text: t.hintsToggle })),
       startBtn,
@@ -163,7 +214,7 @@ export function helpScreen(onClose: () => void): HTMLElement {
       h(
         'div',
         { class: 'panel-body' },
-        ...t.sections.map((sec) => h('section', {}, h('h3', { text: sec.title }), ...sec.body.map((p) => h('p', { text: p })))),
+        ...t.sections.map((sec) => h('section', {}, h('h3', { text: sec.title }), ...sec.body.map((p) => h('p', { text: fmt(p, HARD_TEXT_VARS) })))),
       ),
     ),
   );
@@ -279,7 +330,10 @@ export function endingCard(
   const t = m().ui.ending;
   const tx = m().game.ending[e.id];
   const P = s.playerRole;
-  const qGoal = s.chars[partnerOf(P)].goal;
+  const q = s.chars[partnerOf(P)];
+  const qGoal = q.goal;
+  const hard = s.mode === 'hard';
+  const qWanted = hard && q.goal === 'intimacy' && q.timing ? `${goalEmoji(q, s.mode)} ${goalName(q, s.mode)}` : qGoal === 'sleep' ? t.goalSleep : t.goalIntimacy;
   const ml = morningLine(s);
   const again = h('button', { class: 'primary big', type: 'button', onClick: opts.onAgain }, `↺ ${t.again}`);
   queueMicrotask(() => again.focus());
@@ -289,12 +343,12 @@ export function endingCard(
     h(
       'div',
       { class: `panel ending-card outcome-${e.outcome} style-${e.style}` },
-      h('div', { class: 'ending-outcome', text: t.outcome[e.outcome] }),
+      h('div', { class: 'ending-outcome' }, h('span', { text: t.outcome[e.outcome] }), hard ? h('span', { class: 'ending-mode', text: t.hardTag }) : null),
       h('h2', { class: 'ending-title', text: tx.title }),
       h('div', { class: 'ending-caption', text: e.caption }),
-      h('p', { class: 'ending-desc', text: tx.description }),
+      h('p', { class: 'ending-desc', text: fmt(tx.description, ENDING_VARS) }),
       opts.combo ? comboSection(opts.combo, opts) : null,
-      h('div', { class: 'ending-reveal' }, h('span', { text: t.partnerWanted }), h('strong', { class: qGoal, text: qGoal === 'sleep' ? t.goalSleep : t.goalIntimacy })),
+      h('div', { class: 'ending-reveal' }, h('span', { text: t.partnerWanted }), h('strong', { class: qGoal, text: qWanted })),
       h('div', { class: 'ending-morning' }, h('div', { class: 'mini-title', text: `☀️ ${t.morning}` }), h('p', { text: speechLine(ml.key, ml.index) })),
       h(
         'div',
@@ -304,7 +358,7 @@ export function endingCard(
         h('span', { text: fmt(t.statSleep, { n: s.sleepScore }) }),
         h('span', { text: fmt(t.statClues, { n: s.memo.clues.sleep + s.memo.clues.intimacy }) }),
       ),
-      h('div', { class: 'ending-tip' }, h('div', { class: 'mini-title', text: `💡 ${t.tip}` }), h('p', { text: fmt(tx.tip, { n: BAL.sleepyMood }) })),
+      h('div', { class: 'ending-tip' }, h('div', { class: 'mini-title', text: `💡 ${t.tip}` }), h('p', { text: fmt(tx.tip, { ...ENDING_VARS, n: BAL.sleepyMood }) })),
       h('div', { class: 'ending-actions' }, again, h('button', { class: 'secondary', type: 'button', onClick: opts.onChangeRole }, t.changeRole)),
     ),
   );

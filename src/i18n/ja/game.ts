@@ -77,6 +77,11 @@ const game: GameMessages = {
     wokeYourself: '自分で目を覚ましてしまった',
     partnerStoleBlanket: '相手が寝ぼけて布団を巻き取っていった',
     partnerBurrito: '相手が布団にくるまってミノムシになった',
+    // hard mode
+    sleepHot: '暑くてよく眠れない',
+    sleepLonely: 'なんだか心細くて、眠りが浅い',
+    partnerKickedBlanket: '相手が暑くて布団を蹴飛ばした',
+    partnerWokeUp: '相手が目を覚まして、のびをした',
   },
 
   posture: {
@@ -89,6 +94,9 @@ const game: GameMessages = {
   band: { timid: '弱すぎ', gentle: 'やさしく', firm: '強め', rough: '乱暴' },
 
   goal: { sleep: 'ぐっすり眠る', intimacy: 'イチャイチャする' },
+
+  /** hard mode intimacy: right now / in the morning */
+  timing: { now: '今すぐイチャイチャ', morning: '朝にイチャイチャ' },
 
   ending: {
     kickedOff: {
@@ -138,6 +146,31 @@ const game: GameMessages = {
       caption: 'TOO LATE',
       description: '何も起こらなかった。目覚ましが鳴っている。',
       tip: 'まず「向き合う」「近づく」、それからキス。眠たい相手は、先に機嫌を {n} まで上げておこう。',
+    },
+    // hard mode
+    intimacyLoseDeadline: {
+      title: '時間切れ',
+      caption: "TIME'S UP",
+      description: '{deadline} を過ぎて、もうそんな雰囲気じゃない。相手は大あくびをして寝返りを打った。',
+      tip: '「今すぐ」は時間との勝負。1ターン目から「向き合う」「近づく」。キスは少し強め(黄ゾーン)で加速できるけど、乱暴はダメ。',
+    },
+    intimacyMorningWin: {
+      title: 'おはようのキス',
+      caption: 'GOOD MORNING',
+      description: 'ぐっすり眠って、ちょうど夜も明けた。最高の朝。',
+      tip: '完璧!先にぐっすり眠って、朝に動く。',
+    },
+    intimacyTooEarly: {
+      title: '朝まで待てなかった',
+      caption: 'TOO EAGER',
+      description: '朝まで待つって決めてたのに……まあ、これもアリか。',
+      tip: '「朝に」は先にぐっすり眠って(睡眠スコア {sleep})、{morning} 以降でないとカウントされない。夜に親密度が満タンに近づいたら、背を向けるか目を閉じて寝よう。',
+    },
+    intimacyLoseOverslept: {
+      title: '寝坊',
+      caption: 'OVERSLEPT',
+      description: '目覚ましが3回鳴っても、まだ目を閉じてゴロゴロ。朝の計画は台無し。',
+      tip: '{dawn} を過ぎるとみんな眠りが浅くなる。朝は目を開けて相手と向き合い、起きているうちにキスしよう(朝のイチャイチャは効果2倍)。',
     },
   },
 
@@ -251,6 +284,14 @@ const game: GameMessages = {
     caress: 'やさしくなでてみよう。力加減は緑ゾーンで。',
     whisper: 'ささやいて、ふたりの距離を縮めよう。',
     almostThere: 'あと少し!相手が起きているうちに、もう一度キス。',
+    // hard mode
+    tooHot: '暑い!布団を少し相手に分けよう(「布団をかける」)。',
+    needCloseness: 'なんだか心細い:親密度 {need} 以上でないとぐっすり眠れない。ハグしたり、ささやいたりしよう。',
+    hurry: '時間がない!{deadline} までに達成しないと。相手が起きているうちに早くキスを。',
+    morningSleepFirst: 'まずはしっかり寝よう。{morning} 以降が朝。今イチャイチャするのは早すぎる。',
+    tooEarlyWarn: '親密度がもうすぐ満タン、でもまだ朝じゃない!背を向けるか、目を閉じて寝よう。',
+    morningPrep: '相手が起きているうちに少し仲良くしておこう(満タンにはしないで)。朝のイチャイチャは効果2倍。',
+    morningGo: '朝だ!目を開けて相手と向き合い、起きているうちにイチャイチャしよう。',
   },
 
   speech: {
@@ -299,6 +340,11 @@ const game: GameMessages = {
     intimacyHigh: ['ドキドキする……', '今日はずいぶんくっついてくるね?', '雰囲気が……いつもと違う。'],
     partnerInitiate: ['逃げないでよ。', 'もうちょっとこっち来て。', 'なんか遠くない?'],
     wakeUp: ['起きてよ~', 'ねえ、寝ちゃった?かまってよ。', '寝ちゃダメ!'],
+    // hard mode
+    goodMorning: ['ん……もう朝?', '(のび~)……おはよ~', '起きてる?……こっちは起きたよ。', 'もう朝だね……えへへ。'],
+    giveUp: ['……もういい、寝る。', 'ふん、知らない。おやすみ。', '(ため息)……寝よ。'],
+    tooHot: ['暑い……', '布団あげる、暑すぎ。', '(布団を蹴飛ばす)……'],
+    needCuddle: ['寝る前にぎゅってして……', 'かまってくれないの……?', 'おやすみって言ってよ。'],
 
     // エンディング画面:morning_{プレイヤーの目標}_{相手の目標};together = イチャイチャ成功、floor = ベッドから落ちた
     morning_sleep_sleep: ['「おはよ。昨日の夜、何か考えてた?」「別に?」', '「よく寝た~。」「ね、朝までぐっすりなんて久しぶり。」', '「おはよ……昨日いびきかいてたよ。」「そっちもね。」'],

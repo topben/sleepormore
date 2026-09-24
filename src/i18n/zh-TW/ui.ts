@@ -1,5 +1,6 @@
 // 繁體中文(參考語系):介面文字。其他語系必須有完全相同的結構。
-// 佔位符 {name} 由 fmt() 代入。
+// 佔位符 {name} 由 fmt() 代入。困難模式:{deadline} 立即親熱的時限、{morning} 早上開始、{dawn} 開始越睡越淺、
+// {sleep} 早上親熱要先睡到的分數、{lo}/{hi}/{need} 你的體質(舒服的體溫、要的親密度)、{bearLo}/{bearHi}/{bunnyLo} 兩種體質。
 
 export default {
   meta: {
@@ -25,6 +26,11 @@ export default {
     subtitle: 'SLEEP OR MORE',
     tagline: '今晚,你想好好睡……還是?',
     chooseRole: '選擇你的角色',
+    modeLabel: '難度',
+    mode: {
+      easy: { name: '簡單', desc: '原本的玩法' },
+      hard: { name: '困難', desc: '親熱分立即 / 早上;睡覺要顧體溫與安全感' },
+    },
     playMale: '我是男方',
     playFemale: '我是女方',
     sideLeft: '睡左邊',
@@ -61,6 +67,36 @@ export default {
         '對方想睡的話,先用悄悄話、蓋被子把心情養到 {n}。',
       ],
     },
+    // 困難模式
+    hardBadge: '🔥 困難模式',
+    now: {
+      win: '{deadline} 前讓親密度到 100,而且那時對方醒著。時間一到就輸。',
+      tips: [
+        '第一回合就「側躺面向」對方,太遠就「挪近」。',
+        '親吻可以用力一點(黃區)加速,但別粗魯。',
+        '對方想睡的話幾乎來不及 —— 留意對方的反應。',
+      ],
+    },
+    morning: {
+      win: '先睡飽(睡眠分數 {sleep}),{morning} 以後再讓親密度到 100(對方要醒著)。太早滿了就不算。',
+      tips: [
+        '晚上趁對方醒著先培養一點感情,然後閉眼睡。',
+        '親密度快滿時先背對或閉眼,別讓它在晚上就滿了。',
+        '{dawn} 以後大家越睡越淺;早上的親熱效果加倍,趁對方醒著親下去。',
+      ],
+    },
+    sleepHard: {
+      win: '撐到 06:00,睡眠分數達到 {n}。要「舒服地睡著」才算 1 分:體溫在舒服的範圍、親密度也夠。',
+      tips: [
+        '體溫會亂跳、半夜會變冷;太熱就把棉被分給對方(幫對方蓋好),太冷就拉回來。',
+        '親密度不夠會睡不安穩:睡前說說悄悄話、抱一抱。有人睡著時親密度不會掉。',
+        '{dawn} 以後大家越睡越淺,天亮前多睡一點。',
+      ],
+    },
+    body: {
+      male: '🐻 小熊怕熱:體溫 {lo}–{hi} 最舒服,親密度要 {need} 以上。',
+      female: '🐰 垂耳兔怕冷:體溫 {lo} 以上最舒服,親密度要 {need} 以上才有安全感。',
+    },
     secret: '對方也有自己的目標(是祕密)。從對話和行為猜猜看!',
     hintsToggle: '顯示建議(新手推薦)',
     start: '開始',
@@ -71,6 +107,9 @@ export default {
     progress: {
       sleep: '睡眠分數 {v}/{t}',
       intimacy: '親密度 {v}/{t}',
+      now: '親密度 {v}/{t} · {deadline} 前',
+      morningSleep: '先睡飽 {v}/{t}',
+      morningLove: '親密度 {v}/{t} · {morning} 後',
     },
     status: {
       done: '達標!',
@@ -116,6 +155,10 @@ export default {
     eyesState: { open: '張開', closed: '閉著' },
     snoreLevel: ['沒有', '小聲', '中等', '很大聲'],
     cold: '好冷!',
+    hot: '好熱!',
+    /** 親密度條上「你要的安全感」刻度的說明(困難模式) */
+    need: '你要的安全感 {n}',
+    hardTag: '困難',
     restlessWarn: '小心',
     restlessDanger: '快被發現了',
     annoyPush: '要推人了!',
@@ -204,6 +247,7 @@ export default {
     armFree: '手臂收回來了',
     armLeft: '頭離開手臂了',
     cold: { you: '你好冷', partner: '對方好冷' },
+    hot: { you: '你好熱', partner: '對方好熱' },
     numb: { you: '你的手麻了', partner: '對方的手麻了' },
     noticed: { you: '對方發現你還醒著', partner: '你發現對方還醒著' },
     snore: { you: '你在打呼({level})', partner: '對方在打呼({level})' },
@@ -227,6 +271,7 @@ export default {
     partnerWanted: '其實今晚對方想:',
     goalSleep: '😴 好好睡覺',
     goalIntimacy: '💞 親熱',
+    hardTag: '🔥 困難模式',
     morning: '隔天早上',
     stats: '統計',
     statTurns: '回合 {n}/{max}',
@@ -276,6 +321,14 @@ export default {
           '開局會抽到今晚的目標:😴 好好睡覺,或 💞 親熱。對方也有自己的目標,但那是祕密。',
           '😴 睡覺:撐到 06:00,睡眠分數達 7 分(睡著的回合 +1,昏沉 +0.5)。',
           '💞 親熱:天亮前讓親密度到 100,而且那時對方還醒著。',
+        ],
+      },
+      {
+        title: '🔥 困難模式',
+        body: [
+          '開始畫面可以選「困難」。親熱分兩種:⏱️ 立即親熱({deadline} 前要達成,時間到就輸)、🌅 早上親熱(先睡飽,{morning} 以後才算,太早滿了只算平手)。',
+          '睡覺要舒服地睡著才算分:體溫會亂跳、半夜會變冷,兩人都醒著卻沒互動時親密度會掉。小熊怕熱(體溫 {bearLo}–{bearHi}),垂耳兔怕冷({bunnyLo} 以上)、也比較需要安全感。',
+          '{dawn} 以後大家越睡越淺;早上的親熱效果加倍。',
         ],
       },
       {
