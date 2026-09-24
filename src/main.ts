@@ -45,7 +45,7 @@ function practiceGoal(): Goal | undefined {
   return g === 'sleep' || g === 'intimacy' ? g : undefined;
 }
 
-/** ?mode=easy|hard:指定難度(不指定 = 開始畫面選的) */
+/** ?mode=easy|hard:開始畫面預選的難度(不指定 = 上次選的) */
 function practiceMode(): Mode | undefined {
   const v = query('mode');
   return v === 'easy' || v === 'hard' ? v : undefined;
@@ -110,6 +110,9 @@ async function boot() {
     snapshot: () => scene.snapshot(),
   });
   ui.setBubbleAnchor((r) => scene.projectHead(r));
+  // ?mode= 預選開始畫面的難度(不存檔;畫面上點選照樣能改)
+  const pm = practiceMode();
+  if (pm) ui.settings = { ...ui.settings, mode: pm };
   scene.setMuted(!ui.settings.sound);
   scene.reset(preview());
   ui.showStart();
@@ -119,7 +122,7 @@ async function boot() {
     role = r;
     busy = false;
     scene.unlockAudio();
-    state = createGame(r, randomSeed(), { playerGoal: practiceGoal(), mode: practiceMode() ?? ui.settings.mode, playerTiming: practiceTiming() });
+    state = createGame(r, randomSeed(), { playerGoal: practiceGoal(), mode: ui.settings.mode, playerTiming: practiceTiming() });
     scene.reset(state);
     await ui.showGoal(state);
     if (gen !== generation || !state) return;

@@ -554,7 +554,8 @@ input:focus-visible {
   letter-spacing: 0.05em;
   font-weight: 800;
 }
-.goal-body {
+/* 困難模式目標卡的體質說明(別和上方列的 .goal-body 撞名) */
+.goal-physique {
   margin: 8px 0 0;
   padding: 6px 10px;
   border-radius: 10px;
@@ -2320,6 +2321,15 @@ body.ending-neutral .hud {
   }
   .turn-dots {
     display: none;
+  }
+  /* 困難模式標籤只留 🔥,字給讀屏器 */
+  .clock-turn .hard-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .goal-badge {
     padding: 4px 8px;

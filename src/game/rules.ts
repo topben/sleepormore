@@ -532,7 +532,8 @@ export function resolveAction(
         const o0 = s.blanketOffset;
         s.blanketOffset = clamp(o0 - sideSign(actor) * 0.25 * eff, -1, 1);
         sub.push({ type: 'blanket', offset: s.blanketOffset });
-        if (Math.abs(s.blanketOffset - o0) >= 0.05 && !bAsleep && !rough) {
+        // 睡夢中把棉被踢過去(困難模式,太熱)不算貼心,不道謝也不加親密度
+        if (Math.abs(s.blanketOffset - o0) >= 0.05 && !bAsleep && !rough && !unconscious) {
           bump(B, 'mood', 5);
           love(3);
           say(bRole, 'blanketTucked');
@@ -803,14 +804,18 @@ export function endOfTurn(s: GameState, rng: Rng, events: GameEvent[]): void {
   const affection = isAffection(p.lastAction) || isAffection(ai.lastAction);
   if (!hard) {
     if (!affection && s.intimacy < 100) bumpIntimacy(s, -3);
-  } else if (s.intimacy < 100) {
-    // 困難模式:親密度不穩定 —— 兩人都醒著又沒有互動就往下掉(抱著 / 枕著手臂、有人睡著時撐得住);
-    // 另外每回合小幅亂跳(不會跳到 100)
-    const cuddling = s.embrace || ap.inUse;
-    const bothAwake = p.sleep < SLEEP_ASLEEP && ai.sleep < SLEEP_ASLEEP;
-    if (s.embrace) bumpIntimacy(s, HARD.hugIntimacy);
-    if (!affection && !cuddling && bothAwake) bumpIntimacy(s, -HARD.intimacyDecay);
-    s.intimacy = clamp(s.intimacy + (rng() * 2 - 1) * HARD.intimacyJitter, 0, 99);
+  } else {
+    if (s.intimacy < 100) {
+      // 困難模式:親密度不穩定 —— 兩人都醒著又沒有互動就往下掉(抱著 / 枕著手臂、有人睡著時撐得住);
+      // 另外每回合小幅亂跳
+      const cuddling = s.embrace || ap.inUse;
+      const bothAwake = p.sleep < SLEEP_ASLEEP && ai.sleep < SLEEP_ASLEEP;
+      if (s.embrace) bumpIntimacy(s, HARD.hugIntimacy);
+      if (!affection && !cuddling && bothAwake) bumpIntimacy(s, -HARD.intimacyDecay);
+      s.intimacy = clamp(s.intimacy + (rng() * 2 - 1) * HARD.intimacyJitter, 0, 99);
+    }
+    // 回合末的被動變化(抱著、枕手臂、亂跳)最多到 99:最後一下要靠親吻、撫摸這些動作
+    if (intimacyBefore < 100) s.intimacy = Math.min(s.intimacy, 99);
   }
 
   // 親密度在回合末(手臂枕)衝到 100,但對方睡著
@@ -829,4 +834,7 @@ export function endOfTurn(s: GameState, rng: Rng, events: GameEvent[]): void {
   }
 
   syncAiEyes(s, events);
+  // 困難模式:對方睡著時親密度停在 99 —— 睡著的人沒辦法親熱,要等對方醒著時再補最後一下
+  // (不然晚上偷偷衝滿,天亮對方一醒就自動算「早上親熱」)
+  if (hard && s.intimacy >= 100 && ai.sleep >= SLEEP_ASLEEP) s.intimacy = 99;
 }

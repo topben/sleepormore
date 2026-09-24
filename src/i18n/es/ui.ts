@@ -30,7 +30,7 @@ const ui: UiMessages = {
     modeLabel: 'Dificultad',
     mode: {
       easy: { name: 'Fácil', desc: 'Las reglas de siempre' },
-      hard: { name: 'Difícil', desc: 'La intimidad se divide en ya / mañanera; para dormir cuentan el calor y la cercanía' },
+      hard: { name: 'Difícil', desc: 'Intimidad ya o al despertar; para dormir, calor justo y cercanía' },
     },
     playMale: 'Soy él',
     playFemale: 'Soy ella',
@@ -78,7 +78,7 @@ const ui: UiMessages = {
       ],
     },
     morning: {
-      win: 'Duerme bien primero (puntuación de sueño {sleep}) y, a partir de las {morning}, lleva la intimidad a 100 con tu pareja despierta. Demasiado pronto no cuenta.',
+      win: 'Duerme bien primero ({sleep} puntos de sueño) y, a partir de las {morning}, lleva la intimidad a 100 con tu pareja despierta. Demasiado pronto no cuenta.',
       tips: [
         'De noche, crea algo de complicidad mientras tu pareja esté despierta; luego cierra los ojos y duerme.',
         'Si la intimidad está casi llena, da la espalda o cierra los ojos para que no se llene de noche.',
@@ -86,7 +86,7 @@ const ui: UiMessages = {
       ],
     },
     sleepHard: {
-      win: 'Aguanta hasta las 06:00 con una puntuación de sueño de {n}. Solo los turnos en que duermes a gusto suman un punto entero: temperatura en tu rango cómodo e intimidad suficiente.',
+      win: 'Aguanta hasta las 06:00 y consigue {n} puntos de sueño. Solo los turnos en que duermes a gusto suman un punto entero: temperatura en tu rango cómodo e intimidad suficiente.',
       tips: [
         'La temperatura sube y baja, y la madrugada es fría: si tienes calor, comparte la manta («Arropar»); si tienes frío, tápate.',
         'Sin suficiente intimidad no descansas: susurra o abraza antes de dormir. Mientras uno de los dos duerme, la intimidad no baja.',
@@ -324,8 +324,8 @@ const ui: UiMessages = {
       {
         title: '🔥 Modo difícil',
         body: [
-          'En la pantalla de inicio puedes elegir «Difícil». La intimidad es de dos tipos: ⏱️ ya (antes de las {deadline}, o pierdes) y 🌅 mañanera (primero dormir bien; solo cuenta desde las {morning}, y demasiado pronto es empate).',
-          'Dormir solo puntúa si duermes a gusto: la temperatura sube y baja, la madrugada es fría y la intimidad baja si los dos están despiertos sin hacer nada. El osito es caluroso (temperatura {bearLo}–{bearHi}); la conejita de orejas caídas es friolera ({bunnyLo} o más) y necesita más cercanía.',
+          'En la pantalla de inicio puedes elegir «Difícil». La intimidad es de dos tipos: ⏱️ «Intimidad ya» (antes de las {deadline}, o pierdes) y 🌅 «Intimidad al despertar» (primero dormir bien; solo cuenta desde las {morning}, y demasiado pronto es empate).',
+          'Bastan {sleepWin} puntos de sueño, pero dormir solo puntúa si duermes a gusto: la temperatura sube y baja, la madrugada es fría y la intimidad baja si los dos están despiertos sin hacer nada. El osito es caluroso (temperatura {bearLo}–{bearHi}); la conejita de orejas caídas es friolera ({bunnyLo} o más) y necesita más cercanía.',
           'A partir de las {dawn} todos duermen más ligero; por la mañana los mimos cuentan el doble.',
         ],
       },

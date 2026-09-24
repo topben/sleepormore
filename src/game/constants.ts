@@ -95,7 +95,9 @@ export const BAL = {
 
 /**
  * 困難模式(DESIGN §15):親熱分「立即 / 早上」,睡覺要維持舒適的體溫與親密度。
- * 回合數都是「回合結束後的 turn」(clockLabel(turn) 就是那個時間點)。可在測試/模擬中暫時修改。
+ * 回合數:nowDeadline / morningTurn 跟結局判定一樣看「回合結束後的 turn」(clockLabel(turn) = 那回合結束的時刻);
+ * wakeTurn / dawnTurn / chillTurn 看「正在進行的回合」(clockLabel(turn) = 那回合開始、選動作時看到的時刻)。
+ * 可在測試/模擬中暫時修改。
  */
 export const HARD = {
   /** 睡覺:睡眠分數要到這裡(困難模式要「舒服地睡著」才算滿分) */
@@ -108,7 +110,7 @@ export const HARD = {
   morningTurn: 10,
   /** 早上親熱:達成時睡眠分數至少要有(先睡過) */
   morningSleep: 4,
-  /** 早上親熱的對方:turn >= 此值(04:00)自己醒來,醒來後睡意壓到 wakeSleep */
+  /** 早上親熱的對方:04:00 開始的回合(turn >= 此值)自己醒來,醒來後睡意壓到 wakeSleep */
   wakeTurn: 9,
   wakeSleep: 40,
   /** 早晨(turn >= wakeTurn)的親熱加倍甜:動作帶來的親密度 × morningBoost */
@@ -116,7 +118,7 @@ export const HARD = {
   /** 早上親熱:晚上先把親密度養到這附近(提示用;別養到 100) */
   morningPrep: 40,
   /**
-   * 後半夜越睡越淺:turn >= dawnTurn(03:20)的回合末,睡意最多 dawnCap − (turn − dawnTurn) × dawnStep
+   * 後半夜越睡越淺:03:20 開始的回合(turn >= dawnTurn)起,回合末睡意最多 dawnCap − (turn − dawnTurn) × dawnStep
    * (80 → 60 → 40 → 20,早上叫得醒);那時睡飽的人(睡意 >= 70)心情 +restedMood
    */
   dawnTurn: 8,
@@ -125,7 +127,7 @@ export const HARD = {
   restedMood: 8,
   /**
    * 體溫會往「目標」靠攏(每回合 warmRate):目標 = warmBase + 蓋到的比例 × warmCover,
-   * turn >= chillTurn 起深夜變冷 −chill,抱著 +hugHeat、枕著手臂 +pillowHeat;另外每回合隨機 ±warmDrift
+   * 00:40 開始的回合(turn >= chillTurn)起深夜變冷 −chill,抱著 +hugHeat、枕著手臂 +pillowHeat;另外每回合隨機 ±warmDrift
    */
   warmBase: 10,
   warmCover: 100,
@@ -137,7 +139,7 @@ export const HARD = {
   pillowHeat: 8,
   /**
    * 親密度:兩人都醒著卻沒有親熱動作、也沒抱著 / 枕著手臂時每回合 −intimacyDecay(有人睡著時不掉);
-   * 抱著 +hugIntimacy;另外每回合隨機 ±intimacyJitter
+   * 抱著 +hugIntimacy;另外每回合隨機 ±intimacyJitter。這些回合末的變化(加上枕手臂)最多到 99,對方睡著時也停在 99
    */
   intimacyDecay: 4,
   intimacyJitter: 3,

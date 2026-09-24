@@ -29,7 +29,7 @@ const ui: UiMessages = {
     modeLabel: 'Difficulty',
     mode: {
       easy: { name: 'Easy', desc: 'The classic rules' },
-      hard: { name: 'Hard', desc: 'Intimacy splits into now / morning; sleep needs warmth and closeness' },
+      hard: { name: 'Hard', desc: 'Intimacy: now or morning; sleep needs warmth & closeness' },
     },
     playMale: 'Play as him',
     playFemale: 'Play as her',
@@ -324,7 +324,7 @@ const ui: UiMessages = {
         title: '🔥 Hard mode',
         body: [
           'Pick “Hard” on the start screen. Intimacy comes in two kinds: ⏱️ right now (before {deadline}, or you lose) and 🌅 morning (sleep well first; it only counts after {morning}, and too early is a draw).',
-          'Sleep only scores when you sleep comfortably: warmth wobbles, the night gets colder, and intimacy drops while you’re both awake and not interacting. The bear runs hot (warmth {bearLo}–{bearHi}); the lop-eared bunny runs cold ({bunnyLo}+) and needs more closeness.',
+          'You only need a sleep score of {sleepWin}, but sleep only scores when you sleep comfortably: warmth wobbles, the night gets colder, and intimacy drops while you’re both awake and not interacting. The bear runs hot (warmth {bearLo}–{bearHi}); the lop-eared bunny runs cold ({bunnyLo}+) and needs more closeness.',
           'After {dawn} everyone sleeps lighter; morning affection counts double.',
         ],
       },

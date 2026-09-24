@@ -275,7 +275,9 @@ export class Hud {
     // ── 上方列 ──
     const hard = s.mode === 'hard';
     this.timeEl.textContent = clockLabel(s.turn);
-    this.turnEl.textContent = fmt(t.hud.turn, { n: Math.min(s.turn + 1, MAX_TURNS), max: MAX_TURNS }) + (hard ? ` · 🔥${t.hud.hardTag}` : '');
+    // 困難模式標籤:手機上只留 🔥(字太長會擠掉目標列)
+    const hardTag = hard ? [' · 🔥', h('span', { class: 'hard-word', text: t.hud.hardTag })] : [];
+    this.turnEl.replaceChildren(fmt(t.hud.turn, { n: Math.min(s.turn + 1, MAX_TURNS), max: MAX_TURNS }), ...hardTag);
     this.dotsEl.replaceChildren(...Array.from({ length: MAX_TURNS }, (_, i) => h('i', { class: i < s.turn ? 'done' : i === s.turn ? 'now' : '' })));
     const prog = goalProgress(s);
     this.goalEl.className = `goal-badge ${prog.goal} status-${prog.status}${hard ? ' hard' : ''}`;
@@ -283,8 +285,10 @@ export class Hud {
     const name = goalName(me, s.mode);
     this.goalName.textContent = name;
     this.goalFill.style.width = pct((prog.value / prog.target) * 100);
-    this.goalText.textContent = `${fmt(t.hud.progress[prog.kind], { ...HARD_TEXT_VARS, v: prog.value, t: prog.target })} · ${t.hud.status[prog.status]}`;
-    this.goalShort.textContent = `${prog.value}/${prog.target} · ${t.hud.status[prog.status]}`;
+    // 親密度是小數(力道、困難模式的亂跳),跟下方親密度條一樣取整數顯示;睡眠分數保留 .5
+    const v = prog.kind === 'sleep' || prog.kind === 'morningSleep' ? prog.value : Math.round(prog.value);
+    this.goalText.textContent = `${fmt(t.hud.progress[prog.kind], { ...HARD_TEXT_VARS, v, t: prog.target })} · ${t.hud.status[prog.status]}`;
+    this.goalShort.textContent = `${v}/${prog.target} · ${t.hud.status[prog.status]}`;
     this.goalEl.title = `${name} — ${this.goalText.textContent}`;
     const loc = currentLocaleInfo();
     this.langBtn.replaceChildren(h('span', { 'aria-hidden': 'true', text: '🌐' }), h('span', { class: 'lang-short', lang: loc.id, text: loc.short }));

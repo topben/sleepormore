@@ -178,7 +178,8 @@ export function goalScreen(s: GameState, settings: Settings, opts: { onStart(): 
   const hints = h('input', { type: 'checkbox', checked: settings.hints });
   hints.addEventListener('change', () => opts.onHints(hints.checked));
   const startBtn = h('button', { class: 'primary big', type: 'button', onClick: opts.onStart }, t.start);
-  queueMicrotask(() => startBtn.focus());
+  // 焦點給「開始」但不捲動:手機上卡片比畫面高,捲到底會看不到自己的目標
+  queueMicrotask(() => startBtn.focus({ preventScroll: true }));
   return h(
     'div',
     { class: 'screen goal' },
@@ -190,7 +191,7 @@ export function goalScreen(s: GameState, settings: Settings, opts: { onStart(): 
       h('p', { class: 'goal-role', text: fmt(t.youAre, { role: P === 'male' ? m().ui.common.male : m().ui.common.female, side: P === 'male' ? t.left : t.right }) }),
       h('h4', { text: t.winLabel }),
       h('p', { class: 'goal-win', text: fmt(info.win, winVars) }),
-      showBody ? h('p', { class: 'goal-body', text: fmt(t.body[P], vars) }) : null,
+      showBody ? h('p', { class: 'goal-physique', text: fmt(t.body[P], vars) }) : null,
       h('h4', { text: t.tipsLabel }),
       h('ul', { class: 'goal-tips' }, ...info.tips.map((tip) => h('li', { text: fmt(tip, vars) }))),
       h('p', { class: 'goal-secret', text: `🤫 ${t.secret}` }),
@@ -336,7 +337,8 @@ export function endingCard(
   const qWanted = hard && q.goal === 'intimacy' && q.timing ? `${goalEmoji(q, s.mode)} ${goalName(q, s.mode)}` : qGoal === 'sleep' ? t.goalSleep : t.goalIntimacy;
   const ml = morningLine(s);
   const again = h('button', { class: 'primary big', type: 'button', onClick: opts.onAgain }, `↺ ${t.again}`);
-  queueMicrotask(() => again.focus());
+  // 同上:卡片從結局標題開始看
+  queueMicrotask(() => again.focus({ preventScroll: true }));
   return h(
     'div',
     { class: 'screen modal ending' },
@@ -358,7 +360,7 @@ export function endingCard(
         h('span', { text: fmt(t.statSleep, { n: s.sleepScore }) }),
         h('span', { text: fmt(t.statClues, { n: s.memo.clues.sleep + s.memo.clues.intimacy }) }),
       ),
-      h('div', { class: 'ending-tip' }, h('div', { class: 'mini-title', text: `💡 ${t.tip}` }), h('p', { text: fmt(tx.tip, { ...ENDING_VARS, n: BAL.sleepyMood }) })),
+      h('div', { class: 'ending-tip' }, h('div', { class: 'mini-title', text: `💡 ${t.tip}` }), h('p', { text: fmt(tx.tip, { ...ENDING_VARS, n: BAL.sleepyMood, target: sleepTarget(s) }) })),
       h('div', { class: 'ending-actions' }, again, h('button', { class: 'secondary', type: 'button', onClick: opts.onChangeRole }, t.changeRole)),
     ),
   );

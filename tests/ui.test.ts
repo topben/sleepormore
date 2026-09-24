@@ -274,6 +274,45 @@ describe('GameUI: combo endings (you × partner), collection and sharing', () =>
   });
 });
 
+describe('GameUI: hard mode', () => {
+  const hardGame = (goal: 'sleep' | 'intimacy', timing?: 'now' | 'morning') =>
+    createGame('male', 3, { mode: 'hard', playerGoal: goal, playerTiming: timing, partnerGoal: 'sleep' });
+
+  it('the goal card shows the body-type note with its own class (not the top bar’s .goal-body) and focuses Start without scrolling', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    const { root, ui } = mount();
+    void ui.showGoal(hardGame('sleep'));
+    await Promise.resolve();
+    expect(root.querySelector('.goal-card .goal-physique')?.textContent).toContain('🐻');
+    expect(root.querySelector('.goal-card .goal-body')).toBeNull();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    focus.mockRestore();
+  });
+
+  it('the top bar rounds intimacy and keeps the 🔥 label word in its own span (phones show only 🔥)', async () => {
+    const { root, ui } = mount();
+    const s = hardGame('intimacy', 'now');
+    s.intimacy = 25.68330670380965;
+    await begin(ui, root, s);
+    const text = root.querySelector('.goal-text')!.textContent!;
+    expect(text).toContain('26/100');
+    expect(text).not.toContain('25.68');
+    expect(root.querySelector('.goal-text.short')!.textContent).toMatch(/^26\/100 · /);
+    expect(root.querySelector('.clock-turn .hard-word')!.textContent).toBe('困難');
+  });
+
+  it('the “sleepless” ending tip names the hard-mode sleep target', () => {
+    const { root, ui } = mount();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    ui.showEnding({ ...hardGame('sleep'), turn: 12, sleepScore: 4, ending: makeEnding('sleepLoseTired') });
+    vi.advanceTimersByTime(2600);
+    vi.useRealTimers();
+    const tip = root.querySelector('.ending-tip p')!.textContent!;
+    expect(tip).toContain('睡眠分數要 5 分');
+    expect(tip).not.toContain('{target}');
+  });
+});
+
 describe('collection storage', () => {
   it('when storage is blocked (private mode), a combo is NEW once per session and the count stays consistent', () => {
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {

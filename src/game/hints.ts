@@ -1,7 +1,7 @@
 // 新手提示(易玩性改善):每回合給一個「建議」,只用玩家看得到的資訊
 // (自己的數值、張眼時對方的數值、聽得到的打呼、對方的行為與台詞線索)。
 import { ACTIONS, canUse } from './actions';
-import { BAL, BANDS, COMFORT, EDGE_WARN, FIRM_SPAN, HARD, MAX_TURNS, REACH, SLEEP_ASLEEP } from './constants';
+import { BAL, BANDS, COMFORT, EDGE_WARN, FIRM_SPAN, HARD, MAX_TURNS, REACH, SLEEP_ASLEEP, SLEEP_AWAKE } from './constants';
 import { ENDING_VARS, sleepTarget } from './endings';
 import { breathRate, effectiveNoise, forceWindow, isHard, wakeThreshold, warmthTarget } from './rules';
 import type { HintKey } from './text';
@@ -27,9 +27,10 @@ export function greenCenter(s: GameState, id: ActionId): number {
   return Math.round((lo + hi) / 2);
 }
 
-/** 困難模式說明文字的佔位符(時間點、早上親熱要先睡到的分數、兩種體質的體溫範圍) */
+/** 困難模式說明文字的佔位符(時間點、睡覺 / 早上親熱要的睡眠分數、兩種體質的體溫範圍) */
 export const HARD_TEXT_VARS: Record<string, string | number> = {
   ...ENDING_VARS,
+  sleepWin: HARD.sleepWin,
   bearLo: COMFORT.male.warmLo,
   bearHi: COMFORT.male.warmHi,
   bunnyLo: COMFORT.female.warmLo,
@@ -88,7 +89,10 @@ export function suggestAction(s: GameState): Suggestion | null {
       // 已經超出範圍,或快到邊緣而且下回合會超出(體溫本來就會亂跳,離邊緣還遠時不用急著調)
       if ((p.warmth < body.warmLo || (p.warmth < body.warmLo + 8 && w < body.warmLo)) && can('pullBlanket')) return act('warmUp', 'pullBlanket', { urgent: p.warmth < body.warmLo });
       if ((p.warmth > body.warmHi || (p.warmth > body.warmHi - 8 && w > body.warmHi)) && can('tuckBlanket')) return act('tooHot', 'tuckBlanket', { urgent: p.warmth > body.warmHi });
-      if (nightOfMorning && s.intimacy >= 80 && partnerAwake) return act('tooEarlyWarn', can('lieSideAway') ? 'lieSideAway' : 'sleep', { urgent: true });
+      if (nightOfMorning && s.intimacy >= 80 && partnerAwake) {
+        if (can('lieSideAway')) return act('tooEarlyWarn', 'lieSideAway', { urgent: true });
+        return open ? { key: 'tooEarlyWarn', eyes: 'closed', urgent: true } : act('tooEarlyWarn', 'sleep', { urgent: true });
+      }
       // 早上親熱:趁對方醒著先培養一點感情(早上只有兩三個回合,從零開始來不及)
       if (nightOfMorning && s.intimacy < HARD.morningPrep && partnerAwake && s.turn < HARD.chillTurn) {
         return act('morningPrep', open && can('kiss') ? 'kiss' : 'whisper');
@@ -114,10 +118,13 @@ export function suggestAction(s: GameState): Suggestion | null {
 
   // 目標:親熱(困難模式的立即親熱:時限快到了就催;早上親熱:天亮了就叫醒自己)
   const sug = intimacySuggestion(s, act, can, open);
-  if (timing === 'now' && HARD.nowDeadline - s.turn <= 2 && !sug.urgent && sug.key !== 'openEyes') return { ...sug, key: 'hurry', urgent: true };
+  if (timing === 'now' && HARD.nowDeadline - s.turn <= 2 && HURRY_KEYS.has(sug.key)) return { ...sug, key: 'hurry', urgent: true };
   if (timing === 'morning' && sug.key === 'openEyes') return { ...sug, key: 'morningGo' };
   return sug;
 }
+
+/** 「時間不多了,趁對方醒著快親」只套在這些建議上(對方睡著、心情差時照原本的提示) */
+const HURRY_KEYS: ReadonlySet<HintKey> = new Set<HintKey>(['almostThere', 'kiss', 'hug', 'caress', 'whisper']);
 
 function intimacySuggestion(
   s: GameState,
@@ -166,8 +173,22 @@ export interface GoalProgress {
   status: ProgressStatus;
 }
 
-const sleepStatus = (need: number, turns: number): ProgressStatus =>
-  need <= 0 ? 'done' : need > turns ? 'impossible' : need > turns * 0.75 ? 'tight' : 'onTrack';
+const sleepStatus = (need: number, maxGain: number): ProgressStatus =>
+  need <= 0 ? 'done' : need > maxGain ? 'impossible' : need > maxGain * 0.75 ? 'tight' : 'onTrack';
+
+/**
+ * 從現在到 06:00 最多還能拿幾分睡眠分數。簡單模式每回合最多 +1;
+ * 困難模式天亮後睡意有上限(HARD.dawnCap 起每回合少 dawnStep):睡得著 +1、只剩昏沉 +0.5、醒著 0。
+ */
+export function maxSleepGain(s: GameState): number {
+  let sum = 0;
+  for (let t = s.turn; t < MAX_TURNS; t++) {
+    const cap = isHard(s) && t >= HARD.dawnTurn ? HARD.dawnCap - (t - HARD.dawnTurn) * HARD.dawnStep : 100;
+    sum += cap >= SLEEP_ASLEEP ? 1 : cap >= SLEEP_AWAKE ? 0.5 : 0;
+  }
+  return sum;
+}
+
 const loveStatus = (need: number, turns: number): ProgressStatus =>
   need <= 0 ? 'done' : need > turns * 20 ? 'impossible' : need > turns * 10 ? 'tight' : 'onTrack';
 
@@ -178,7 +199,7 @@ export function goalProgress(s: GameState): GoalProgress {
   const remainingTurns = Math.max(0, MAX_TURNS - s.turn);
   if (goal === 'sleep') {
     const target = sleepTarget(s);
-    return { goal, kind: 'sleep', value: s.sleepScore, target, remainingTurns, status: sleepStatus(target - s.sleepScore, remainingTurns) };
+    return { goal, kind: 'sleep', value: s.sleepScore, target, remainingTurns, status: sleepStatus(target - s.sleepScore, maxSleepGain(s)) };
   }
   const timing = isHard(s) ? p.timing : undefined;
   if (timing === 'now') {
@@ -187,7 +208,7 @@ export function goalProgress(s: GameState): GoalProgress {
   }
   if (timing === 'morning') {
     if (s.sleepScore < HARD.morningSleep) {
-      return { goal, kind: 'morningSleep', value: s.sleepScore, target: HARD.morningSleep, remainingTurns, status: sleepStatus(HARD.morningSleep - s.sleepScore, remainingTurns) };
+      return { goal, kind: 'morningSleep', value: s.sleepScore, target: HARD.morningSleep, remainingTurns, status: sleepStatus(HARD.morningSleep - s.sleepScore, maxSleepGain(s)) };
     }
     // 睡飽了:剩下的是早上的回合(還沒天亮就算整段早上)
     const left = Math.max(0, MAX_TURNS - Math.max(s.turn, HARD.morningTurn - 1));

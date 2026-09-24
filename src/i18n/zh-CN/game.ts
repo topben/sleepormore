@@ -133,7 +133,7 @@ const game: GameMessages = {
       title: '黑眼圈',
       caption: 'SLEEPLESS',
       description: '天亮了,你压根没睡着。',
-      tip: '睡眠分数要到 7 分:闭上眼睛多按“闭眼睡”,注意保暖,别被吵醒。',
+      tip: '睡眠分数要到 {target} 分:闭上眼睛多按“闭眼睡”,注意保暖,别被吵醒。',
     },
     intimacyLoseFellAsleep: {
       title: '你睡着了',
@@ -161,9 +161,9 @@ const game: GameMessages = {
       tip: '完美!先睡饱,天亮再行动。',
     },
     intimacyTooEarly: {
-      title: '等不及天亮',
+      title: '太心急了',
       caption: 'TOO EAGER',
-      description: '说好要等到早上的……算了,也不错。',
+      description: '说好要先睡饱、等到早上的……算了,也不错。',
       tip: '早上亲热要先睡饱(睡眠分数 {sleep}),{morning} 以后才算。晚上亲密度快满时先背对或闭眼睡。',
     },
     intimacyLoseOverslept: {
@@ -343,7 +343,7 @@ const game: GameMessages = {
     // hard mode
     goodMorning: ['嗯……天亮了?', '(伸懒腰)……早安~', '你醒了吗?……我醒了哦。', '早上了诶……嘿嘿。'],
     giveUp: ['……算了,睡觉。', '哼,不理你了,晚安。', '(叹气)……睡吧。'],
-    tooHot: ['好热……', '被子给你啦,热死了。', '(把被子踢开)……'],
+    tooHot: ['好热……', '热死了,睡不着……', '(用手扇风)……'],
     needCuddle: ['睡前抱一下嘛……', '你都不理我……', '说晚安啦。'],
 
     // 结局画面:morning_{玩家目标}_{对方目标};together = 亲热成功、floor = 掉下床

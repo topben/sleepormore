@@ -134,7 +134,7 @@ const game: GameMessages = {
       title: '다크서클',
       caption: 'SLEEPLESS',
       description: '날이 밝았는데, 한숨도 못 잤어요.',
-      tip: '수면 점수 7점이 필요해요. 눈을 감고 ‘잠자기’를 자주 누르고, 따뜻하게 지내고, 깨지 않게 조심하세요.',
+      tip: '수면 점수 {target}점이 필요해요. 눈을 감고 ‘잠자기’를 자주 누르고, 따뜻하게 지내고, 깨지 않게 조심하세요.',
     },
     intimacyLoseFellAsleep: {
       title: '잠들어 버렸다',
@@ -152,7 +152,7 @@ const game: GameMessages = {
     intimacyLoseDeadline: {
       title: '시간 초과',
       caption: "TIME'S UP",
-      description: '{deadline} 이후로는 분위기가 이미 끝났어요. 상대는 크게 하품하고 돌아누워 잠들었어요.',
+      description: '벌써 {deadline}, 분위기는 진작 식었어요. 상대는 크게 하품하더니 돌아누워 잠들었어요.',
       tip: '‘지금 당장’은 시간 싸움이에요. 첫 턴부터 ‘마주 보기’, ‘다가가기’. 뽀뽀는 조금 세게(노란 구간) 하면 빨라지지만, 거칠면 안 돼요.',
     },
     intimacyMorningWin: {
@@ -162,9 +162,9 @@ const game: GameMessages = {
       tip: '완벽해요! 먼저 푹 자고, 날이 밝으면 움직이기.',
     },
     intimacyTooEarly: {
-      title: '아침까지 못 참았어',
+      title: '너무 서둘렀다',
       caption: 'TOO EAGER',
-      description: '아침까지 기다리기로 했는데…… 뭐, 이것도 나쁘지 않네요.',
+      description: '푹 자고 아침까지 기다리기로 했는데…… 뭐, 이것도 나쁘지 않네요.',
       tip: '‘아침 스킨십’은 먼저 푹 자야 하고(수면 점수 {sleep}), {morning} 이후에만 인정돼요. 밤에 친밀도가 가득 차려고 하면 등을 돌리거나 눈을 감고 자요.',
     },
     intimacyLoseOverslept: {
@@ -344,8 +344,8 @@ const game: GameMessages = {
     wakeUp: ['일어나~', '어, 자는 거야? 나랑 놀아 줘~', '자지 마!'],
     // hard mode
     goodMorning: ['음…… 벌써 아침이야?', '(기지개)…… 좋은 아침~', '깼어?…… 나 일어났어.', '아침이다…… 헤헤.'],
-    giveUp: ['…… 됐어, 잘래.', '흥, 몰라. 잘 자.', '(한숨)…… 자자.'],
-    tooHot: ['더워……', '이불 너 가져, 더워 죽겠어.', '(이불을 걷어찬다)……'],
+    giveUp: ['……됐어, 잘래.', '흥, 몰라. 잘 자.', '(한숨)…… 자자.'],
+    tooHot: ['더워……', '더워 죽겠어, 잠이 안 와……', '(손으로 부채질한다)……'],
     needCuddle: ['자기 전에 한 번만 안아 줘……', '나한테 관심 없지……', '잘 자라고 해 줘.'],
 
     // 엔딩 화면: morning_{내 목표}_{상대 목표}; together = 스킨십 성공, floor = 침대에서 떨어짐

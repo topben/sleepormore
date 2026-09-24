@@ -80,7 +80,7 @@ const game: GameMessages = {
     partnerBurrito: 'Your partner rolled up into a blanket burrito',
     // hard mode
     sleepHot: 'Too hot to sleep well',
-    sleepLonely: 'Feeling a bit lonely, so you don’t sleep soundly',
+    sleepLonely: 'Too lonely to sleep soundly',
     partnerKickedBlanket: 'Your partner got too hot and kicked the blanket off',
     partnerWokeUp: 'Your partner woke up and stretched',
   },
@@ -97,7 +97,7 @@ const game: GameMessages = {
   goal: { sleep: 'Sleep well', intimacy: 'Get intimate' },
 
   /** hard mode intimacy: right now / in the morning */
-  timing: { now: 'Intimate right now', morning: 'Morning intimacy' },
+  timing: { now: 'Get intimate now', morning: 'Get intimate in the morning' },
 
   ending: {
     kickedOff: {
@@ -134,7 +134,7 @@ const game: GameMessages = {
       title: 'Panda Eyes',
       caption: 'SLEEPLESS',
       description: 'It’s morning, and you barely slept a wink.',
-      tip: 'You need a sleep score of 7: close your eyes, tap “Sleep” a lot, stay warm, and don’t get woken up.',
+      tip: 'You need a sleep score of {target}: close your eyes, tap “Sleep” a lot, stay warm, and don’t get woken up.',
     },
     intimacyLoseFellAsleep: {
       title: 'Snooze, You Lose',
@@ -150,25 +150,25 @@ const game: GameMessages = {
     },
     // hard mode
     intimacyLoseDeadline: {
-      title: 'Time’s up',
+      title: 'Missed the Moment',
       caption: "TIME'S UP",
       description: 'It’s past {deadline}, and the mood is long gone. Your partner lets out a huge yawn and rolls over to sleep.',
       tip: '“Right now” is a race against the clock: “Face them” and “Scoot closer” from turn one; firm kisses (yellow zone) are faster, but never rough.',
     },
     intimacyMorningWin: {
-      title: 'Good-morning kiss',
+      title: 'Good-Morning Kiss',
       caption: 'GOOD MORNING',
       description: 'Well rested, and the sun is up. A perfect morning.',
       tip: 'Perfect! Sleep first, then make your move in the morning.',
     },
     intimacyTooEarly: {
-      title: 'Couldn’t wait for dawn',
+      title: 'Jumped the Gun',
       caption: 'TOO EAGER',
-      description: 'You were going to wait until morning… oh well, this works too.',
+      description: 'You were going to sleep well and wait until morning… oh well, this works too.',
       tip: 'Morning intimacy needs a good sleep first (sleep score {sleep}) and only counts from {morning}. If intimacy is nearly full at night, turn away or close your eyes and sleep.',
     },
     intimacyLoseOverslept: {
-      title: 'Overslept',
+      title: 'Five More Minutes',
       caption: 'OVERSLEPT',
       description: 'The alarm rang three times and you’re still lying there with your eyes shut. So much for the morning plan.',
       tip: 'After {dawn} everyone sleeps lighter: in the morning, open your eyes, face your partner and kiss while they’re awake (morning affection counts double).',
@@ -286,12 +286,12 @@ const game: GameMessages = {
     whisper: 'Whisper sweet nothings to bring you closer.',
     almostThere: 'So close! One more kiss while they’re still awake.',
     // hard mode
-    tooHot: 'Too hot! Share some blanket with your partner (“Tuck them in”).',
+    tooHot: 'Too hot! Give your partner some of the blanket (“Tuck them in”).',
     needCloseness: 'Feeling lonely: you need intimacy of {need}+ to sleep soundly. Hug or whisper a little.',
     hurry: 'Running out of time! It has to happen before {deadline}, so kiss while they’re awake.',
     morningSleepFirst: 'Sleep first: morning starts at {morning}. Getting intimate now would be too early.',
     tooEarlyWarn: 'Intimacy is almost full, but it isn’t morning yet! Turn away or close your eyes and sleep.',
-    morningPrep: 'While your partner is awake, build a little closeness first (don’t fill it up). Morning affection counts double.',
+    morningPrep: 'While your partner is awake, build a little closeness first (don’t max out intimacy). Morning affection counts double.',
     morningGo: 'It’s morning! Open your eyes, face your partner and get intimate while they’re awake.',
   },
 
@@ -342,9 +342,9 @@ const game: GameMessages = {
     partnerInitiate: ['Don’t hide from me.', 'Come a little closer.', 'You’re so far away.'],
     wakeUp: ['Wake uuup~', 'Hey, are you asleep? Stay up with me.', 'No sleeping allowed!'],
     // hard mode
-    goodMorning: ['Mm… is it morning?', '(stretches)… good morning~', 'You awake?… I’m up.', 'It’s morning… hehe.'],
-    giveUp: ['…forget it, I’m sleeping.', 'Hmph. Fine. Goodnight.', '(sighs)… let’s just sleep.'],
-    tooHot: ['So hot…', 'Take the blanket, I’m boiling.', '(kicks the blanket off)…'],
+    goodMorning: ['Mm… is it morning?', '(stretches)… Good morning~', 'You awake?… I’m up.', 'It’s morning… hehe.'],
+    giveUp: ['…Forget it, I’m going to sleep.', 'Hmph. Fine. Goodnight.', '(sighs)… Let’s just sleep.'],
+    tooHot: ['So hot…', 'I’m boiling, can’t sleep…', '(fanning with a hand)…'],
     needCuddle: ['A little cuddle before bed…?', 'You’re ignoring me…', 'Say goodnight to me.'],
 
     // Ending screen: morning_{player goal}_{partner goal}; together = intimacy happened, floor = ended up on the floor

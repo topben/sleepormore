@@ -29,7 +29,7 @@ const ui: UiMessages = {
     modeLabel: 'Độ khó',
     mode: {
       easy: { name: 'Dễ', desc: 'Luật chơi như cũ' },
-      hard: { name: 'Khó', desc: 'Gần gũi chia thành ngay / buổi sáng; muốn ngủ phải lo cả thân nhiệt lẫn cảm giác an toàn' },
+      hard: { name: 'Khó', desc: 'Gần gũi: ngay / buổi sáng; ngủ cần ấm vừa phải và an tâm' },
     },
     playMale: 'Mình là chàng',
     playFemale: 'Mình là nàng',
@@ -77,7 +77,7 @@ const ui: UiMessages = {
       ],
     },
     morning: {
-      win: 'Ngủ đủ trước (điểm giấc ngủ {sleep}), rồi từ {morning} mới đưa độ thân mật lên 100 (người ấy phải còn thức). Sớm quá thì không tính.',
+      win: 'Ngủ đủ trước ({sleep} điểm ngủ), rồi từ {morning} mới đưa độ thân mật lên 100 (người ấy phải còn thức). Sớm quá thì không tính.',
       tips: [
         'Ban đêm, tranh thủ lúc người ấy còn thức vun đắp chút tình cảm, rồi nhắm mắt ngủ.',
         'Độ thân mật sắp đầy thì quay lưng hoặc nhắm mắt, đừng để nó đầy ngay trong đêm.',
@@ -85,7 +85,7 @@ const ui: UiMessages = {
       ],
     },
     sleepHard: {
-      win: 'Trụ tới 06:00 với điểm giấc ngủ {n}. Chỉ những lượt ngủ thoải mái mới được trọn 1 điểm: thân nhiệt vừa phải và độ thân mật đủ cao.',
+      win: 'Trụ tới 06:00 và đạt {n} điểm ngủ. Chỉ những lượt ngủ thoải mái mới được trọn 1 điểm: thân nhiệt vừa phải và độ thân mật đủ cao.',
       tips: [
         'Thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh; nóng quá thì chia chăn cho người ấy (“Đắp chăn giúp”), lạnh quá thì kéo lại.',
         'Độ thân mật thiếu thì ngủ không yên: trước khi ngủ hãy thì thầm hoặc ôm một cái. Khi có người đang ngủ, độ thân mật không giảm.',
@@ -107,7 +107,7 @@ const ui: UiMessages = {
       sleep: 'Điểm ngủ {v}/{t}',
       intimacy: 'Độ thân mật {v}/{t}',
       now: 'Độ thân mật {v}/{t} · trước {deadline}',
-      morningSleep: 'Ngủ đủ trước {v}/{t}',
+      morningSleep: 'Ngủ trước đã: {v}/{t}',
       morningLove: 'Độ thân mật {v}/{t} · từ {morning}',
     },
     status: {
@@ -325,7 +325,7 @@ const ui: UiMessages = {
         title: '🔥 Chế độ khó',
         body: [
           'Ở màn hình bắt đầu có thể chọn “Khó”. Gần gũi có hai kiểu: ⏱️ gần gũi ngay (phải xong trước {deadline}, hết giờ là thua) và 🌅 gần gũi buổi sáng (ngủ đủ trước, chỉ tính từ {morning}, sớm quá thì hòa).',
-          'Phải ngủ thoải mái mới được điểm: thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh, cả hai cùng thức mà không tương tác thì độ thân mật giảm. Gấu sợ nóng (thân nhiệt {bearLo}–{bearHi}), thỏ tai cụp sợ lạnh (từ {bunnyLo} trở lên) và cần nhiều cảm giác an toàn hơn.',
+          'Chỉ cần {sleepWin} điểm ngủ, nhưng phải ngủ thoải mái mới được điểm: thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh, cả hai cùng thức mà không tương tác thì độ thân mật giảm. Gấu sợ nóng (thân nhiệt {bearLo}–{bearHi}), thỏ tai cụp sợ lạnh (từ {bunnyLo} trở lên) và cần nhiều cảm giác an toàn hơn.',
           'Sau {dawn} ai cũng ngủ nông dần; gần gũi buổi sáng hiệu quả gấp đôi.',
         ],
       },

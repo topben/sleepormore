@@ -147,7 +147,7 @@ const game: GameMessages = {
       title: 'Mắt gấu trúc',
       caption: 'SLEEPLESS',
       description: 'Trời sáng rồi mà bạn gần như chưa chợp mắt được tí nào.',
-      tip: 'Cần đạt 7 điểm ngủ: nhắm mắt rồi bấm “Ngủ” thật đều, nhớ giữ ấm và đừng để bị đánh thức.',
+      tip: 'Cần đạt {target} điểm ngủ: nhắm mắt rồi bấm “Ngủ” thật đều, nhớ giữ ấm và đừng để bị đánh thức.',
     },
     intimacyLoseFellAsleep: {
       title: 'Bạn ngủ mất rồi',
@@ -175,10 +175,10 @@ const game: GameMessages = {
       tip: 'Hoàn hảo! Ngủ cho đã trước, trời sáng mới hành động.',
     },
     intimacyTooEarly: {
-      title: 'Không đợi nổi tới sáng',
+      title: 'Nôn nóng quá',
       caption: 'TOO EAGER',
-      description: 'Đã định đợi tới sáng mà… thôi, vậy cũng được.',
-      tip: '“Gần gũi buổi sáng” phải ngủ đủ trước (điểm giấc ngủ {sleep}) và chỉ tính từ {morning} trở đi. Ban đêm mà độ thân mật sắp đầy thì hãy quay lưng hoặc nhắm mắt ngủ.',
+      description: 'Đã định ngủ cho đủ rồi đợi tới sáng mà… thôi, vậy cũng được.',
+      tip: '“Gần gũi buổi sáng” phải ngủ đủ trước ({sleep} điểm ngủ) và chỉ tính từ {morning} trở đi. Ban đêm mà độ thân mật sắp đầy thì hãy quay lưng hoặc nhắm mắt ngủ.',
     },
     intimacyLoseOverslept: {
       title: 'Ngủ quên',
@@ -369,9 +369,9 @@ const game: GameMessages = {
     partnerInitiate: ['Đừng trốn mà.', 'Lại đây chút nào.', 'Sao nằm xa tít vậy?'],
     wakeUp: ['Dậy đi mà~', 'Ê, ngủ rồi hả? Thức thêm chút đi mà.', 'Không được ngủ!'],
     // hard mode
-    goodMorning: ['Ưm… sáng rồi à?', '(vươn vai)… chào buổi sáng~', 'Dậy chưa?… Tỉnh rồi nè.', 'Sáng rồi nè… hì hì.'],
+    goodMorning: ['Ừm… sáng rồi à?', '(vươn vai)… chào buổi sáng~', 'Dậy chưa?… Tỉnh rồi nè.', 'Sáng rồi nè… hì hì.'],
     giveUp: ['…thôi, ngủ.', 'Hứ, kệ đó. Ngủ ngon.', '(thở dài)… ngủ thôi.'],
-    tooHot: ['Nóng quá…', 'Chăn cho đó, nóng muốn chết.', '(đạp chăn ra)…'],
+    tooHot: ['Nóng quá…', 'Nóng muốn chết, ngủ không nổi…', '(lấy tay quạt quạt)…'],
     needCuddle: ['Ôm một cái rồi hẵng ngủ mà…', 'Chẳng thèm để ý gì hết…', 'Nói chúc ngủ ngon đi mà.'],
 
     // Màn kết: morning_{mục tiêu người chơi}_{mục tiêu người ấy}; together = gần gũi thành công, floor = rơi khỏi giường

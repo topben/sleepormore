@@ -134,7 +134,7 @@ export default {
       title: '黑眼圈',
       caption: 'SLEEPLESS',
       description: '天亮了,你根本沒睡到。',
-      tip: '睡眠分數要 7 分:閉上眼睛多按「閉眼睡」,注意保暖,別被吵醒。',
+      tip: '睡眠分數要 {target} 分:閉上眼睛多按「閉眼睡」,注意保暖,別被吵醒。',
     },
     intimacyLoseFellAsleep: {
       title: '你睡著了',
@@ -162,9 +162,9 @@ export default {
       tip: '完美!先睡飽,天亮再行動。',
     },
     intimacyTooEarly: {
-      title: '等不及天亮',
+      title: '太心急了',
       caption: 'TOO EAGER',
-      description: '說好要等到早上的……算了,也不錯。',
+      description: '說好要先睡飽、等到早上的……算了,也不錯。',
       tip: '早上親熱要先睡飽(睡眠分數 {sleep}),{morning} 以後才算。晚上親密度快滿時先背對或閉眼睡。',
     },
     intimacyLoseOverslept: {
@@ -344,7 +344,7 @@ export default {
     // 困難模式
     goodMorning: ['嗯……天亮了?', '(伸懶腰)……早安~', '你醒了嗎?……我醒了喔。', '早上了欸……嘿嘿。'],
     giveUp: ['……算了,睡覺。', '哼,不理你了,晚安。', '(嘆氣)……睡吧。'],
-    tooHot: ['好熱……', '被子給你啦,熱死了。', '(把被子踢開)……'],
+    tooHot: ['好熱……', '熱死了,睡不著……', '(用手搧風)……'],
     needCuddle: ['睡前抱一下嘛……', '你都不理我……', '說晚安啦。'],
 
     // 結局畫面:morning_{玩家目標}_{對方目標};together = 親熱成功、floor = 掉下床

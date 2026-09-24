@@ -81,9 +81,9 @@ const game: GameMessages = {
     partnerBurrito: 'Tu pareja se envuelve como un burrito',
     // hard mode
     sleepHot: 'Demasiado calor para dormir bien',
-    sleepLonely: 'Te faltan mimos y no descansas bien',
-    partnerKickedBlanket: 'Tu pareja tenía calor y apartó la manta de una patada',
-    partnerWokeUp: 'Tu pareja se despertó y se estiró',
+    sleepLonely: 'Sin mimos se duerme mal',
+    partnerKickedBlanket: 'Tu pareja tiene calor y aparta la manta de una patada',
+    partnerWokeUp: 'Tu pareja se despierta y se estira',
   },
 
   posture: {
@@ -98,7 +98,7 @@ const game: GameMessages = {
   goal: { sleep: 'Dormir bien', intimacy: 'Intimidad' },
 
   /** hard mode intimacy: right now / in the morning */
-  timing: { now: 'Intimidad ya', morning: 'Intimidad mañanera' },
+  timing: { now: 'Intimidad ya', morning: 'Intimidad al despertar' },
 
   ending: {
     kickedOff: {
@@ -135,7 +135,7 @@ const game: GameMessages = {
       title: 'Ojeras',
       caption: 'SLEEPLESS',
       description: 'Ya es de día y no pegaste ojo.',
-      tip: 'Necesitas 7 puntos de sueño: cierra los ojos, usa mucho «Dormir», abrígate y que no te despierten.',
+      tip: 'Necesitas {target} puntos de sueño: cierra los ojos, usa mucho «Dormir», abrígate y que no te despierten.',
     },
     intimacyLoseFellAsleep: {
       title: 'Te ganó el sueño',
@@ -163,10 +163,10 @@ const game: GameMessages = {
       tip: '¡Perfecto! Primero dormir bien; al amanecer, pasar a la acción.',
     },
     intimacyTooEarly: {
-      title: 'No pudiste esperar al amanecer',
+      title: 'Demasiadas prisas',
       caption: 'TOO EAGER',
-      description: 'Ibas a esperar hasta la mañana… bueno, tampoco está mal.',
-      tip: 'La intimidad mañanera exige dormir bien antes (puntuación de sueño {sleep}) y solo cuenta desde las {morning}. Si de noche la intimidad está casi llena, da la espalda o cierra los ojos y duerme.',
+      description: 'Ibas a dormir bien y esperar hasta la mañana… bueno, tampoco está mal.',
+      tip: 'La intimidad al despertar exige dormir bien antes ({sleep} puntos de sueño) y solo cuenta desde las {morning}. Si de noche la intimidad está casi llena, da la espalda o cierra los ojos y duerme.',
     },
     intimacyLoseOverslept: {
       title: 'Se te pegaron las sábanas',
@@ -293,7 +293,7 @@ const game: GameMessages = {
     hurry: '¡Se acaba el tiempo! Tiene que ser antes de las {deadline}: besa mientras tu pareja esté despierta.',
     morningSleepFirst: 'Primero duerme: la mañana empieza a las {morning}. Ahora sería demasiado pronto.',
     tooEarlyWarn: '¡La intimidad está casi llena y todavía no es de mañana! Da la espalda o cierra los ojos y duerme.',
-    morningPrep: 'Mientras tu pareja siga despierta, crea algo de complicidad (sin llenarla). Por la mañana los mimos cuentan el doble.',
+    morningPrep: 'Mientras tu pareja siga despierta, crea algo de complicidad (sin llenar la intimidad). Por la mañana los mimos cuentan el doble.',
     morningGo: '¡Ya es de mañana! Abre los ojos, ponte cara a cara y busca intimidad mientras tu pareja esté despierta.',
   },
 
@@ -345,8 +345,8 @@ const game: GameMessages = {
     wakeUp: ['¡Despierta~!', 'Oye, ¿ya te dormiste? Hazme compañía.', '¡Prohibido dormir!'],
     // hard mode
     goodMorning: ['Mmm… ¿ya es de día?', '(se estira)… buenos días~', '¿Ya te despertaste?… Yo sí.', 'Ya es de mañana… jiji.'],
-    giveUp: ['…déjalo, me duermo.', 'Hmpf. Paso. Buenas noches.', '(suspira)… a dormir.'],
-    tooHot: ['Qué calor…', 'Quédate la manta, me aso.', '(aparta la manta de una patada)…'],
+    giveUp: ['…Déjalo, me duermo.', 'Hmpf. Paso. Buenas noches.', '(suspira)… a dormir.'],
+    tooHot: ['Qué calor…', 'Me aso, así no hay quien duerma…', '(se abanica con la mano)…'],
     needCuddle: ['Un abracito antes de dormir…', 'Ni caso me haces…', 'Dame las buenas noches.'],
 
     // Pantalla final: morning_{objetivo del jugador}_{objetivo de la pareja}; together = intimidad lograda, floor = fuera de la cama
