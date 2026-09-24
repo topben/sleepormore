@@ -1786,6 +1786,266 @@ body.ending-neutral .hud {
   min-height: 56px;
 }
 
+/* ───────────── 組合結局(你 × 對方 = 64 種) ───────────── */
+
+.ending-combo {
+  margin: 14px 0 12px;
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--line);
+}
+.rarity-box-SR {
+  border-color: rgba(179, 107, 255, 0.55);
+}
+.rarity-box-SSR {
+  border-color: rgba(255, 199, 64, 0.85);
+  background: linear-gradient(180deg, rgba(255, 210, 90, 0.2), rgba(255, 160, 40, 0.06));
+  box-shadow: 0 0 26px rgba(255, 190, 60, 0.28);
+}
+.combo-head {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.combo-head .mini-title {
+  margin: 0;
+}
+.rarity {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.rarity-N {
+  background: #3a3658;
+  color: #d6d1ee;
+}
+.rarity-R {
+  background: #1f4f86;
+  color: #d5ebff;
+}
+.rarity-SR {
+  background: #5b2b8f;
+  color: #f0dcff;
+}
+.rarity-SSR {
+  background: linear-gradient(90deg, #ffd54a, #ff9f1a);
+  color: #3a2400;
+  box-shadow: 0 0 12px rgba(255, 190, 60, 0.6);
+}
+.rarity-stars {
+  font-size: 10px;
+}
+.combo-new {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ff4d6d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  animation: combo-pop 1.2s ease-in-out infinite;
+}
+.combo-name {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.25;
+  color: #fff4c9;
+}
+.combo-pair {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.combo-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 14px;
+  font-weight: 700;
+}
+.combo-chip small {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.combo-x {
+  color: var(--muted);
+  font-weight: 800;
+}
+.combo-desc {
+  margin: 10px 0 4px;
+  line-height: 1.5;
+  color: #e2dbfb;
+}
+.combo-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.combo-actions .secondary {
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+@keyframes combo-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+/* 圖鑑:9 × 9(第一列 / 第一行是人格圖示) */
+.panel.gallery {
+  width: min(560px, 100%);
+}
+.gallery-progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 10px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.gallery-progress strong {
+  color: var(--text);
+  font-size: 15px;
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 4px;
+}
+.gallery-axis,
+.gallery-corner {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  font-size: 18px;
+}
+.gallery-cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  font-weight: 800;
+}
+.gallery-cell.open {
+  color: #fff;
+}
+.rarity-cell-N.open {
+  background: #3a3658;
+}
+.rarity-cell-R.open {
+  background: #1f4f86;
+}
+.rarity-cell-SR.open {
+  background: #5b2b8f;
+}
+.rarity-cell-SSR.open {
+  background: linear-gradient(135deg, #ffd54a, #ff9f1a);
+  color: #3a2400;
+}
+/* 沒解鎖的格子只用邊框暗示稀有度 */
+.rarity-cell-R:not(.open) {
+  border-color: rgba(78, 168, 255, 0.28);
+}
+.rarity-cell-SR:not(.open) {
+  border-color: rgba(179, 107, 255, 0.4);
+}
+.rarity-cell-SSR:not(.open) {
+  border-color: rgba(255, 199, 64, 0.5);
+}
+.gallery-cell.selected {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+.gallery-cell.latest {
+  animation: combo-pop 1.2s ease-in-out infinite;
+}
+.gallery-detail {
+  margin-top: 12px;
+  padding: 12px;
+  min-height: 96px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.gallery-detail-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+.gallery-detail-name {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff4c9;
+}
+.gallery-detail-desc {
+  margin: 4px 0 0;
+  line-height: 1.5;
+  color: #e2dbfb;
+  font-size: 14px;
+}
+.gallery-legend {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+}
+.gallery-legend li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 6px;
+  align-items: baseline;
+  font-size: 13px;
+}
+.gallery-legend li small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+@media (max-width: 719px) {
+  .gallery-legend {
+    grid-template-columns: 1fr;
+  }
+  .combo-name {
+    font-size: 21px;
+  }
+}
+
 /* ───────────── Toast ───────────── */
 
 .toast-layer {

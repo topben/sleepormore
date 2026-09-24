@@ -1,14 +1,18 @@
-// 棉被(SCENE-RIG §3):PlaneGeometry 高度場,每幀依兩人的身體線段重寫 position / normal attribute(不 new 任何東西)。
+// 棉被(SCENE-RIG §3):PlaneGeometry 高度場,每幀依兩人的身體線段重寫 position / normal / color attribute(不 new 任何東西)。
 // offset 只平移 mesh(x = offset × 0.9);鼓包一律用世界座標算,所以人挪動時鼓包跟著人走、棉被被拉走時人就露出來。
+// 精緻化(DESIGN §14.6):一格一格鋪棉鼓起(幾何 + 法線貼圖)、外圍滾邊與捲起的邊條、凹處變暗(AO)、
+// 被拉扯時順著拉的方向起皺、搶贏的那一側堆出摺子;絨布 sheen。
 import * as THREE from 'three';
+import { blanketNormalTexture, blanketTexture, quiltHeight } from './textures';
 
 const WIDTH = 1.8;
 const LENGTH = 1.62; // 規格 1.6(從胸口蓋到床尾並垂下)
-const SEG_X = 24;
-const SEG_Z = 20;
+const SEG_X = 45;
+const SEG_Z = 40;
 /** 棉被靠床頭那條邊的世界 z(胸口) */
 const TOP_Z = -0.2; // 規格 −0.35;露出肩膀與睡衣顏色
 export const BLANKET_Z = TOP_Z + LENGTH / 2;
+export const BLANKET_HALF_W = WIDTH / 2;
 
 const BASE = 0.58; // 平鋪在床墊(0.55)上
 const THICK = 0.03; // 蓋在身體上的厚度
@@ -16,6 +20,11 @@ const CAP = 1.0; // 鼓包最高(坐起來時被子停在腰腹)
 const FLOOR = 0.025;
 const SIDE_EDGE = 1.05; // 超過這條線開始垂下(床墊 ±1.1、床架 ±1.15)
 const FOOT_EDGE = 1.13; // 床墊尾端 z = 1.2
+/** 鋪棉鼓起的幾何高度(法線貼圖負責細節,這裡讓輪廓也有起伏) */
+const PUFF = 0.016;
+/** 邊條(捲起的滾邊)半徑 */
+const PIPING_R = 0.013;
+const PIPING_RADIAL = 8;
 
 export class Blanket {
   readonly mesh: THREE.Mesh;
@@ -23,43 +32,103 @@ export class Blanket {
   rippleAmp = 1;
   /** 皺摺相位(幅度放大時往前推,看起來像被子被扯動的波) */
   ripplePhase = 0;
+  /** 拉扯張力 −1..1(正負 = 往 +x / −x 拉):順著拉的方向起皺(場景依棉被位移的速度寫入) */
+  tension = 0;
+  /** 堆在某一側的摺子 0..1 與方向(±1) */
+  bunch = 0;
+  bunchSide = 1;
 
   private readonly geo: THREE.PlaneGeometry;
-  private readonly mat: THREE.MeshStandardMaterial;
+  private readonly mat: THREE.MeshPhysicalMaterial;
   private readonly tex: THREE.CanvasTexture;
+  private readonly normalTex: THREE.CanvasTexture;
   private readonly pos: Float32Array;
   private readonly nor: Float32Array;
+  private readonly col: Float32Array;
   private readonly base: Float32Array;
+  private readonly puff: Float32Array;
+  private readonly hgt: Float32Array;
   private readonly cols = SEG_X + 1;
   private readonly rows = SEG_Z + 1;
+  // 邊條
+  private readonly piping: THREE.Mesh;
+  private readonly pipeGeo: THREE.BufferGeometry;
+  private readonly pipeMat: THREE.MeshStandardMaterial;
+  private readonly pipePos: Float32Array;
+  private readonly pipeNor: Float32Array;
+  private readonly rim: Int32Array;
 
   constructor() {
     this.geo = new THREE.PlaneGeometry(WIDTH, LENGTH, SEG_X, SEG_Z);
-    this.geo.rotateX(-Math.PI / 2); // 局部 (x, 0, z),y = 高度
+    this.geo.rotateX(-Math.PI / 2); // 局部 (x, 0, z),y = 高度;第 0 列 = 床頭端(v = 1)
     const posAttr = this.geo.getAttribute('position') as THREE.BufferAttribute;
     const norAttr = this.geo.getAttribute('normal') as THREE.BufferAttribute;
+    const uvAttr = this.geo.getAttribute('uv') as THREE.BufferAttribute;
     posAttr.setUsage(THREE.DynamicDrawUsage);
     norAttr.setUsage(THREE.DynamicDrawUsage);
     this.pos = posAttr.array as Float32Array;
     this.nor = norAttr.array as Float32Array;
-    this.base = new Float32Array(posAttr.count * 2);
-    for (let i = 0; i < posAttr.count; i++) {
+    const count = posAttr.count;
+    this.base = new Float32Array(count * 2);
+    this.puff = new Float32Array(count);
+    this.hgt = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
       this.base[i * 2] = this.pos[i * 3];
       this.base[i * 2 + 1] = this.pos[i * 3 + 2];
+      this.puff[i] = PUFF * (quiltHeight(uvAttr.getX(i), uvAttr.getY(i)) - 0.5);
     }
+    this.col = new Float32Array(count * 3).fill(1);
+    this.geo.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
 
-    this.tex = quiltTexture();
-    this.mat = new THREE.MeshStandardMaterial({
+    this.tex = blanketTexture();
+    this.normalTex = blanketNormalTexture();
+    this.mat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       map: this.tex,
-      roughness: 0.95,
+      normalMap: this.normalTex,
+      normalScale: new THREE.Vector2(0.85, 0.85),
+      vertexColors: true,
+      roughness: 0.9,
       metalness: 0,
+      sheen: 0.9,
+      sheenRoughness: 0.6,
+      sheenColor: new THREE.Color(0x9aaee8),
       side: THREE.DoubleSide,
     });
     this.mesh = new THREE.Mesh(this.geo, this.mat);
     this.mesh.name = 'blanket';
     this.mesh.position.set(0, 0, BLANKET_Z);
     this.mesh.frustumCulled = false; // 頂點每幀改,bounding sphere 不可信
+
+    // 邊條:沿外圍一圈的細管(床頭那條邊最顯眼,像羽絨被捲起的滾邊)
+    const cols = this.cols;
+    const rows = this.rows;
+    const rim: number[] = [];
+    for (let ix = 0; ix < cols; ix++) rim.push(ix);
+    for (let iz = 1; iz < rows; iz++) rim.push(iz * cols + cols - 1);
+    for (let ix = cols - 2; ix >= 0; ix--) rim.push((rows - 1) * cols + ix);
+    for (let iz = rows - 2; iz >= 1; iz--) rim.push(iz * cols);
+    this.rim = Int32Array.from(rim);
+    const n = rim.length;
+    const vcount = (n + 1) * (PIPING_RADIAL + 1);
+    this.pipePos = new Float32Array(vcount * 3);
+    this.pipeNor = new Float32Array(vcount * 3);
+    const idx: number[] = [];
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < PIPING_RADIAL; j++) {
+        const a = i * (PIPING_RADIAL + 1) + j;
+        const b = a + PIPING_RADIAL + 1;
+        idx.push(a, a + 1, b, b, a + 1, b + 1); // 外側為正面
+      }
+    }
+    this.pipeGeo = new THREE.BufferGeometry();
+    this.pipeGeo.setAttribute('position', new THREE.BufferAttribute(this.pipePos, 3).setUsage(THREE.DynamicDrawUsage));
+    this.pipeGeo.setAttribute('normal', new THREE.BufferAttribute(this.pipeNor, 3).setUsage(THREE.DynamicDrawUsage));
+    this.pipeGeo.setIndex(idx);
+    this.pipeMat = new THREE.MeshStandardMaterial({ color: 0xd9d2ef, roughness: 0.78, metalness: 0 });
+    this.piping = new THREE.Mesh(this.pipeGeo, this.pipeMat);
+    this.piping.frustumCulled = false;
+    this.mesh.add(this.piping);
   }
 
   /**
@@ -73,10 +142,15 @@ export class Blanket {
     const my = this.mesh.position.y;
     const amp = this.rippleAmp;
     const ph = this.ripplePhase;
+    const ten = this.tension;
+    const tenAbs = Math.abs(ten);
+    const tenSide = ten >= 0 ? 1 : -1;
+    const bunch = this.bunch;
     const count = this.cols * this.rows;
 
     for (let i = 0; i < count; i++) {
-      const wx = this.base[i * 2] + mx;
+      const lx = this.base[i * 2];
+      const wx = lx + mx;
       const wz = this.base[i * 2 + 1] + mz;
 
       // 鼓包:對每條身體線段取 XZ 最近點,平頂高斯(super-Gaussian)隆起;取 max 不加總
@@ -105,7 +179,18 @@ export class Blanket {
         const hh = BASE + peak * Math.exp(-q * q);
         if (hh > h) h = hh;
       }
+      h += this.puff[i];
       h += amp * (0.012 * Math.sin(5.1 * wx + 3.7 * wz + ph) + 0.008 * Math.sin(7.3 * wz - 0.8 * ph));
+      // 拉扯:順著拉的方向(x)的長條皺摺,拉的那側最明顯
+      if (tenAbs > 0.01) {
+        const env = 0.25 + 0.75 * Math.max(0, Math.min(1, 0.5 + (0.5 * tenSide * lx) / (WIDTH / 2)));
+        h += tenAbs * 0.024 * env * Math.sin(13 * wz + 1.7 * Math.sin(4.3 * wx) + ph * 0.5);
+      }
+      // 搶贏的那側堆出直向的摺子
+      if (bunch > 0.01) {
+        const side = Math.max(0, Math.min(1, ((this.bunchSide * lx) / (WIDTH / 2) - 0.05) / 0.6));
+        h += bunch * 0.02 * side * Math.sin(17 * wx + 2.2 * Math.sin(3.1 * wz));
+      }
 
       // 垂下床沿:先圓滑地翻過床墊邊,再幾乎垂直往下,碰到地板就攤平
       let ox = wx;
@@ -127,10 +212,14 @@ export class Blanket {
       p[i * 3] = ox - mx;
       p[i * 3 + 1] = h;
       p[i * 3 + 2] = oz - mz;
+      this.hgt[i] = h;
     }
     this.computeNormals();
+    this.computeShade();
+    this.buildPiping();
     this.geo.attributes.position.needsUpdate = true;
     this.geo.attributes.normal.needsUpdate = true;
+    this.geo.attributes.color.needsUpdate = true;
   }
 
   /** 規則網格 → 中央差分法線(比 computeVertexNormals 省,且不配置物件) */
@@ -169,10 +258,91 @@ export class Blanket {
     }
   }
 
+  /** 凹處變暗(近似 AO):比周圍低的頂點(兩人之間的凹谷、皺摺的谷底)顏色壓暗 */
+  private computeShade(): void {
+    const cols = this.cols;
+    const rows = this.rows;
+    const h = this.hgt;
+    const c = this.col;
+    for (let iz = 0; iz < rows; iz++) {
+      for (let ix = 0; ix < cols; ix++) {
+        const i = iz * cols + ix;
+        const l = h[iz * cols + Math.max(0, ix - 2)];
+        const r = h[iz * cols + Math.min(cols - 1, ix + 2)];
+        const u = h[Math.max(0, iz - 2) * cols + ix];
+        const d = h[Math.min(rows - 1, iz + 2) * cols + ix];
+        const dip = (l + r + u + d) * 0.25 - h[i];
+        const ao = 1 - Math.max(0, Math.min(0.3, dip * 4.5));
+        c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = ao;
+      }
+    }
+  }
+
+  /** 邊條:沿外圍頂點建細管,截面用該點的被面法線(翻過床沿時跟著轉) */
+  private buildPiping(): void {
+    const rim = this.rim;
+    const n = rim.length;
+    const p = this.pos;
+    const nr = this.nor;
+    const out = this.pipePos;
+    const on = this.pipeNor;
+    for (let k = 0; k <= n; k++) {
+      const i = rim[k % n];
+      const prev = rim[(k - 1 + n) % n];
+      const next = rim[(k + 1) % n];
+      let tx = p[next * 3] - p[prev * 3];
+      let ty = p[next * 3 + 1] - p[prev * 3 + 1];
+      let tz = p[next * 3 + 2] - p[prev * 3 + 2];
+      const tl = Math.hypot(tx, ty, tz) || 1;
+      tx /= tl;
+      ty /= tl;
+      tz /= tl;
+      // 法線去掉切線分量
+      let nx = nr[i * 3];
+      let ny = nr[i * 3 + 1];
+      let nz = nr[i * 3 + 2];
+      const dot = nx * tx + ny * ty + nz * tz;
+      nx -= dot * tx;
+      ny -= dot * ty;
+      nz -= dot * tz;
+      const nl = Math.hypot(nx, ny, nz) || 1;
+      nx /= nl;
+      ny /= nl;
+      nz /= nl;
+      // b = t × n
+      const bx = ty * nz - tz * ny;
+      const by = tz * nx - tx * nz;
+      const bz = tx * ny - ty * nx;
+      const cx = p[i * 3];
+      const cy = p[i * 3 + 1];
+      const cz = p[i * 3 + 2];
+      for (let j = 0; j <= PIPING_RADIAL; j++) {
+        const a = (j / PIPING_RADIAL) * Math.PI * 2;
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        const dx = ca * nx + sa * bx;
+        const dy = ca * ny + sa * by;
+        const dz = ca * nz + sa * bz;
+        const o = (k * (PIPING_RADIAL + 1) + j) * 3;
+        out[o] = cx + dx * PIPING_R;
+        out[o + 1] = cy + dy * PIPING_R;
+        out[o + 2] = cz + dz * PIPING_R;
+        on[o] = dx;
+        on[o + 1] = dy;
+        on[o + 2] = dz;
+      }
+    }
+    this.pipeGeo.attributes.position.needsUpdate = true;
+    this.pipeGeo.attributes.normal.needsUpdate = true;
+  }
+
   dispose(): void {
     this.geo.dispose();
     this.mat.dispose();
     this.tex.dispose();
+    this.normalTex.dispose();
+    this.pipeGeo.dispose();
+    this.pipeMat.dispose();
   }
 }
 
@@ -197,54 +367,4 @@ function drape(s: number, y0: number): { out: number; y: number } {
     }
   }
   return hangOut;
-}
-
-/** 絎縫格紋 + 小星星(直接畫成被子的顏色,material.color 用白) */
-function quiltTexture(): THREE.CanvasTexture {
-  const S = 256;
-  const c = document.createElement('canvas');
-  c.width = c.height = S;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#6b7fb3';
-  g.fillRect(0, 0, S, S);
-  // 格子間微微的明暗(像鋪棉鼓起)
-  const grad = g.createRadialGradient(S / 2, S / 2, 10, S / 2, S / 2, S * 0.62);
-  grad.addColorStop(0, 'rgba(255,255,255,0.10)');
-  grad.addColorStop(1, 'rgba(0,0,30,0.10)');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, S, S);
-  // 絎縫線(虛線)
-  g.strokeStyle = 'rgba(40,50,95,0.55)';
-  g.lineWidth = 3;
-  g.setLineDash([10, 7]);
-  g.strokeRect(1.5, 1.5, S - 3, S - 3);
-  g.setLineDash([]);
-  // 中央小星星
-  g.fillStyle = '#d9e0f7';
-  star(g, S / 2, S / 2, 16, 7);
-  for (const [x, y] of [
-    [S * 0.22, S * 0.25],
-    [S * 0.78, S * 0.74],
-  ]) {
-    g.beginPath();
-    g.arc(x, y, 4, 0, Math.PI * 2);
-    g.fill();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 3);
-  tex.anisotropy = 4;
-  return tex;
-}
-
-function star(g: CanvasRenderingContext2D, cx: number, cy: number, ro: number, ri: number): void {
-  g.beginPath();
-  for (let k = 0; k < 10; k++) {
-    const r = k % 2 ? ri : ro;
-    const a = -Math.PI / 2 + (k * Math.PI) / 5;
-    g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-  }
-  g.closePath();
-  g.fill();
 }

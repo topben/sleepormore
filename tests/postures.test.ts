@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { CharacterState, GameState, Posture, Role } from '../src/game/types';
 import {
+  aimEuler,
+  ARM_LEN as HAND_REACH,
   ARM_PILLOW_CUDDLE,
   ARM_PILLOW_LIFT,
   basePose,
+  reachArm,
   EMBRACE_ARM,
   LIMB_NAMES,
   resolvePose,
@@ -332,5 +335,30 @@ describe('Tweens(SCENE-RIG §4)', () => {
     tw.set('x', 1, 0);
     expect(tw.get('x')).toBe(1);
     expect(tw.chan('x').active).toBe(false);
+  });
+});
+
+describe('reaching (rubber-hose arms)', () => {
+  it('aimEuler points a resting arm (−y) along any direction', () => {
+    const dirs: V3[] = [
+      [1, 0, 0],
+      [-1, 0, 0],
+      [0, 0, 1],
+      [0.55, -0.22, 0.2],
+      [-0.3, 0.6, 0.5],
+      [0.2, -0.9, -0.4],
+    ];
+    for (const d of dirs) {
+      const len = Math.hypot(...d);
+      const got = rotXYZ(aimEuler(...d), [0, -1, 0]);
+      for (let i = 0; i < 3; i++) expect(got[i]).toBeCloseTo(d[i] / len, 6);
+    }
+  });
+
+  it('reachArm stretches the hose to the target, within limits', () => {
+    const near = reachArm('armL', 0.2, 0.65 - HAND_REACH, 0.06); // 剛好一隻手臂長(肩 → 手心)
+    expect(near.stretch).toBeCloseTo(1, 6);
+    expect(reachArm('armL', 2, 0.65, 0.06).stretch).toBe(1.45); // 太遠:拉長到上限
+    expect(reachArm('armR', -0.2, 0.6, 0.06).stretch).toBe(0.75); // 太近:最短
   });
 });

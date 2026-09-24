@@ -38,6 +38,19 @@ function compare(ref: unknown, got: unknown, path: string, errors: string[]) {
   }
 }
 
+describe('combo endings text', () => {
+  for (const [id, msgs] of Object.entries({ 'zh-TW': REF, ...ALL })) {
+    it(`${id}: 64 unique combo names, distinct from the 8 persona names`, () => {
+      const combos = Object.values(msgs.game.combo).map((c) => c.name.trim());
+      const personas = Object.values(msgs.game.persona).map((p) => p.name.trim());
+      expect(combos).toHaveLength(64);
+      expect(new Set(combos).size).toBe(64);
+      expect(new Set(personas).size).toBe(8);
+      for (const p of personas) expect(combos).not.toContain(p);
+    });
+  }
+});
+
 describe('i18n dictionaries', () => {
   it('lists 7 locales', () => {
     expect(LOCALES.map((l) => l.id)).toEqual(['zh-TW', 'zh-CN', 'ja', 'ko', 'vi', 'en', 'es']);

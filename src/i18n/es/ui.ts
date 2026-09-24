@@ -32,6 +32,7 @@ const ui: UiMessages = {
     sideLeft: 'Lado izquierdo',
     sideRight: 'Lado derecho',
     howToPlay: 'Cómo jugar',
+    gallery: 'Colección',
     footnote: '12 turnos · unos 5 minutos · para adultos, sin contenido explícito',
     language: 'Idioma',
     plugTag: '[Publicidad descarada]',
@@ -237,6 +238,23 @@ const ui: UiMessages = {
     again: 'Jugar otra vez',
     changeRole: 'Cambiar personaje',
     outcome: { win: 'Victoria', lose: 'Derrota', draw: 'Empate' },
+    comboLabel: 'Combinación de esta noche',
+    newCombo: '¡NUEVA!',
+    collection: 'Colección {n}/{max}',
+    gallery: 'Ver colección',
+    share: 'Compartir',
+    /** Texto para compartir (después se añade el enlace). {rarity} concuerda en femenino con «combinación». */
+    shareText: 'Desbloqueé la combinación {rarity} «{name}» ({a} × {b}) en Misma cama, sueños distintos. ¿Cuántas puedes coleccionar tú?',
+    copied: '¡Copiado! Compártelo con tus amigos.',
+    rarity: { N: 'Común', R: 'Rara', SR: 'Épica', SSR: 'Legendaria' },
+  },
+
+  gallery: {
+    title: 'Colección de combinaciones',
+    progress: 'Conseguidas {n}/{max}',
+    axes: 'Filas = tú · Columnas = tu pareja',
+    locked: 'Sin desbloquear',
+    lockedHint: 'Juega de otra manera y quizá te la encuentres.',
   },
 
   help: {

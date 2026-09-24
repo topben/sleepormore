@@ -31,6 +31,7 @@ const ui: UiMessages = {
     sideLeft: '睡左边',
     sideRight: '睡右边',
     howToPlay: '怎么玩',
+    gallery: '图鉴',
     footnote: '12 回合 · 约 5 分钟 · 成人向但不露骨',
     language: '语言',
     plugTag: '[无情硬广]',
@@ -236,6 +237,24 @@ const ui: UiMessages = {
     again: '再玩一次',
     changeRole: '换个角色',
     outcome: { win: '胜利', lose: '失败', draw: '平局' },
+    comboLabel: '今晚的组合',
+    newCombo: 'NEW!',
+    collection: '图鉴 {n}/{max}',
+    gallery: '查看图鉴',
+    share: '分享',
+    /** 分享文案(后面会接网址) */
+    shareText: '我在《同床异梦》解锁了{rarity}组合【{name}】{a} × {b},你能集到几种?',
+    copied: '已复制!快发给朋友看看吧',
+    rarity: { N: '普通', R: '稀有', SR: '史诗', SSR: '传说' },
+  },
+
+  gallery: {
+    title: '组合图鉴',
+    progress: '已收集 {n}/{max}',
+    // 大陆习惯:行 = 横排、列 = 竖排(和繁中的“列/行”正好相反)
+    axes: '行 = 你 · 列 = 对方',
+    locked: '还没解锁',
+    lockedHint: '换个玩法,说不定就能遇到。',
   },
 
   help: {

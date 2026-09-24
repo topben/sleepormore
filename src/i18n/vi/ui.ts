@@ -31,6 +31,7 @@ const ui: UiMessages = {
     sideLeft: 'Nằm bên trái',
     sideRight: 'Nằm bên phải',
     howToPlay: 'Cách chơi',
+    gallery: 'Bộ sưu tập',
     footnote: '12 lượt · khoảng 5 phút · dành cho người lớn nhưng không lộ liễu',
     language: 'Ngôn ngữ',
     plugTag: '[Quảng cáo lộ liễu]',
@@ -237,6 +238,23 @@ const ui: UiMessages = {
     again: 'Chơi lại',
     changeRole: 'Đổi vai',
     outcome: { win: 'Thắng', lose: 'Thua', draw: 'Hòa' },
+    comboLabel: 'Combo đêm nay',
+    newCombo: 'MỚI!',
+    collection: 'Bộ sưu tập {n}/{max}',
+    gallery: 'Xem bộ sưu tập',
+    share: 'Chia sẻ',
+    /** Nội dung chia sẻ (phía sau sẽ nối thêm đường link) */
+    shareText: 'Mình vừa mở khóa combo {rarity} 【{name}】 ({a} × {b}) trong “Đồng sàng dị mộng”! Còn bạn sưu tầm được mấy combo?',
+    copied: 'Đã sao chép! Gửi cho bạn bè xem thử nhé',
+    rarity: { N: 'Thường', R: 'Hiếm', SR: 'Siêu hiếm', SSR: 'Huyền thoại' },
+  },
+
+  gallery: {
+    title: 'Bộ sưu tập combo',
+    progress: 'Đã sưu tầm {n}/{max}',
+    axes: 'Hàng = bạn · Cột = người ấy',
+    locked: 'Chưa mở khóa',
+    lockedHint: 'Thử đổi cách chơi, biết đâu sẽ gặp.',
   },
 
   help: {

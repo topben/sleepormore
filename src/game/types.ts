@@ -115,6 +115,43 @@ export interface GameMemo {
   pushedOff: boolean;
   /** 玩家觀察到的「對方目標」線索次數(對話/行為推得,結局前不直接揭曉) */
   clues: Record<Goal, number>;
+  /** 本局的行為統計(結局的趣味稱號用) */
+  tally: Tally;
+}
+
+/** 單一角色本局的行為統計 */
+export interface RoleTally {
+  /** 做過的動作次數(不論成功與否) */
+  acts: Partial<Record<ActionId, number>>;
+  /** 翻身(換姿勢)次數 */
+  turned: number;
+  /** 冷到發抖的次數 */
+  cold: number;
+  /** 打呼的回合數 */
+  snored: number;
+  /** 把對方吵醒的次數 */
+  woke: number;
+  /** 裝睡被抓包的次數 */
+  caught: number;
+  /** 回合結束時貼在自己那側床緣的回合數 */
+  edge: number;
+  /** 回合結束時閉著眼卻醒著(裝睡)的回合數 */
+  faked: number;
+  /** 回合結束時睡著(sleep >= 70)的回合數 */
+  slept: number;
+  /** 第一次睡著(sleep >= 70)時的回合(1 起算);−1 = 還沒睡著過 */
+  asleepAt: number;
+}
+
+export interface Tally {
+  male: RoleTally;
+  female: RoleTally;
+  /** 回合結束時抱在一起的回合數 */
+  embraced: number;
+  /** 回合結束時手臂枕使用中的回合數 */
+  pillow: number;
+  /** 手麻最高值 */
+  maxNumb: number;
 }
 
 export interface GameState {
