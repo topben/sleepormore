@@ -1,0 +1,223 @@
+// 繁體中文(參考語系):遊戲規則產生的所有文字。其他語系必須有完全相同的結構。
+// speech 每個池的句數與順序要和這裡一致(遊戲用句子序號對應各語系)。
+// 佔位符:{name} 由 fmt() 代入({n} = 規則數值,例如想睡的對方需要的心情門檻)。
+
+const SHARED_GOODNIGHT = ['嗯……晚安。', '燈要關嗎?'];
+
+export default {
+  action: {
+    lieSupine: { label: '仰躺', hint: '翻成仰躺。睡熟了仰躺會打呼。' },
+    lieSideFacing: { label: '側躺面向', hint: '面向對方側躺:親吻、擁抱、愛撫都要先這樣躺。' },
+    lieSideAway: { label: '側躺背對', hint: '背對對方:擋掉騷擾,但想親熱的對方會失落。' },
+    lieProne: { label: '趴睡', hint: '趴著睡(只有對方會這樣睡)。' },
+    hug: { label: '擁抱', hint: '抱住對方(對方要側躺)。抱著一起睡會更好睡。' },
+    kiss: { label: '親吻', hint: '親吻:親密度大增。對方要面向你或仰躺。' },
+    caress: { label: '愛撫', hint: '輕撫對方:親密度增加,對方任何姿勢都可以。' },
+    whisper: { label: '說悄悄話', hint: '說悄悄話:對方心情變好、親密度小增,很安靜。' },
+    pat: { label: '拍拍安撫', hint: '拍拍對方:消火氣、哄對方入睡;打呼的人被拍會翻身。' },
+    offerArm: { label: '伸手當枕頭', hint: '伸出手臂讓她枕著。很甜,但枕久了手會麻。' },
+    restOnArm: { label: '枕上手臂', hint: '枕在他的手臂上:親密度 +5,枕著比較好睡。' },
+    leaveArm: { label: '離開手臂', hint: '把頭移開。他手麻的時候會很感激你。' },
+    withdrawArm: { label: '收回手臂', hint: '抽回手臂。太輕抽不出來,太用力會把她吵醒。' },
+    pullBlanket: { label: '拉棉被', hint: '把棉被拉向自己:自己變暖,但對方會冷。' },
+    tuckBlanket: { label: '幫對方蓋好', hint: '把棉被往對方那邊蓋:對方心情變好、親密度小增。' },
+    scootIn: { label: '挪近', hint: '往床中間挪:距離夠近才搆得到對方。' },
+    scootOut: { label: '挪開', hint: '往床沿挪開一點。挪太多會掉下床!' },
+    sleep: { label: '閉眼睡', hint: '專心睡覺:睡意 +18。要先閉上眼睛。' },
+    push: { label: '推開', hint: '(對方專用)火氣 70 以上會把你推開。' },
+  },
+
+  /** 動作不可用的原因、動作附註、旁白 */
+  msg: {
+    alreadyPosture: '已經是這個姿勢了',
+    armPinned: '她枕著你的手臂,得先收回手臂',
+    eyesClosedHug: '閉著眼抱不準,先張開眼睛',
+    eyesClosedKiss: '閉著眼親不到,先張開眼睛',
+    alreadyEmbrace: '已經抱著了',
+    needFacing: '要先側躺面向對方',
+    partnerNotSide: '對方要側躺才抱得到',
+    tooFar: '距離太遠,先挪近一點',
+    partnerFacingAway: '對方背對著你',
+    partnerProne: '對方趴著睡',
+    armAlreadyOffered: '手已經伸出去了',
+    offerNeedPosture: '要仰躺或側躺面向她',
+    herBackTurned: '她背對著你',
+    armNotOffered: '他還沒伸出手臂',
+    alreadyOnArm: '已經枕著了',
+    restNeedPosture: '要仰躺或側躺面向他',
+    notOnArm: '你沒有枕著他的手',
+    armNotOut: '手沒有伸出去',
+    blanketAllMine: '棉被已經都在你這邊了',
+    blanketAllTheirs: '棉被已經都在對方那邊了',
+    alreadyClose: '已經貼很近了',
+    atCenter: '已經在床中間了',
+    closeEyesFirst: '先閉上眼睛',
+    onlyPartnerPushes: '只有對方會推人',
+    notAngryEnough: '還沒那麼生氣',
+    notAllowed: '你不能做這個動作',
+    tooRough: '太粗魯了',
+    sneakHug: '偷偷抱住了',
+    sneakKiss: '偷偷親了一下',
+    sneakCaress: '輕輕摸了摸',
+    ticklish: '癢癢的',
+    patRollOver: '拍一下就翻身不打呼了',
+    armStuck: '手被壓著抽不出來',
+    oneHandPull: '只剩一隻手,拉不太動',
+    fellOffEdge: '你從床沿滾下去了!',
+    partnerFellEdge: '對方掉到床沿外了',
+    edgePlayer: '你已經在床沿了!',
+    edgePartner: '對方已經在床沿了',
+    sleepCold: '好冷,睡不好',
+    sleepBadMood: '心情不好睡不著',
+    sleepArmPinned: '手臂壓著,睡不好',
+    tooLateAsleep: '對方已經睡著了……',
+    tooLateEndTurn: '親密度滿了,可是對方已經睡著了……',
+    rubEyes: '你揉揉眼睛撐著',
+    wokeYourself: '你把自己弄醒了',
+    partnerStoleBlanket: '對方在睡夢中把棉被捲走了',
+    partnerBurrito: '對方把自己捲成春捲了',
+  },
+
+  posture: {
+    supine: '仰躺',
+    sideFacing: '側躺面向對方',
+    sideAway: '側躺背對對方',
+    prone: '趴睡',
+  },
+
+  band: { timid: '太輕', gentle: '溫柔', firm: '用力', rough: '粗魯' },
+
+  goal: { sleep: '好好睡覺', intimacy: '親熱' },
+
+  ending: {
+    kickedOff: {
+      title: '被踢下床',
+      caption: 'KICKED OUT',
+      description: '你被一腳踹到地板上。晚安。',
+      tip: '對方火氣到 100 就會踹人。力道留在綠區,火氣高時先「拍拍安撫」。',
+    },
+    fellOff: {
+      title: '掉下床',
+      caption: 'FELL OFF',
+      description: '沒人碰你,你自己滾下去了。',
+      tip: '「挪開」太多次會掉下床,留意床位條上的紅色床沿。',
+    },
+    intimacyWin: {
+      title: '燈熄了',
+      caption: 'LIGHTS OUT',
+      description: '兩人相視一笑。今晚不用多說了。',
+      tip: '完美!你讀懂了對方的心情。',
+    },
+    accidentalIntimacy: {
+      title: '意外的夜晚',
+      caption: 'PLOT TWIST',
+      description: '你本來只想睡覺的……算了,也不錯。',
+      tip: '想專心睡覺的話,別對對方太熱情。',
+    },
+    sleepWin: {
+      title: '一夜好眠',
+      caption: 'SWEET DREAMS',
+      description: '06:00,你神清氣爽地醒來。',
+      tip: '完美!閉眼、保暖、不亂動,就是好眠三要素。',
+    },
+    sleepLoseTired: {
+      title: '黑眼圈',
+      caption: 'SLEEPLESS',
+      description: '天亮了,你根本沒睡到。',
+      tip: '睡眠分數要 7 分:閉上眼睛多按「閉眼睡」,注意保暖,別被吵醒。',
+    },
+    intimacyLoseFellAsleep: {
+      title: '你睡著了',
+      caption: 'OUT COLD',
+      description: '說好的今晚呢?你先睡著了。',
+      tip: '想親熱就張著眼睛,別一直閉眼睡。',
+    },
+    intimacyLoseMorning: {
+      title: '天亮了',
+      caption: 'TOO LATE',
+      description: '什麼都沒發生。鬧鐘響了。',
+      tip: '先側躺面向、挪近,再親吻。想睡的對方要先把心情養到 {n}。',
+    },
+  },
+
+  /** 每回合的建議(💡 提示列) */
+  hint: {
+    edgeDanger: '你快掉下床了!往中間挪一點。',
+    calmPartner: '對方火氣很大,先拍拍安撫(力道放輕)。',
+    warmUp: '好冷!把棉被拉回來(睡著時會稍微醒來)。',
+    closeEyes: '先閉上眼睛,才能開始睡。',
+    lullPartner: '對方還很有精神:拍拍哄對方先睡,你再安心睡。',
+    stayStill: '翻身太多會被發現沒睡,乖乖閉眼睡。',
+    keepSleeping: '很好,繼續閉眼睡。',
+    sleepDone: '睡眠分數達標了!繼續睡,撐到天亮。',
+    openEyes: '張開眼睛才能親吻、擁抱,也看得到對方的狀態。',
+    faceThem: '先「側躺面向」對方。',
+    scootCloser: '距離太遠,先「挪近」一點。',
+    partnerAsleep: '對方睡著了。用力一點(黃區)就叫得醒,但對方可能會不高興。',
+    partnerDeepSleep:
+      '對方睡得很沉:溫柔、用力都叫不醒,只有粗魯才吵得醒(對方會很火大)。把棉被拉走、讓對方冷到睡淺一點,也是一招。',
+    cheerUp: '對方心情不好,先說悄悄話或幫對方蓋被。',
+    moodUp: '對方好像想睡:先把對方心情養到 {n}(悄悄話、蓋被子)。',
+    kiss: '親吻看看,力道停在綠區。',
+    hug: '抱抱看,力道停在綠區。',
+    caress: '輕撫對方,力道停在綠區。',
+    whisper: '說說悄悄話,拉近距離。',
+    almostThere: '就差一點!趁對方還醒著再親一下。',
+  },
+
+  speech: {
+    // 開場:兩池各有 1/3 共用的曖昧句,不直接暴露目標
+    goodnight_sleep: [...SHARED_GOODNIGHT, '今天好累……', '明天要早起,早點睡吧。', '眼睛快睜不開了……', '晚安,不要吵我喔。'],
+    goodnight_intimacy: [...SHARED_GOODNIGHT, '今天……不太累欸。', '這麼早就要睡了喔?', '你今天好香喔。', '還不想睡欸……'],
+    goodnight: ['我先睡囉。', '晚安晚安。', '真的要睡了,別吵我。'],
+
+    sleepTalk_sleep: ['嗯……那個報表……', '不要……再五分鐘……', '(咕噥)……明天再說……', '……鬧鐘……關掉……'],
+    sleepTalk_intimacy: ['嗯……再靠近一點……', '(咕噥)……抱我……', '……你好香……', '嘿嘿……不要走……'],
+
+    wake: ['嗯?怎麼了……', '……你幹嘛?', '我剛剛睡著了欸……', '蛤?幾點了……'],
+    wakeAngry: ['你很吵欸!', '我好不容易才睡著!', '你到底要不要睡!', '吼——又被你吵醒!'],
+    coldAwake: ['好冷……棉被呢?', '欸!棉被被拉走了啦!', '冷死了……'],
+
+    refuseMood: ['我現在沒心情。', '不要啦……', '今天不想。'],
+    refuseAnnoyed: ['別碰我。', '你走開啦。', '我在生氣,看不出來嗎?'],
+    sleepyDecline: ['我好睏……明天好不好?', '嗯……讓我睡啦……', '很晚了欸……', '(翻身)……睡覺啦。'],
+    okFine: ['好吧……就一下下。', '真拿你沒辦法……', '……那就一下下喔。'],
+
+    receptiveKiss: ['嘿嘿……', '再一下……', '你今天怎麼這麼甜?', '(臉紅)'],
+    receptiveHug: ['好溫暖……', '嗯,抱緊一點。', '這樣好舒服。'],
+    receptiveCaress: ['好癢啦……', '嗯……好舒服。', '你的手好暖。'],
+    whisperReply: ['嘻嘻,你好煩喔。', '我也是……', '真的假的?', '嗯哼,然後呢?'],
+    patReply: ['幹嘛拍我啦……嘿嘿。', '我又不是小孩子……', '再拍一下。'],
+
+    armOffered: ['來,枕我的手。', '要不要躺這裡?', '手借你。'],
+    armAccepted: ['嗯……好舒服。', '那我不客氣囉。', '你的手好暖。'],
+    numbArm: ['手……手麻了……', '我的手好像不是我的了……', '嘶……好麻……'],
+    armRelieved: ['呼……手終於活過來了。', '得救了……', '謝謝……(甩手)'],
+
+    blanketPulled: ['欸,棉被!', '你把棉被都拉走了啦。', '好冷喔……'],
+    blanketTucked: ['謝謝……', '好暖。', '你好貼心喔。'],
+    snore: ['吵死了……', '你打呼好大聲……', '(摀耳朵)……'],
+    roughComplaint: ['太粗魯了!', '你是在打我嗎?', '輕一點啦!', '很痛欸!'],
+
+    noticedIntimacy: ['你也還沒睡?', '嘿,你醒著喔?', '睡不著嗎?……我也是。'],
+    noticedSleep: ['不要一直翻來翻去啦。', '你到底睡不睡?', '床一直在晃欸……'],
+    breathTell: ['你呼吸太規律了,你沒睡吧?', '別裝了,我知道你醒著。', '……你在裝睡喔?'],
+    stare: ['你幹嘛一直看我?', '閉上眼睛睡覺啦。', '盯著我幹嘛……'],
+
+    push: ['過去一點啦!', '你很擠欸!', '走開啦!'],
+    kick: ['給我下去!', '去睡沙發!', '滾——!'],
+    fellOff: ['痛……', '咚!……我怎麼在地上?', '……地板好冰。'],
+    tooLate: ['……睡著了?', '怎麼偏偏這時候睡著……', '(嘆氣)'],
+    intimacyHigh: ['心跳好快……', '你今天怎麼這麼黏?', '氣氛好像……不太一樣。'],
+    partnerInitiate: ['不要躲啦。', '過來一點嘛。', '你離我好遠喔。'],
+    wakeUp: ['起來啦~', '欸,你睡了喔?陪我啦。', '不准睡!'],
+
+    // 結局畫面:morning_{玩家目標}_{對方目標};together = 親熱成功、floor = 掉下床
+    morning_sleep_sleep: ['「早安。你昨晚有想什麼嗎?」「沒有啊?」', '「睡得好好喔。」「對啊,難得一覺到天亮。」', '「早……你昨晚有打呼喔。」「你也有。」'],
+    morning_intimacy_sleep: ['「你昨晚一直動來動去是怎樣?」「……沒事。」', '「昨晚睡得好嗎?」「還……還好。」', '「你黑眼圈好重喔。」「……嗯。」'],
+    morning_sleep_intimacy: ['「……我昨晚有暗示你欸。」「有嗎??」', '「你昨天睡好快喔。」「對啊,超累的。」「……喔。」', '「今晚早點回家好不好?」「好啊?」'],
+    morning_intimacy_intimacy: ['「其實我昨晚也……算了,早安。」', '「我們昨晚是不是都在等對方先開口?」', '「……今晚再試一次?」「好。」'],
+    morning_together: ['「早安。」「……早安。」(相視一笑)', '「昨晚……」「噓,不要說。」', '「今天可以晚點起床嗎?」「可以。」'],
+    morning_floor: ['「你昨晚怎麼睡在地上?」「……你說呢。」', '「背還好嗎?」「……不好。」', '「對不起嘛……」「哼。」'],
+  },
+};

@@ -40,14 +40,15 @@ export interface ActionDef {
   forceWindow: [number, number]; // 綠區 [lo, hi];usesForce=false 時忽略
   baseNoise: number; // 0..100
   hint: string; // 一行說明
-  /** 目前狀態下此動作是否可用(不含 roles 檢查) */
-  available: (state: GameState, actor: Role) => { ok: true } | { ok: false; reason: string };
+  /** 目前狀態下此動作是否可用(不含 roles 檢查)。reasonKey = i18n 的 msg key(UI 依此翻譯) */
+  available: (state: GameState, actor: Role) => { ok: true } | { ok: false; reason: string; reasonKey?: string };
 }
 
 export interface AvailableAction {
   def: ActionDef;
   ok: boolean;
-  reason?: string;
+  reason?: string; // zh-TW
+  reasonKey?: string; // i18n msg key
 }
 
 export type Eyes = 'open' | 'closed';
@@ -94,6 +95,28 @@ export interface Ending {
   description: string;
 }
 
+/** 遊戲內部備忘:對話頻率限制、連續行為計數、線索統計。UI/scene 可以讀,但不影響既有欄位語意。 */
+export interface GameMemo {
+  /** 上次說 stare 台詞的回合(−99 = 從未) */
+  lastStareTurn: number;
+  /** 各角色上次抱怨打呼的回合 */
+  lastSnoreLineTurn: Record<Role, number>;
+  /** numbArm 台詞已說過(只說一次) */
+  numbSpoken: boolean;
+  /** intimacyHigh 台詞已說過(首次 >= 60) */
+  intimacyHighSpoken: boolean;
+  /** AI 第一次選 sleep 時說過晚安 */
+  goodnightSpoken: boolean;
+  /** tooLate 台詞已說過 */
+  tooLateSpoken: boolean;
+  /** AI 睡夢中連續搶棉被次數(第二次起 note「春捲」) */
+  pullStreak: number;
+  /** 本回合玩家被推下床(→ kickedOff 而不是 fellOff) */
+  pushedOff: boolean;
+  /** 玩家觀察到的「對方目標」線索次數(對話/行為推得,結局前不直接揭曉) */
+  clues: Record<Goal, number>;
+}
+
 export interface GameState {
   turn: number; // 0..MAX_TURNS
   playerRole: Role;
@@ -105,15 +128,18 @@ export interface GameState {
   sleepScore: number;
   ending: Ending | null;
   seed: number;
+  memo: GameMemo;
 }
 
 export type TurnPhase = 'player' | 'partner' | 'endOfTurn';
 
 export type GameEvent =
   | { type: 'phase'; phase: TurnPhase } // playTurn 保證 events 依 phase 分段,場景/UI 以此切段
-  | { type: 'action'; who: Role; action: ActionId; force: number; band: ForceBand; noise: number; success: boolean; note?: string } // noise = 實際 N(§4)
+  | { type: 'action'; who: Role; action: ActionId; force: number; band: ForceBand; noise: number; success: boolean; note?: string; noteKeys?: string[] } // noise = 實際 N(§4);note = zh-TW,noteKeys = i18n msg keys
   | { type: 'eyes'; who: Role; eyes: Eyes } // 切換閉眼/張眼(玩家由 toggleEyes 發;AI 由 resolveAction 依規則發)
-  | { type: 'speech'; who: Role; text: string }
+  | { type: 'speech'; who: Role; text: string; key?: string; index?: number } // text = zh-TW;key/index = 對話池與句子序號(UI 依語系翻譯)
+  | { type: 'note'; who: Role; text: string; key?: string } // 不屬於某個動作的旁白(例:閉眼→張眼把自己弄醒);key = i18n msg key
+  | { type: 'clue'; goal: Goal } // 玩家觀察到一條關於對方目標的線索
   | { type: 'wake'; who: Role; by: Role }
   | { type: 'intimacy'; delta: number }
   | { type: 'annoyed'; who: Role; delta: number }
