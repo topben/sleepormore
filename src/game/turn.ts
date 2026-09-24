@@ -4,7 +4,7 @@ import { INITIAL, SLEEP_ASLEEP } from './constants';
 import { checkEnding } from './endings';
 import { choosePartnerAction } from './partner';
 import { mulberry32, turnRng } from './rng';
-import { bump, emitSpeech, endOfTurn, resolveAction, syncAiEyes } from './rules';
+import { bump, emitSpeech, endOfTurn, resolveAction } from './rules';
 import { ZH, type MsgKey } from './text';
 import type { ActionId, CharacterState, Ending, Eyes, GameEvent, GameState, Goal, Role, TurnResult } from './types';
 import { partnerOf } from './types';
@@ -147,7 +147,6 @@ export function playTurn(state: GameState, actionId: ActionId, force: number): T
   events.push({ type: 'turnEnd', turn: s.turn });
   const end = checkEnding(s, 'end');
   if (end) finish(s, end, events, rng);
-  syncAiEyes(s, events);
   return { state: s, intermediate, events };
 }
 

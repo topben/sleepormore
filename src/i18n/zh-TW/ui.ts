@@ -17,6 +17,7 @@ export default {
     back: '返回',
     on: '開',
     off: '關',
+    loadError: '語言載入失敗,請檢查網路後再試一次。',
   },
 
   start: {

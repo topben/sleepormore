@@ -19,7 +19,10 @@ function suggestionProblems(s: GameState, sg: Suggestion | null): string[] {
   if (sg.eyes) {
     if (sg.actionId) out.push('both an eyes toggle and an action');
     if (sg.eyes === s.chars[P].eyes) out.push(`suggests eyes ${sg.eyes} which are already ${sg.eyes}`);
-  } else if (!sg.actionId) out.push('neither action nor eyes');
+  } else if (!sg.actionId) {
+    // 只有「睡太熟、現在叫不醒」可以不附動作(棉被也已經都在自己這邊時)
+    if (sg.key !== 'partnerDeepSleep') out.push('neither action nor eyes');
+  }
   else {
     if (!canUse(s, P, sg.actionId)) out.push(`suggests unavailable ${sg.actionId}`);
     const d = ACTIONS[sg.actionId];
@@ -118,6 +121,24 @@ describe('suggestAction', () => {
     expect(diffs).toEqual([]);
   });
 
+  it('with closed eyes, "lull the partner" is judged by the audible breathing only (review #4)', () => {
+    const lull = (sleep: number, posture: 'supine' | 'prone' = 'supine') =>
+      suggestAction(
+        scene({ playerGoal: 'sleep' }, (_s, me, ai) => {
+          me.eyes = 'closed';
+          ai.lastAction = 'kiss';
+          ai.posture = posture; // 趴睡不打呼:只剩呼吸聲可以判斷
+          ai.sleep = sleep;
+        }),
+      )?.key;
+    // 急促/平穩的呼吸 = 還醒著 → 哄睡;緩慢的呼吸 = 睡著了 → 自己睡
+    expect(breathRate({ ...createGame('male', 1).chars.female, sleep: 60 }).rate).toBeGreaterThanOrEqual(10);
+    expect(lull(60)).toBe('lullPartner');
+    expect(lull(60, 'prone')).toBe('lullPartner');
+    expect(lull(75)).not.toBe('lullPartner');
+    expect(lull(75, 'prone')).not.toBe('lullPartner');
+  });
+
   it('danger first: near the edge → scoot in (urgent); an angry awake partner seen with open eyes → pat (urgent)', () => {
     const edge = scene({ playerGoal: 'sleep' }, (_s, me) => (me.lateral = -0.7));
     expect(suggestAction(edge)).toMatchObject({ key: 'edgeDanger', actionId: 'scootIn', urgent: true, force: greenCenter(edge, 'scootIn') });
@@ -164,10 +185,21 @@ describe('suggestAction', () => {
       key: 'scootCloser',
       actionId: 'scootIn',
     });
-    const sleeper = P((st) => asleep(st.chars.female, 80));
-    const firm = suggestAction(sleeper)!;
+    // 睡意 72:T = 47.4,用力的親吻 N = 51 叫得醒 → 建議用力親吻,而且照做真的會吵醒
+    const light = P((st) => asleep(st.chars.female, 72));
+    const firm = suggestAction(light)!;
     expect(firm).toMatchObject({ key: 'partnerAsleep', actionId: 'kiss' });
-    expect(forceBand(forceWindow(sleeper, 'male', 'kiss'), firm.force!)).toBe('firm');
+    expect(forceBand(forceWindow(light, 'male', 'kiss'), firm.force!)).toBe('firm');
+    const woke = playTurn(light, firm.actionId!, firm.force!).events;
+    expect(woke).toContainEqual({ type: 'wake', who: 'female', by: 'male' });
+    // 睡意 80:T = 51,用力也叫不醒(只剩粗魯)→ 老實說,改建議拉棉被讓對方冷到睡淺
+    const deep = P((st) => asleep(st.chars.female, 80));
+    expect(suggestAction(deep)).toMatchObject({ key: 'partnerDeepSleep', actionId: 'pullBlanket' });
+    const allMine = P((st) => {
+      asleep(st.chars.female, 80);
+      st.blanketOffset = -1; // 棉被已經都在男方(玩家)這邊
+    });
+    expect(suggestAction(allMine)).toEqual({ key: 'partnerDeepSleep' });
     expect(suggestAction(P((st) => (st.chars.female.mood = 39)))).toMatchObject({ key: 'cheerUp', actionId: 'whisper' });
     expect(
       suggestAction(
@@ -177,6 +209,15 @@ describe('suggestAction', () => {
         }),
       ),
     ).toMatchObject({ key: 'moodUp', actionId: 'tuckBlanket' });
+    // 想睡的對方要心情 >= BAL.sleepyMood(75)才正常接受:72 時還要繼續養
+    expect(
+      suggestAction(
+        P((st) => {
+          st.memo.clues.sleep = 2;
+          st.chars.female.mood = 72;
+        }),
+      ),
+    ).toMatchObject({ key: 'moodUp' });
     expect(suggestAction(P((st) => (st.intimacy = 80)))).toMatchObject({ key: 'almostThere', actionId: 'kiss', force: 35 });
     expect(suggestAction(P())).toMatchObject({ key: 'kiss', actionId: 'kiss', force: 35 });
     expect(suggestAction(P((st) => (st.chars.female.posture = 'sideAway')))).toMatchObject({ key: 'hug', actionId: 'hug', force: 40 });

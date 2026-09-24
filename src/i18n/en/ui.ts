@@ -18,6 +18,7 @@ const ui: UiMessages = {
     back: 'Back',
     on: 'On',
     off: 'Off',
+    loadError: 'Couldn’t load that language. Check your connection and try again.',
   },
 
   start: {

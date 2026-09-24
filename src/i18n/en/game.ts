@@ -155,7 +155,9 @@ const game: GameMessages = {
     openEyes: 'Open your eyes to kiss and hug, and to see how your partner is doing.',
     faceThem: 'Use “Face them” first.',
     scootCloser: 'Too far apart. “Scoot closer” first.',
-    partnerAsleep: 'Your partner is asleep. A firmer kiss (yellow zone) might wake them, or annoy them.',
+    partnerAsleep: 'Your partner is asleep. A firmer touch (yellow zone) will wake them — though they may not be thrilled.',
+    partnerDeepSleep:
+      'Your partner is sound asleep: gentle or firm won’t wake them — only rough will (and they’ll be furious). Pulling the blanket away so the cold lightens their sleep is another option.',
     cheerUp: 'Your partner is in a bad mood. Whisper or tuck them in first.',
     moodUp: 'Your partner seems sleepy. Raise their mood to {n} first (whisper, tuck them in).',
     kiss: 'Try a kiss. Release in the green zone.',

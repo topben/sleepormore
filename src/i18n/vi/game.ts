@@ -168,8 +168,9 @@ const game: GameMessages = {
     openEyes: 'Mở mắt ra mới hôn, ôm được, lại còn thấy được trạng thái của người ấy.',
     faceThem: 'Hãy “Quay mặt vào” người ấy trước.',
     scootCloser: 'Xa quá, hãy “Nhích lại gần” một chút.',
-    partnerAsleep:
-      'Người ấy ngủ rồi. Hôn mạnh tay hơn một chút (vùng vàng) có thể gọi người ấy dậy, nhưng cũng có thể chọc giận người ấy.',
+    partnerAsleep: 'Người ấy ngủ rồi. Mạnh tay hơn (vùng vàng) là gọi dậy được, nhưng người ấy có thể không vui.',
+    partnerDeepSleep:
+      'Người ấy ngủ rất say: nhẹ nhàng hay mạnh tay đều không gọi dậy được, chỉ thô bạo mới được (và người ấy sẽ rất bực). Kéo chăn đi cho người ấy lạnh mà ngủ nông hơn cũng là một cách.',
     cheerUp: 'Tâm trạng người ấy không tốt, hãy thì thầm hoặc đắp chăn giúp người ấy trước.',
     moodUp: 'Người ấy có vẻ muốn ngủ: hãy nâng tâm trạng người ấy lên {n} trước (thì thầm, đắp chăn).',
     kiss: 'Thử hôn xem, giữ lực trong vùng xanh.',

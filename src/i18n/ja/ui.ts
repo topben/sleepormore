@@ -18,6 +18,7 @@ const ui: UiMessages = {
     back: '戻る',
     on: 'オン',
     off: 'オフ',
+    loadError: '言語データを読み込めませんでした。接続を確認して、もう一度お試しください。',
   },
 
   start: {

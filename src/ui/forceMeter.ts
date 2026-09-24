@@ -25,6 +25,7 @@ export class ForceMeter {
   private onClose: (() => void) | null = null;
   private charging = false;
   private locked = false;
+  private resultTimer = 0;
   /** 這次蓄力是從動作按鈕上按下的(點一下只是打開力道條,不提示) */
   private fromAction = false;
   private startAt = 0;
@@ -105,10 +106,16 @@ export class ForceMeter {
     this.readout.className = `force-readout band-${band} show`;
     const done = this.onDone;
     const force = this.force;
-    setTimeout(() => {
+    this.resultTimer = window.setTimeout(() => {
       this.close();
       done?.(force);
     }, RESULT_MS);
+  }
+
+  /** 無條件關閉(換局/回開始畫面時):不送出動作,也取消還沒送出的結果 */
+  reset(): void {
+    cancelAnimationFrame(this.raf);
+    this.close();
   }
 
   cancel(): void {
@@ -121,6 +128,9 @@ export class ForceMeter {
   }
 
   private close() {
+    clearTimeout(this.resultTimer);
+    this.resultTimer = 0;
+    this.locked = false;
     this.req = null;
     this.onDone = null;
     this.onClose = null;

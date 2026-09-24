@@ -476,7 +476,9 @@ export class Hud {
 
   private renderLog(items: LogItem[]) {
     const t = m().ui.hud;
+    // 先截尾再翻譯:只描述最近的事件(有些事件不顯示,所以多取一些)
     const lines = items
+      .slice(-150)
       .map((it) => describe(it))
       .filter((x): x is NonNullable<typeof x> => !!x)
       .slice(-60);

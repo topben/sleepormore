@@ -156,7 +156,9 @@ const game: GameMessages = {
     openEyes: 'Abre los ojos para besar y abrazar, y para ver cómo está tu pareja.',
     faceThem: 'Primero ponte «Cara a cara» con tu pareja.',
     scootCloser: 'Estás demasiado lejos: usa «Acercarse».',
-    partnerAsleep: 'Tu pareja duerme. Un beso firme (zona amarilla) podría interrumpirle el sueño, pero también subirle el enfado.',
+    partnerAsleep: 'Tu pareja duerme. Con un toque firme (zona amarilla) se despertará, aunque quizá no le haga gracia.',
+    partnerDeepSleep:
+      'Tu pareja duerme profundamente: ni con cariño ni con firmeza se despertará; solo con brusquedad (y se enfadará muchísimo). Quitarle la manta para que el frío le aligere el sueño también es una opción.',
     cheerUp: 'Tu pareja tiene el ánimo bajo: prueba con «Susurrar» o «Arropar».',
     moodUp: 'Parece que tu pareja quiere dormir: sube primero su ánimo hasta {n} («Susurrar», «Arropar»).',
     kiss: 'Prueba con un beso, con la fuerza en la zona verde.',

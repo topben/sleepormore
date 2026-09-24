@@ -18,6 +18,7 @@ const ui: UiMessages = {
     back: '返回',
     on: '开',
     off: '关',
+    loadError: '语言加载失败,请检查网络后再试一次。',
   },
 
   start: {

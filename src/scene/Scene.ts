@@ -1,5 +1,6 @@
 // BedroomScene:three.js 臥室場景(SCENE-RIG.md)。main.ts 只透過這個類別的公開方法操作場景。
 import * as THREE from 'three';
+import { SLEEP_ASLEEP } from '../game/constants';
 import { breathRate, snoreLevel, wakeThreshold } from '../game/rules';
 import type { Ending, ForceBand, GameEvent, GameState, Role } from '../game/types';
 import { partnerOf } from '../game/types';
@@ -89,6 +90,8 @@ export class BedroomScene {
   private readonly zOff: Record<Role, boolean> = { male: false, female: false };
   private blushBase = false;
   private insets = { top: 0, bottom: 0 };
+  /** 上次 layout() 的 (尺寸, DPR, insets);相同就略過 */
+  private layoutKey = '';
   private fitDist = CAM_DIST;
   private readonly worldTimers: Timer[] = [];
   private readonly realTimers: Timer[] = [];
@@ -407,7 +410,7 @@ export class BedroomScene {
       ch.setBreath(br.rate, br.regular, snap);
       const L = snoreLevel(c);
       ch.setSnore(L);
-      this.effects.zOn[r] = c.sleep >= 70 && !this.fallen[r] && !this.zOff[r];
+      this.effects.zOn[r] = c.sleep >= SLEEP_ASLEEP && !this.fallen[r] && !this.zOff[r];
       this.effects.zLevel[r] = L;
       ch.setExpression(this.fallen[r] || c.annoyance >= 50 ? 'frown' : c.mood >= 60 && c.annoyance < 25 ? 'smile' : 'neutral');
       const ap = s.armPillow;
@@ -604,7 +607,12 @@ export class BedroomScene {
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
     if (w < 2 || h < 2) return;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // HUD 每次重畫都會回報 insets:尺寸與遮擋都沒變就不重設畫布、不重算相機
+    const key = `${w}x${h}@${dpr}|${this.insets.top}|${this.insets.bottom}`;
+    if (key === this.layoutKey) return;
+    this.layoutKey = key;
+    this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h, false);
     const cam = this.camera;
     cam.aspect = w / h;

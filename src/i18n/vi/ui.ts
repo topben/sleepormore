@@ -18,6 +18,7 @@ const ui: UiMessages = {
     back: 'Quay lại',
     on: 'Bật',
     off: 'Tắt',
+    loadError: 'Không tải được ngôn ngữ. Hãy kiểm tra kết nối mạng rồi thử lại.',
   },
 
   start: {

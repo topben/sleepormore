@@ -31,6 +31,8 @@ const loaders: Record<Locale, () => Promise<Messages>> = {
 const STORAGE_KEY = 'som.locale';
 let current: Locale = 'zh-TW';
 let messages: Messages = ZH_TW;
+/** 每次 setLocale +1:連續快速切換時,只有最後一次請求生效 */
+let request = 0;
 const listeners = new Set<(l: Locale) => void>();
 
 export const isLocale = (v: unknown): v is Locale => LOCALES.some((l) => l.id === v);
@@ -45,7 +47,15 @@ export function onLocaleChange(fn: (l: Locale) => void): () => void {
 }
 
 export async function setLocale(l: Locale): Promise<void> {
-  const msgs = await loaders[l]();
+  const token = ++request;
+  let msgs: Messages;
+  try {
+    msgs = await loaders[l]();
+  } catch (err) {
+    if (token !== request) return; // 已經被後來的切換取代,舊請求的失敗不用管
+    throw err;
+  }
+  if (token !== request) return; // 較慢回來的舊請求不能蓋掉新的選擇
   current = l;
   messages = msgs;
   try {

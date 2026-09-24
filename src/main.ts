@@ -39,6 +39,16 @@ function practiceGoal(): Goal | undefined {
   return g === 'sleep' || g === 'intimacy' ? g : undefined;
 }
 
+/** 偵測到的語系載入失敗(網路、部署換版)時退回主程式內建的繁中,頁面不會空白 */
+async function initLocale(): Promise<void> {
+  try {
+    await setLocale(detectLocale());
+  } catch (err) {
+    console.warn('locale load failed, falling back to zh-TW', err);
+    await setLocale('zh-TW');
+  }
+}
+
 async function createScene(el: HTMLElement): Promise<SceneLike> {
   try {
     const { BedroomScene } = await import('./scene/Scene');
@@ -53,8 +63,8 @@ async function createScene(el: HTMLElement): Promise<SceneLike> {
 async function boot() {
   const sceneEl = document.getElementById('scene')!;
   const uiEl = document.getElementById('ui')!;
-  await setLocale(detectLocale());
-  const scene = await createScene(sceneEl);
+  // 語系檔與 three.js 場景同時下載
+  const [, scene] = await Promise.all([initLocale(), createScene(sceneEl)]);
 
   let state: GameState | null = null;
   let role: Role = 'male';

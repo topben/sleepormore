@@ -19,6 +19,7 @@ const ui: UiMessages = {
     back: 'Volver',
     on: 'Sí',
     off: 'No',
+    loadError: 'No se pudo cargar el idioma. Revisa tu conexión e inténtalo de nuevo.',
   },
 
   start: {

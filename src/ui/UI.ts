@@ -67,6 +67,7 @@ export class GameUI {
   private goalResolve: (() => void) | null = null;
   private modal: 'help' | 'settings' | null = null;
   private endingTimer = 0;
+  private lastInsets = '';
 
   private readonly hud: Hud;
   private readonly screenLayer = h('div', { class: 'screen-layer' });
@@ -114,6 +115,8 @@ export class GameUI {
   showStart(): void {
     this.screen = 'start';
     this.state = null;
+    this.busy = false; // UI 自己負責:不論上一局怎麼結束(結局、播到一半重來),新畫面一定可以操作
+    this.meter.reset();
     this.updateYouTag();
     this.clearEnding();
     this.hud.el.hidden = true;
@@ -132,6 +135,8 @@ export class GameUI {
   showGoal(state: GameState): Promise<void> {
     this.screen = 'goal';
     this.state = state;
+    this.busy = false;
+    this.meter.reset();
     this.log = [];
     this.lastNoise = null;
     this.clearEnding();
@@ -373,7 +378,14 @@ export class GameUI {
   }
 
   private async changeLocale(l: Locale) {
-    await setLocale(l);
+    try {
+      await setLocale(l);
+    } catch (err) {
+      // 語系檔載入失敗(網路、部署換版):留在目前語系,選單也改回來
+      console.warn('locale load failed', err);
+      toast(this.toastLayer, m().ui.common.loadError);
+      this.refresh();
+    }
   }
 
   /** 語系改變 → 重畫目前畫面 */
@@ -393,19 +405,23 @@ export class GameUI {
   private reportLayout() {
     const rootRect = this.root.getBoundingClientRect();
     if (!rootRect.height) return;
-    if (this.hud.el.hidden) {
-      this.root.style.setProperty('--inset-top', '0px');
-      this.root.style.setProperty('--inset-bottom', '0px');
-      return this.handlers.onLayout({ top: 0, bottom: 0 });
-    }
+    if (this.hud.el.hidden) return this.emitInsets(0, 0);
     const narrow = rootRect.width < 720;
     // 窄螢幕的狀態卡橫跨上方,也要算進上方遮擋
     const topEls = [this.hud.top, ...Array.from(this.hud.el.querySelectorAll<HTMLElement>(narrow ? '.hintbar, .card' : '.hintbar'))];
     let top = 0;
     for (const el of topEls) if (!el.hidden && el.offsetParent) top = Math.max(top, el.getBoundingClientRect().bottom - rootRect.top);
     const bottom = Math.max(0, rootRect.bottom - this.hud.dock.getBoundingClientRect().top);
-    this.root.style.setProperty('--inset-top', `${Math.round(top)}px`);
-    this.root.style.setProperty('--inset-bottom', `${Math.round(bottom)}px`);
-    this.handlers.onLayout({ top: Math.round(top), bottom: Math.round(bottom) });
+    this.emitInsets(Math.round(top), Math.round(bottom));
+  }
+
+  /** insets 真的變了才通知場景(HUD 每回合會重畫好幾次) */
+  private emitInsets(top: number, bottom: number) {
+    const key = `${top}|${bottom}`;
+    if (key === this.lastInsets) return;
+    this.lastInsets = key;
+    this.root.style.setProperty('--inset-top', `${top}px`);
+    this.root.style.setProperty('--inset-bottom', `${bottom}px`);
+    this.handlers.onLayout({ top, bottom });
   }
 }

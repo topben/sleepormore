@@ -1,8 +1,8 @@
 // 新手提示(易玩性改善):每回合給一個「建議」,只用玩家看得到的資訊
 // (自己的數值、張眼時對方的數值、聽得到的打呼、對方的行為與台詞線索)。
 import { ACTIONS, canUse } from './actions';
-import { EDGE_WARN, MAX_TURNS, REACH, SLEEP_ASLEEP, SLEEP_WIN_SCORE } from './constants';
-import { forceWindow } from './rules';
+import { BAL, BANDS, EDGE_WARN, FIRM_SPAN, MAX_TURNS, REACH, SLEEP_ASLEEP, SLEEP_WIN_SCORE } from './constants';
+import { breathRate, effectiveNoise, forceWindow, wakeThreshold } from './rules';
 import type { HintKey } from './text';
 import type { ActionId, Eyes, GameState, Goal } from './types';
 import { partnerOf } from './types';
@@ -47,8 +47,6 @@ export function suggestAction(s: GameState): Suggestion | null {
     ...(ACTIONS[id].usesForce ? { force: greenCenter(s, id) } : {}),
     ...extra,
   });
-  /** 用力(黃區)叫醒:綠區上緣 +10 */
-  const firm = (id: ActionId): Suggestion => ({ key: 'partnerAsleep', actionId: id, force: forceWindow(s, P, id)[1] + 10 });
 
   // 危險優先
   if (Math.abs(p.lateral) >= EDGE_WARN && can('scootIn')) return act('edgeDanger', 'scootIn', { urgent: true });
@@ -59,9 +57,11 @@ export function suggestAction(s: GameState): Suggestion | null {
     if (nextWarmth < 30 && can('pullBlanket')) return act('warmUp', 'pullBlanket', { urgent: p.warmth < 30 });
     if (open) return { key: 'closeEyes', eyes: 'closed' };
     if (s.sleepScore >= SLEEP_WIN_SCORE) return act('sleepDone', 'sleep');
-    // 對方還醒著又一直想親熱 → 先哄睡
+    // 對方還醒著又一直想親熱 → 先哄睡。閉著眼看不到對方睡意,只聽得到呼吸聲:
+    // 急促/平穩(≥ 10 次/分)= 還沒睡著,緩慢 = 睡著了(與 HUD 閉眼時顯示的呼吸聲同一個依據)
+    const partnerAwakeByEar = breathRate(q).rate >= 10;
     const pestered = q.lastAction === 'kiss' || q.lastAction === 'caress' || q.lastAction === 'hug';
-    if (q.sleep < SLEEP_ASLEEP && p.sleep < SLEEP_ASLEEP && (pestered || clueLean(s) === 'intimacy')) return act('lullPartner', 'pat');
+    if (partnerAwakeByEar && p.sleep < SLEEP_ASLEEP && (pestered || clueLean(s) === 'intimacy')) return act('lullPartner', 'pat');
     if (p.restless >= 35) return act('stayStill', 'sleep');
     return act('keepSleeping', 'sleep');
   }
@@ -71,11 +71,19 @@ export function suggestAction(s: GameState): Suggestion | null {
   if (p.posture !== 'sideFacing') return act('faceThem', 'lieSideFacing');
   if (distanceOf(s) > REACH && can('scootIn')) return act('scootCloser', 'scootIn');
   if (q.sleep >= SLEEP_ASLEEP) {
-    if (can('kiss')) return firm('kiss');
-    if (can('caress')) return firm('caress');
+    // 用力(黃區)的噪音要真的超過對方的吵醒門檻才建議;睡得太熟時連用力都叫不醒,只有粗魯做得到
+    const T = wakeThreshold(q);
+    for (const id of ['kiss', 'caress'] as const) {
+      if (can(id) && effectiveNoise(s, P, id) * BANDS.firm.noise > T) {
+        return { key: 'partnerAsleep', actionId: id, force: forceWindow(s, P, id)[1] + Math.round(FIRM_SPAN * 0.4) };
+      }
+    }
+    return can('pullBlanket') ? act('partnerDeepSleep', 'pullBlanket') : { key: 'partnerDeepSleep' };
   }
   if (q.mood < 40) return act('cheerUp', 'whisper');
-  if (clueLean(s) === 'sleep' && q.mood < 70) return act('moodUp', can('tuckBlanket') && p.warmth > 45 ? 'tuckBlanket' : 'whisper');
+  if (clueLean(s) === 'sleep' && q.mood < BAL.sleepyMood) {
+    return act('moodUp', can('tuckBlanket') && p.warmth > 45 ? 'tuckBlanket' : 'whisper');
+  }
   if (s.intimacy >= 80 && can('kiss')) return act('almostThere', 'kiss');
   if (can('kiss')) return act('kiss', 'kiss');
   if (can('hug')) return act('hug', 'hug');

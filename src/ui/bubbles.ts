@@ -12,6 +12,9 @@ interface Live {
   el: HTMLElement;
   role: Role;
   until: number;
+  /** 泡泡尺寸(建立時量一次;文字不會變) */
+  w: number;
+  h: number;
 }
 
 export class Bubbles {
@@ -55,7 +58,7 @@ export class Bubbles {
       h('span', { class: 'bubble-text', text: item.text }),
     );
     this.layer.append(el);
-    this.live[role] = { el, role, until: performance.now() + SHOW_MS };
+    this.live[role] = { el, role, until: performance.now() + SHOW_MS, w: el.offsetWidth, h: el.offsetHeight };
     this.place(this.live[role]!);
     requestAnimationFrame(() => el.classList.add('in'));
     this.loop();
@@ -69,10 +72,10 @@ export class Bubbles {
     }
     b.el.style.visibility = '';
     const w = this.layer.clientWidth;
-    const bw = b.el.offsetWidth;
+    const bw = b.w;
     // 不要超出畫面左右
     const x = Math.max(bw / 2 + 8, Math.min(w - bw / 2 - 8, p.x));
-    b.el.style.transform = `translate(${x - bw / 2}px, ${p.y - b.el.offsetHeight}px)`;
+    b.el.style.transform = `translate(${x - bw / 2}px, ${p.y - b.h}px)`;
     b.el.style.setProperty('--tail-x', `${Math.max(12, Math.min(bw - 12, p.x - (x - bw / 2)))}px`);
   }
 

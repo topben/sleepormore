@@ -18,6 +18,7 @@ const ui: UiMessages = {
     back: '뒤로',
     on: '켬',
     off: '끔',
+    loadError: '언어 파일을 불러오지 못했어요. 네트워크를 확인하고 다시 시도해 주세요.',
   },
 
   start: {

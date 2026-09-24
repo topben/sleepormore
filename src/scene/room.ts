@@ -2,6 +2,7 @@
 // 夜晚配色:深靛藍牆、暖橘檯燈、冷藍月光。所有貼圖都是 CanvasTexture 畫的。
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { clockLabel } from '../game/constants';
 
 export const LAMP_COLOR = new THREE.Color(0xffb070);
 export const MOON_COLOR = new THREE.Color(0x8fb4ff);
@@ -182,8 +183,7 @@ export function buildRoom(): Room {
     const c = faceCanvas.getContext('2d')!;
     c.fillStyle = '#10141c';
     c.fillRect(0, 0, 128, 64);
-    const total = (22 * 60 + turn * 40) % (24 * 60);
-    const label = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+    const label = clockLabel(turn);
     c.fillStyle = '#7dffb4';
     c.font = 'bold 40px monospace';
     c.textAlign = 'center';
