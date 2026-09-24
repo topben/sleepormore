@@ -85,6 +85,8 @@ export class BedroomScene {
   private state: GameState | null = null;
   private readonly fallen: Record<Role, boolean> = { male: false, female: false };
   private readonly blushT: Record<Role, number> = { male: 0, female: 0 };
+  /** 結局時已經醒來的玩家不再冒 Z */
+  private readonly zOff: Record<Role, boolean> = { male: false, female: false };
   private blushBase = false;
   private insets = { top: 0, bottom: 0 };
   private fitDist = CAM_DIST;
@@ -191,6 +193,7 @@ export class BedroomScene {
     this.worldTimers.length = 0;
     this.realTimers.length = 0;
     this.fallen.male = this.fallen.female = false;
+    this.zOff.male = this.zOff.female = false;
     this.inEnding = false;
     this.effects.clear();
     for (const r of ROLES) {
@@ -293,6 +296,8 @@ export class BedroomScene {
     if (ending.id !== 'intimacyLoseFellAsleep') {
       this.chars[player].setEyes(true);
       this.eyesClosed = false;
+      this.zOff[player] = true;
+      this.effects.zOn[player] = false;
     }
 
     if (ending.style === 'wasted') {
@@ -398,9 +403,9 @@ export class BedroomScene {
       ch.setBreath(br.rate, br.regular, snap);
       const L = snoreLevel(c);
       ch.setSnore(L);
-      this.effects.zOn[r] = c.sleep >= 70 && !this.fallen[r];
+      this.effects.zOn[r] = c.sleep >= 70 && !this.fallen[r] && !this.zOff[r];
       this.effects.zLevel[r] = L;
-      ch.setExpression(c.annoyance >= 50 ? 'frown' : c.mood >= 60 && c.annoyance < 25 ? 'smile' : 'neutral');
+      ch.setExpression(this.fallen[r] || c.annoyance >= 50 ? 'frown' : c.mood >= 60 && c.annoyance < 25 ? 'smile' : 'neutral');
       const ap = s.armPillow;
       ch.setNumb(r === 'male' && (ap.offered || ap.inUse) ? ap.numbness : 0);
     }
@@ -520,6 +525,7 @@ export class BedroomScene {
     this.effects.zOn[role] = false;
     this.effects.mark(role, 'bang', 1.4);
     ch.forceEyesOpen(4);
+    ch.setExpression('frown');
   }
 
   /** 踢人的那一腳(依姿勢挑朝向對方的那條腿) */
@@ -655,7 +661,12 @@ export class BedroomScene {
     const cam = this.camera;
     const target = this.camTarget.copy(CAM_TARGET);
     const f = this.chFocus.cur;
-    if (f > 0) target.lerp(this.chars[this.focusRole].root.getWorldPosition(this.tmp2), f);
+    if (f > 0) {
+      // 受害者身體中段(髖與頭的中點):躺在地上、坐起來都能框進畫面
+      const ch = this.chars[this.focusRole];
+      const mid = ch.root.getWorldPosition(this.tmp2).add(ch.headWorld(this.tmpP)).multiplyScalar(0.5);
+      target.lerp(mid, f);
+    }
     const sway = this.reduced ? 0 : 0.012 * Math.sin(this.rtime * 0.23);
     const off = this.tmp.copy(CAM_DIR).multiplyScalar(Math.max(0.8, this.fitDist + this.chDolly.cur));
     off.applyAxisAngle(Y_AXIS, this.chYaw.cur + sway);
@@ -788,6 +799,7 @@ export class BedroomScene {
     room.fill.intensity = LIGHT.fill * dark;
     room.hemi.color.copy(this.hemiSky).lerp(DAWN_SKY, sky);
     room.dawn.opacity = sky;
+    room.night.color.setScalar(1 - 0.75 * this.chDark.cur);
     room.beam.color.copy(room.moon.color);
     room.beam.opacity = 0.16 * dark * (1 - 0.5 * sky);
   }

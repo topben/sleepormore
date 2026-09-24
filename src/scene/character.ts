@@ -422,38 +422,38 @@ export class Character {
   writeSegments(out: Float32Array, i: number): number {
     const a = this.tmpA;
     const b = this.tmpB;
-    const m = this.root.matrixWorld;
-    const put = (r: number, sigma: number, w: number) => {
-      out[i++] = a.x;
-      out[i++] = a.y;
-      out[i++] = a.z;
-      out[i++] = b.x;
-      out[i++] = b.y;
-      out[i++] = b.z;
-      out[i++] = r;
-      out[i++] = sigma;
-      out[i++] = w;
-    };
     // 軀幹:髖 → 脖子;寬而平頂,連身側的手臂一起蓋住
-    a.set(0, 0.06, 0).applyMatrix4(m);
-    b.set(0, 0.7, 0).applyMatrix4(m);
-    put(0.17, 0.28, 1);
+    a.set(0, 0.06, 0).applyMatrix4(this.root.matrixWorld);
+    b.set(0, 0.7, 0).applyMatrix4(this.root.matrixWorld);
+    i = putSegment(out, i, a, b, 0.17, 0.28, 1);
     // 胸口(呼吸時棉被跟著起伏)
     a.setFromMatrixPosition(this.chest.matrixWorld);
-    b.copy(a);
-    put(0.07 + 0.035 * this.breath, 0.15, 1);
+    i = putSegment(out, i, a, a, 0.07 + 0.035 * this.breath, 0.15, 1);
     // 腿
-    for (const leg of [this.limbs.legL, this.limbs.legR]) {
-      a.setFromMatrixPosition(leg.matrixWorld);
-      b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(leg.matrixWorld);
-      put(0.085, 0.2, 1);
-    }
-    return i;
+    a.setFromMatrixPosition(this.limbs.legL.matrixWorld);
+    b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(this.limbs.legL.matrixWorld);
+    i = putSegment(out, i, a, b, 0.085, 0.2, 1);
+    a.setFromMatrixPosition(this.limbs.legR.matrixWorld);
+    b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(this.limbs.legR.matrixWorld);
+    return putSegment(out, i, a, b, 0.085, 0.2, 1);
   }
 
   dispose(): void {
     for (const m of this.ownMats) m.dispose();
   }
+}
+
+function putSegment(out: Float32Array, i: number, a: THREE.Vector3, b: THREE.Vector3, r: number, sigma: number, w: number): number {
+  out[i] = a.x;
+  out[i + 1] = a.y;
+  out[i + 2] = a.z;
+  out[i + 3] = b.x;
+  out[i + 4] = b.y;
+  out[i + 5] = b.z;
+  out[i + 6] = r;
+  out[i + 7] = sigma;
+  out[i + 8] = w;
+  return i + 9;
 }
 
 export const SEGMENTS_PER_CHAR = 4;

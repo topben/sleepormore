@@ -73,8 +73,16 @@ export const ARM_PILLOW_ARM: Partial<Record<Posture, Euler3>> = {
   // 臂朝 +x 並偏向床頭,末端從她頭下穿過。規格 [0,0,2.2] 的手臂高度 = 她的頭心,看起來像橫過她臉上;
   // 加 x = −0.33 讓手臂往下貼到枕頭上(末端 y≈0.70),真的墊在她頭下
   supine: [-0.33, 0, 2.2],
-  sideFacing: [-H - 0.35, 0, 0], // 在下那隻貼床面朝 +x、偏向床頭
+  // 在下那隻朝 +x、偏向床頭。規格 [−π/2−0.35,0,0] 的手臂在 y≈0.54,整隻埋在枕頭裡(手麻變紫也看不到);
+  // 加 z = −0.3 讓它斜斜擱到枕頭面上,末端在她下巴/頭下
+  sideFacing: [-H - 0.35, 0, -0.3],
 };
+
+/**
+ * 側躺枕手臂(沒在擁抱)時,兩人上面那隻手順著身側放下(男 armR、女 armL),
+ * 不然從床尾俯視它們剛好疊在枕頭手臂正上方,把「手臂墊在她頭下」和手麻變紫都擋住。
+ */
+export const ARM_PILLOW_UPPER: Euler3 = [-0.35, 0, 0];
 
 /** inUse 時女方頭墊高在臂上 */
 export const ARM_PILLOW_LIFT = 0.05;
@@ -100,7 +108,8 @@ export function basePose(role: Role, posture: Posture): Pose {
 /**
  * 疊加規則:basePose(posture) → embrace 覆寫 → armPillow 覆寫。
  * - embrace:sideFacing 的一方把上臂擺成抱姿(對方 sideAway → 湯匙式);sideAway 的一方肢體不變。
- * - armPillow:只動男方左臂(supine / sideFacing 才有);inUse 時女方 rootYOffset +0.05。
+ * - armPillow:男方左臂當枕頭(supine / sideFacing 才有);inUse 時女方 rootYOffset +0.05;
+ *   側躺且沒擁抱時,兩人上面那隻手順著身側放下(不擋住枕頭手臂)。
  * - embrace 與 inUse 可並存:男方上臂(armR)抱、下臂(armL)當枕頭,互不衝突。
  */
 export function resolvePose(role: Role, state: PoseState): Pose {
@@ -118,8 +127,10 @@ export function resolvePose(role: Role, state: PoseState): Pose {
     if (role === 'male') {
       const arm = ARM_PILLOW_ARM[me.posture];
       if (arm) pose.limbs.armL = e3(arm);
+      if (me.posture === 'sideFacing' && !state.embrace) pose.limbs.armR = e3(ARM_PILLOW_UPPER);
     } else if (ap.inUse) {
       pose.rootYOffset = ARM_PILLOW_LIFT;
+      if (me.posture === 'sideFacing' && !state.embrace) pose.limbs.armL = e3(ARM_PILLOW_UPPER);
     }
   }
   return pose;

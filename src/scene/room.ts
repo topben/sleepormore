@@ -24,6 +24,8 @@ export interface Room {
   fill: THREE.DirectionalLight;
   lampShade: THREE.MeshStandardMaterial;
   glow: THREE.Sprite;
+  /** 夜景窗(熄燈時調暗) */
+  night: THREE.MeshBasicMaterial;
   /** 日出窗景(opacity 0..1 疊在夜景上) */
   dawn: THREE.MeshBasicMaterial;
   beam: THREE.MeshBasicMaterial;
@@ -90,7 +92,8 @@ export function buildRoom(): Room {
   const nightTex = t(canvasTex(256, 224, drawNightSky));
   const dawnTex = t(canvasTex(256, 224, drawDawnSky));
   const paneGeo = g(new THREE.PlaneGeometry(1.3, 1.14));
-  add(paneGeo, m(new THREE.MeshBasicMaterial({ map: nightTex, fog: false })), 0, 0, 0, win);
+  const night = m(new THREE.MeshBasicMaterial({ map: nightTex, fog: false }));
+  add(paneGeo, night, 0, 0, 0, win);
   const dawn = m(new THREE.MeshBasicMaterial({ map: dawnTex, transparent: true, opacity: 0, depthWrite: false, fog: false }));
   add(paneGeo, dawn, 0, 0, 0.002, win);
   const frameMat = std(0xd8cde6, 0.6);
@@ -215,6 +218,7 @@ export function buildRoom(): Room {
     fill,
     lampShade,
     glow,
+    night,
     dawn,
     beam,
     clock,

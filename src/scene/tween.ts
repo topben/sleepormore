@@ -72,6 +72,11 @@ export class Channel {
   }
 
   set(to: number, dur: number, o: TweenOpts = {}): void {
+    if (!(dur > 0) && !o.delay) {
+      // 0 秒 = 立刻到位(reset 用),不管目前在跑什麼
+      this.snap(o.angular && !o.noWrap ? this.cur + wrapAngle(to - this.cur) : to);
+      return;
+    }
     if (o.angular && !o.noWrap) {
       if (!o.force) {
         // 已經在往同一個角度(模 2π)前進 / 已經停在那裡 → 不重跑
@@ -82,10 +87,6 @@ export class Channel {
     } else if (!o.force) {
       if (this.running && Math.abs(to - this.to) < 1e-6) return;
       if (!this.running && Math.abs(to - this.cur) < 1e-6 && !o.delay) return;
-    }
-    if (!(dur > 0) && !o.delay) {
-      this.snap(to);
-      return;
     }
     this.from = this.cur;
     this.to = to;

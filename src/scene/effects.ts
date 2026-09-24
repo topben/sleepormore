@@ -55,6 +55,7 @@ export class Effects {
   private readonly zTimer: Record<Role, number> = { male: 0.5, female: 1.2 };
   private readonly heartPool: Particle[] = [];
   private readonly marks: Record<Role, { bang: Mark; what: Mark }>;
+  private readonly markList: { role: Role; m: Mark }[];
   private readonly rings: Ring[] = [];
   private readonly birds: Particle[] = [];
   private readonly v = new THREE.Vector3();
@@ -94,6 +95,10 @@ export class Effects {
       male: { bang: mark(this.tex.bang, -0.07), what: mark(this.tex.what, 0.1) },
       female: { bang: mark(this.tex.bang, 0.07), what: mark(this.tex.what, -0.1) },
     };
+    this.markList = ROLES.flatMap((role) => [
+      { role, m: this.marks[role].bang },
+      { role, m: this.marks[role].what },
+    ]);
     for (let i = 0; i < 12; i++) {
       const mat = new THREE.MeshBasicMaterial({
         color: 0xcfe6ff,
@@ -211,10 +216,10 @@ export class Effects {
       this.zOn[r] = false;
       this.zLevel[r] = 0;
       this.zMult[r] = 1;
-      for (const m of [this.marks[r].bang, this.marks[r].what]) {
-        m.t = 0;
-        m.sprite.visible = false;
-      }
+    }
+    for (const { m } of this.markList) {
+      m.t = 0;
+      m.sprite.visible = false;
     }
     for (const p of this.heartPool) this.kill(p);
     for (const p of this.birds) this.kill(p);
@@ -276,22 +281,20 @@ export class Effects {
       b.mat.opacity = Math.min(1, k * 6, (1 - k) * 6);
     }
 
-    for (const r of ROLES) {
-      const head = this.headPos(r, this.v);
-      for (const m of [this.marks[r].bang, this.marks[r].what]) {
-        if (m.t <= 0) continue;
-        m.t -= dt;
-        if (m.t <= 0) {
-          m.sprite.visible = false;
-          continue;
-        }
-        const age = m.dur - m.t;
-        const pop = Math.min(1, age / 0.15);
-        const s = 0.26 * (pop < 1 ? pop * (1 + 0.6 * (1 - pop)) : 1);
-        m.sprite.position.set(head.x + m.dx, head.y + 0.36 + 0.025 * Math.sin(t * 9), head.z);
-        m.sprite.scale.set(s, s, 1);
-        m.mat.opacity = Math.min(1, m.t / 0.2);
+    for (const { role, m } of this.markList) {
+      if (m.t <= 0) continue;
+      m.t -= dt;
+      if (m.t <= 0) {
+        m.sprite.visible = false;
+        continue;
       }
+      const head = this.headPos(role, this.v);
+      const age = m.dur - m.t;
+      const pop = Math.min(1, age / 0.15);
+      const s = 0.26 * (pop < 1 ? pop * (1 + 0.6 * (1 - pop)) : 1);
+      m.sprite.position.set(head.x + m.dx, head.y + 0.36 + 0.025 * Math.sin(t * 9), head.z);
+      m.sprite.scale.set(s, s, 1);
+      m.mat.opacity = Math.min(1, m.t / 0.2);
     }
 
     for (const r of this.rings) {

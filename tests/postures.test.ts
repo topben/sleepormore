@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CharacterState, GameState, Posture, Role } from '../src/game/types';
 import {
   ARM_PILLOW_LIFT,
+  ARM_PILLOW_UPPER,
   basePose,
   EMBRACE_ARM,
   LIMB_NAMES,
@@ -12,6 +13,7 @@ import {
   type Euler3,
   type Pose,
 } from '../src/scene/postures';
+import { Tweens, wrapAngle } from '../src/scene/tween';
 
 const H = Math.PI / 2;
 
@@ -200,21 +202,23 @@ describe('resolvePose 疊加規則', () => {
   it('手臂枕(側躺面向):在下那隻 armL 貼床朝她;inUse → 女方頭墊高 +0.05', () => {
     const s = mk({ male: 'sideFacing', female: 'sideFacing', fLat: 0.15, offered: true, inUse: true });
     const m = resolvePose('male', s);
-    expect(m.limbs.armL).toEqual([-H - 0.35, 0, 0]);
-    expect(m.limbs.armR).toEqual(basePose('male', 'sideFacing').limbs.armR);
+    expect(m.limbs.armL).toEqual([-H - 0.35, 0, -0.3]);
+    expect(m.limbs.armR).toEqual(ARM_PILLOW_UPPER); // 上面那隻手放下,不擋住枕頭手臂
     const f = resolvePose('female', s);
     expect(f.rootYOffset).toBe(ARM_PILLOW_LIFT);
-    expect(f.limbs).toEqual(basePose('female', 'sideFacing').limbs); // 肢體不變
+    const fb = basePose('female', 'sideFacing').limbs;
+    expect(f.limbs).toEqual({ ...fb, armL: ARM_PILLOW_UPPER }); // 只有上面那隻手放下
     const tip = armTip(m, -0.35, 'armL');
     expect(tip[0]).toBeGreaterThan(0); // 伸向她那側
     expect(tip[2]).toBeLessThan(-0.5); // 偏向床頭
+    expect(tip[1]).toBeGreaterThan(0.62); // 擱在枕頭面上(枕頭頂 0.65),不是埋在枕頭裡
   });
 
   it('embrace 與 inUse 並存:上臂抱、下臂當枕頭', () => {
     const s = mk({ male: 'sideFacing', female: 'sideFacing', mLat: -0.15, fLat: 0.15, embrace: true, offered: true, inUse: true });
     const m = resolvePose('male', s);
     expect(m.limbs.armR).toEqual(EMBRACE_ARM.male);
-    expect(m.limbs.armL).toEqual([-H - 0.35, 0, 0]);
+    expect(m.limbs.armL).toEqual([-H - 0.35, 0, -0.3]);
     const f = resolvePose('female', s);
     expect(f.limbs.armL).toEqual(EMBRACE_ARM.female);
     expect(f.rootYOffset).toBe(ARM_PILLOW_LIFT);
@@ -239,6 +243,7 @@ describe('resolvePose 疊加規則', () => {
     a.limbs.head[1] = 99;
     const b = resolvePose('male', s);
     expect(b.limbs.armL[0]).toBeCloseTo(-H - 0.35);
+    expect(b.limbs.armL[2]).toBeCloseTo(-0.3);
     expect(b.limbs.head[1]).toBe(0);
     expect(basePose('male', 'sideFacing').limbs.armL[0]).toBe(-1.3);
   });
@@ -257,5 +262,72 @@ describe('resolvePose 疊加規則', () => {
               for (const l of LIMB_NAMES) for (const v of p.limbs[l]) expect(Number.isFinite(v)).toBe(true);
             }
           }
+  });
+});
+
+describe('Tweens(SCENE-RIG §4)', () => {
+  const run = (tw: Tweens, sec: number, dt = 1 / 60) => {
+    for (let t = 0; t < sec - 1e-9; t += dt) tw.update(dt);
+  };
+
+  it('easeInOutCubic:到時間就到位,中途在兩端之間', () => {
+    const tw = new Tweens();
+    tw.snap('a', 0);
+    tw.set('a', 1, 0.8);
+    run(tw, 0.4);
+    expect(tw.get('a')).toBeCloseTo(0.5, 1);
+    run(tw, 0.45);
+    expect(tw.get('a')).toBe(1);
+  });
+
+  it('angular 走最短路徑;noWrap 照給定值整圈翻滾', () => {
+    const tw = new Tweens();
+    tw.snap('r', 3);
+    tw.set('r', -3, 0.5, { angular: true }); // 最短路徑 = 往上跨過 π,不是倒退 6 rad
+    run(tw, 0.6);
+    expect(tw.get('r')).toBeCloseTo(-3 + 2 * Math.PI, 5);
+    expect(wrapAngle(tw.get('r') - -3)).toBeCloseTo(0, 5);
+    tw.snap('k', 0.5);
+    tw.set('k', 0.5 - 2 * Math.PI, 1.2, { angular: true, noWrap: true });
+    run(tw, 0.6);
+    expect(tw.get('k')).toBeLessThan(-2); // 真的在轉,不是原地不動
+    run(tw, 0.7);
+    expect(tw.get('k')).toBeCloseTo(0.5 - 2 * Math.PI, 5);
+  });
+
+  it('timid:做到一半停頓 hesitate 秒再完成', () => {
+    const tw = new Tweens();
+    tw.snap('x', 0);
+    tw.set('x', 1, 1.1, { hesitate: 0.15 });
+    run(tw, 0.56);
+    const mid = tw.get('x');
+    expect(mid).toBeCloseTo(0.5, 2);
+    run(tw, 0.12);
+    expect(tw.get('x')).toBeCloseTo(mid, 5); // 停住
+    run(tw, 0.6);
+    expect(tw.get('x')).toBe(1);
+  });
+
+  it('outBack 會過衝再回到目標', () => {
+    const tw = new Tweens();
+    tw.snap('x', 0);
+    tw.set('x', 1, 0.3, { ease: 'outBack', overshoot: 2 });
+    let peak = 0;
+    for (let i = 0; i < 30; i++) {
+      tw.update(0.01);
+      peak = Math.max(peak, tw.get('x'));
+    }
+    expect(peak).toBeGreaterThan(1.05);
+    expect(tw.get('x')).toBe(1);
+  });
+
+  it('dur 0 = 立刻到位,即使正在補間中', () => {
+    const tw = new Tweens();
+    tw.snap('x', 0);
+    tw.set('x', 1, 1);
+    tw.update(0.2);
+    tw.set('x', 1, 0);
+    expect(tw.get('x')).toBe(1);
+    expect(tw.chan('x').active).toBe(false);
   });
 });

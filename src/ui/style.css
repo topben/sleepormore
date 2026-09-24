@@ -1529,8 +1529,9 @@ body.eyes-closed.in-game .eyelid {
 }
 .style-wasted .banner-title {
   font-size: clamp(46px, 12vw, 124px);
-  color: #b3001b;
-  -webkit-text-stroke: 2px #000;
+  color: #c4001f;
+  -webkit-text-stroke: 5px #000;
+  paint-order: stroke fill; /* 描邊畫在字的後面,細的中日韓筆畫才不會被吃掉 */
   text-shadow: 0 5px 0 #000, 0 0 30px rgba(0, 0, 0, 0.85);
   letter-spacing: 0.05em;
   font-stretch: condensed;
