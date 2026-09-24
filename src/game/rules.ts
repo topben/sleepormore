@@ -579,14 +579,15 @@ export function resolveAction(
     ...(notes.length ? { note: notes.map((k) => ZH.msg[k]).join(','), noteKeys: notes } : {}),
   });
   events.push(...sub);
+  // 數值變化事件(四捨五入到 0.1;四捨五入後為 0 的極小變化不發)
   for (const r of ROLES) {
-    const da = s.chars[r].annoyance - before[r].a;
-    if (Math.abs(da) > 1e-9) events.push({ type: 'annoyed', who: r, delta: round1(da) });
-    const dm = s.chars[r].mood - before[r].m;
-    if (Math.abs(dm) > 1e-9) events.push({ type: 'mood', who: r, delta: round1(dm) });
+    const da = round1(s.chars[r].annoyance - before[r].a);
+    if (da !== 0) events.push({ type: 'annoyed', who: r, delta: da });
+    const dm = round1(s.chars[r].mood - before[r].m);
+    if (dm !== 0) events.push({ type: 'mood', who: r, delta: dm });
   }
-  const di = s.intimacy - intimacyBefore;
-  if (Math.abs(di) > 1e-9) events.push({ type: 'intimacy', delta: round1(di) });
+  const di = round1(s.intimacy - intimacyBefore);
+  if (di !== 0) events.push({ type: 'intimacy', delta: di });
 
   const aiSpokeClue = (() => {
     const l = lines.get(aiRole);

@@ -25,7 +25,6 @@ export const ANNOY_PUSH = 70;
 export const ANNOY_KICK = 100;
 export const MOOD_RECEPTIVE = 40;
 export const ANNOY_RECEPTIVE = 50;
-export const MOOD_OK_FINE = 70; // 想睡的對方 mood >= 70 才「好吧…就一下下」
 
 export const INITIAL = {
   lateral: 0.35,

@@ -168,6 +168,7 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
       if (s.armPillow.offered) return no('armAlreadyOffered');
       if (!flatOrFacing(c.posture)) return no('offerNeedPosture');
       if (!flatOrFacing(b.posture)) return no('herBackTurned');
+      if (distanceOf(s) > REACH) return no('tooFar');
       return OK;
     },
   }),
@@ -181,6 +182,7 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
       if (!s.armPillow.offered) return no('armNotOffered');
       if (s.armPillow.inUse) return no('alreadyOnArm');
       if (!flatOrFacing(s.chars[actor].posture)) return no('restNeedPosture');
+      if (distanceOf(s) > REACH) return no('tooFar');
       return OK;
     },
   }),

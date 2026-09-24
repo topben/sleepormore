@@ -13,8 +13,12 @@ export function mulberry32(seed: number): Rng {
   };
 }
 
+/**
+ * 每回合的亂數流。規格原式 `seed ^ imul(turn, k)` 在 turn 0 會等於 `seed`,和 createGame 抽目標/心情的是同一條流,
+ * 導致女方 AI 的開場台詞洩漏她的目標;所以用 turn + 1 加鹽(DESIGN §14.2)。
+ */
 export function turnRng(seed: number, turn: number): Rng {
-  return mulberry32((seed ^ Math.imul(turn, 0x9e3779b1)) >>> 0);
+  return mulberry32((seed ^ Math.imul(turn + 1, 0x9e3779b1)) >>> 0);
 }
 
 /** 隨機種子(開新局用;不影響可重現性,因為種子會存在 state.seed) */

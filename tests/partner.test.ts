@@ -59,14 +59,10 @@ describe('§8 turn 0: opening move does not reveal the goal', () => {
     }
   });
 
-  // BUG (RNG stream collision, §2 × §8): turnRng(seed, 0) = mulberry32(seed ^ imul(0, …)) = mulberry32(seed), i.e. the
-  // very stream createGame used to draw male.goal (r1), female.goal (r2), moods (r3, r4). When the player's first move
-  // draws no RNG (lieSideFacing / sleep …), the female AI's goodnight line index is floor(r2 × 6) with the same r2 that
-  // decided her goal (r2 < 0.5 ⇒ sleep): a sleep-goal woman only ever says lines 0–2 (shared 2/3 of the time) and an
-  // intimacy-goal woman only lines 3–5 — never an ambiguous one — so her opening line always gives her goal away,
-  // against "開場:不暴露目標 … 各池 1/3 是共用的曖昧句". (Same collision: the turn-0 breath-tell roll is the male-mood
-  // roll.) Measured over seeds 0..599: shared share sleep ≈ 0.65, intimacy = 0.00.
-  it.fails('real openings by a female partner use the shared ambiguous lines about 1/3 of the time for either goal', () => {
+  // Regression (RNG stream collision, §2 × §8): with the spec's literal turnRng(seed, 0) = mulberry32(seed), the turn-0
+  // stream was the one createGame used to draw the goals, so a female AI's opening line gave her goal away (intimacy-goal
+  // women never said an ambiguous line). turnRng now salts with turn + 1 (DESIGN §14.2).
+  it('real openings by a female partner use the shared ambiguous lines about 1/3 of the time for either goal', () => {
     const r = openingAmbiguity('male');
     for (const g of ['sleep', 'intimacy'] as Goal[]) {
       expect(r[g], g).toBeGreaterThan(0.2);

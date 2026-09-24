@@ -104,7 +104,7 @@ describe('createGame', () => {
       [0xffffffff, 11],
     ]) {
       const a = turnRng(seed, turn);
-      const b = mulberry32((seed ^ Math.imul(turn, 0x9e3779b1)) >>> 0);
+      const b = mulberry32((seed ^ Math.imul(turn + 1, 0x9e3779b1)) >>> 0); // 加鹽版(DESIGN §14.2)
       for (let i = 0; i < 5; i++) expect(a()).toBe(b());
     }
   });

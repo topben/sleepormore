@@ -1836,13 +1836,13 @@ describe('§6.8 event policy', () => {
         const da = r.s.chars[who].annoyance - s.chars[who].annoyance;
         const dm = r.s.chars[who].mood - s.chars[who].mood;
         if (a.length > 1 || m.length > 1) bad.push(`#${i} ${id}: duplicate delta events`);
-        // an event exactly when the real change is non-zero; payload = change rounded to 0.1
-        if (a.length !== (Math.abs(da) > 1e-9 ? 1 : 0) || (a[0] && a[0].delta !== round1(da))) bad.push(`#${i} ${id}: annoyed ${a[0]?.delta} vs ${da}`);
-        if (m.length !== (Math.abs(dm) > 1e-9 ? 1 : 0) || (m[0] && m[0].delta !== round1(dm))) bad.push(`#${i} ${id}: mood ${m[0]?.delta} vs ${dm}`);
+        // an event exactly when the change rounded to 0.1 is non-zero (no zero-payload events); payload = rounded change
+        if (a.length !== (round1(da) !== 0 ? 1 : 0) || (a[0] && a[0].delta !== round1(da))) bad.push(`#${i} ${id}: annoyed ${a[0]?.delta} vs ${da}`);
+        if (m.length !== (round1(dm) !== 0 ? 1 : 0) || (m[0] && m[0].delta !== round1(dm))) bad.push(`#${i} ${id}: mood ${m[0]?.delta} vs ${dm}`);
       }
       const di = r.s.intimacy - s.intimacy;
       const ie = ofType(r.events, 'intimacy');
-      if (ie.length !== (Math.abs(di) > 1e-9 ? 1 : 0) || (ie[0] && ie[0].delta !== round1(di))) bad.push(`#${i} ${id}: intimacy ${ie[0]?.delta} vs ${di}`);
+      if (ie.length !== (round1(di) !== 0 ? 1 : 0) || (ie[0] && ie[0].delta !== round1(di))) bad.push(`#${i} ${id}: intimacy ${ie[0]?.delta} vs ${di}`);
       // §14.2: at most one line per character per action
       for (const who of ['male', 'female'] as Role[]) {
         if (ofType(r.events, 'speech').filter((e) => e.who === who).length > 1) bad.push(`#${i} ${id}: ${who} speaks twice`);
