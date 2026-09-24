@@ -17,7 +17,9 @@ export const BLANKET_HALF_W = WIDTH / 2;
 
 const BASE = 0.58; // 平鋪在床墊(0.55)上
 const THICK = 0.03; // 蓋在身體上的厚度
-const CAP = 1.0; // 鼓包最高(坐起來時被子停在腰腹)
+// 鼓包最高(坐起來時被子停在腰腹)。側躺時上面那條腿的腳丫在 0.92、趴著時尾巴在 0.91,
+// 加上毛再留起伏的餘裕 → 1.08(1.0 會讓毛從被子戳出來)
+const CAP = 1.08;
 const FLOOR = 0.025;
 const SIDE_EDGE = 1.05; // 超過這條線開始垂下(床墊 ±1.1、床架 ±1.15)
 const FOOT_EDGE = 1.13; // 床墊尾端 z = 1.2

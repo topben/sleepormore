@@ -43,7 +43,7 @@ pnpm build      # 型別檢查 + 靜態打包到 dist/
 src/
   main.ts        組裝:遊戲邏輯 + 3D 場景 + UI,回合分段播放
   game/          純 TS 規則(可重現的亂數、動作、結算、對方 AI、結局、建議)
-  scene/         three.js 場景(豆豆人、橡皮管手臂、鋪棉棉被、漫畫符號、接觸陰影、合成音效)
+  scene/         three.js 場景(毛絨玩具角色、橡皮管手臂、鋪棉棉被、漫畫符號、接觸陰影、合成音效)
   ui/            純 DOM + CSS 介面(HUD、力道條、對話泡泡、畫面)
   i18n/          7 種語言的字典
 tests/           vitest
