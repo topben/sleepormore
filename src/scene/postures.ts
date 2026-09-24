@@ -1,4 +1,4 @@
-// 豆豆人姿勢表與疊加規則(SCENE-RIG §2)。純數字、不 import three.js → vitest 可在 node 直接測。
+// 角色姿勢表與疊加規則(SCENE-RIG §2)。純數字、不 import three.js → vitest 可在 node 直接測。
 import type { GameState, Posture, Role } from '../game/types';
 import { partnerOf } from '../game/types';
 

@@ -1,10 +1,11 @@
 // 角色 rig(SCENE-RIG §2):root 原點 = 髖中心,+y = 頭,+z = 臉,+x = 角色左側。
 // 所有會動的量都是 Tweens 頻道;update() 每幀把 cur 寫回 Object3D,並算呼吸、眨眼、顫抖。
 // 精緻化(DESIGN §14.6):細節只加在材質、動作、漫畫符號 ——
-// 絨布睡衣(sheen + 花紋、滾邊、鈕扣)、橡皮管手臂 + 連指手套、伸手動作、臉紅分級、熟睡的鼻涕泡泡。
+// 絨布睡衣(sheen + 花紋、滾邊、鈕扣)、橡皮管手臂 + 圓手掌、伸手動作、臉紅分級、熟睡的鼻涕泡泡。
 // 毛絨玩具化(DESIGN §14.9):原創的設計師玩具風 —— 男方小熊(圓耳)、女方垂耳兔(+ 蝴蝶結),
 // 殼層毛、光滑的搪膠臉、亮晶晶的大眼睛、小鼻子、肉球腳掌、毛球尾巴;睡衣照穿。
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Posture, Role } from '../game/types';
 import { furNoiseTexture, furShellMaterial, shellGeometry, type InstancedFur } from './fur';
 import { HoseGeometry, bezier, bezierTangent } from './hose';
@@ -26,6 +27,11 @@ const FACE_DIR = new THREE.Vector3(0, -0.07, 1).normalize();
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 const LEG_LEN = 0.66;
+/**
+ * 棉被蓋腿的鼓包半徑(腿中心線以上):腳丫頂 0.098 + 毛 0.012 = 0.11,
+ * 被子在縫線處低 0.008、起伏再低 0.02 → 0.12 + 厚度 0.03 − 0.028 仍比毛尖高
+ */
+const LEG_COVER = 0.12;
 const CHEST_POS = new THREE.Vector3(0, 0.45, 0.13);
 const CHEST_SCALE = new THREE.Vector3(1.05, 0.62, 0.5);
 const EYE_SCALE = new THREE.Vector3(1, 1.25, 0.6);
@@ -33,7 +39,9 @@ const EYE_SCALE = new THREE.Vector3(1, 1.25, 0.6);
 export const HEAD_TILT = 0.22;
 /** 側躺時臉微微轉向天花板(−0.45·sin(roll)),不然從床尾只看得到後腦勺 */
 const FACE_UP = 0.45;
-/** 豆豆人的大頭(規格 Sphere(0.15);放大讓臉在手機上也看得清楚) */
+/** 毛球尾巴的位置(root 局部座標:後腰) */
+const TAIL_POS = new THREE.Vector3(0, 0.2, -0.17);
+/** 大頭(規格 Sphere(0.15);放大讓臉在手機上也看得清楚) */
 const HEAD_SCALE = 1.2;
 
 // ── 橡皮管手臂 ──
@@ -67,8 +75,8 @@ export class CharacterKit {
     bowLoop: new THREE.SphereGeometry(0.03, 12, 8),
     bowKnot: new THREE.SphereGeometry(0.014, 10, 8),
     tail: new THREE.SphereGeometry(0.05, 16, 12),
-    pad: new THREE.SphereGeometry(0.028, 12, 8),
-    toe: new THREE.SphereGeometry(0.012, 10, 6),
+    /** 腳底的肉球(掌墊 + 三顆趾頭,一個幾何 = 一次 draw call) */
+    pads: pawPads(),
     eyeHi: new THREE.SphereGeometry(0.0072, 8, 6),
     palm: new THREE.SphereGeometry(0.058, 16, 12),
     thumb: new THREE.SphereGeometry(0.025, 10, 8),
@@ -95,7 +103,7 @@ export class CharacterKit {
     earLop: shellGeometry(this.geo.earLop, { layers: 6, length: 0.014, uvScale: [3, 3], bare: { dir: Z_AXIS, angle: 0.5, soft: 0.2 } }),
     palm: shellGeometry(this.geo.palm, { layers: 6, length: 0.013, uvScale: [3, 2] }),
     thumb: shellGeometry(this.geo.thumb, { layers: 5, length: 0.01, uvScale: [2, 1] }),
-    foot: shellGeometry(this.geo.foot, { layers: 6, length: 0.015, uvScale: [3, 2], bare: { dir: new THREE.Vector3(0, -1, 0.35).normalize(), angle: 0.62, soft: 0.25 } }),
+    foot: shellGeometry(this.geo.foot, { layers: 6, length: 0.012, uvScale: [3, 2], bare: { dir: new THREE.Vector3(0, -1, 0.35).normalize(), angle: 0.62, soft: 0.25 } }),
     tail: shellGeometry(this.geo.tail, { layers: 7, length: 0.022, uvScale: [3, 2] }),
   };
   readonly eyeMat = new THREE.MeshBasicMaterial({ color: 0x1c1422 });
@@ -423,7 +431,7 @@ export class Character {
     this.bubble.visible = false;
     this.bubble.renderOrder = 5;
     // 毛球尾巴:後腰(仰躺時壓在身體下看不到,趴著、背對時露出來)
-    const tail = mesh(g.tail, fur, this.root, 0, 0.2, -0.17);
+    const tail = mesh(g.tail, fur, this.root, TAIL_POS.x, TAIL_POS.y, TAIL_POS.z);
     furOn(tail, kit.shells.tail);
 
     // 四肢(Group pivot = 肩 / 髖)
@@ -467,19 +475,7 @@ export class Character {
       c.rotation.x = Math.PI / 2;
       const foot = mesh(g.foot, fur, grp, 0, -0.6, 0.02); // 圓腳丫(拉長會戳出被子)
       furOn(foot, kit.shells.foot);
-      // 腳底的肉球(仰躺時腳底朝床尾 = 朝相機;被子被搶走或掉下床時看得到)
-      const pads: [THREE.BufferGeometry, number, number, number][] = [
-        [g.pad, 0, -1, 0.15],
-        [g.toe, -0.36, -0.86, 0.58],
-        [g.toe, 0, -0.8, 0.68],
-        [g.toe, 0.36, -0.86, 0.58],
-      ];
-      for (const [geo, x, y, z] of pads) {
-        const d = new THREE.Vector3(x, y, z).normalize();
-        const pad = mesh(geo, padMat, foot, d.x * 0.077, d.y * 0.077, d.z * 0.077);
-        pad.quaternion.setFromUnitVectors(Y_AXIS, d);
-        pad.scale.set(1, 0.4, geo === g.pad ? 0.85 : 1);
-      }
+      mesh(g.pads, padMat, foot); // 肉球(仰躺時腳底朝床尾 = 朝相機;被子被搶走或掉下床時看得到)
     }
     this.limbs = { armL, armR, legL, legR, head: this.head };
 
@@ -602,7 +598,7 @@ export class Character {
     this.flopT[arm] = dur;
   }
 
-  /** 手(連指手套)的世界座標;呼叫前 matrixWorld 要是新的 */
+  /** 手(圓手掌)的世界座標;呼叫前 matrixWorld 要是新的 */
   handWorld(arm: ArmName, out: THREE.Vector3): THREE.Vector3 {
     return this.arms[arm].hand.getWorldPosition(out);
   }
@@ -872,7 +868,7 @@ export class Character {
     }
   }
 
-  /** 依伸長 / 彎曲重建袖子與手臂的軟管,手套對齊末端切線 */
+  /** 依伸長 / 彎曲重建袖子與手臂的軟管,手掌對齊末端切線 */
   private buildArm(a: ArmName, stretch: number, bend: number): void {
     const rig = this.arms[a];
     if (Math.abs(stretch - rig.lastS) < 1e-4 && Math.abs(bend - rig.lastB) < 1e-4) return;
@@ -890,7 +886,7 @@ export class Character {
     bezier(this.p0, this.p1, this.p2, SLEEVE_END, rig.cuff.position);
     bezierTangent(this.p0, this.p1, this.p2, SLEEVE_END, this.tmpC);
     rig.cuff.quaternion.setFromUnitVectors(Z_AXIS, this.tmpC);
-    // 手套:位置 = 末端,−y 對齊末端切線
+    // 手掌:位置 = 末端,−y 對齊末端切線
     rig.hand.position.copy(this.p2);
     bezierTangent(this.p0, this.p1, this.p2, 1, this.tmpC);
     rig.hand.quaternion.setFromUnitVectors(NEG_Y, this.tmpC);
@@ -936,10 +932,14 @@ export class Character {
     // 腿
     a.setFromMatrixPosition(this.limbs.legL.matrixWorld);
     b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(this.limbs.legL.matrixWorld);
-    i = putSegment(out, i, a, b, 0.095 + thick, 0.2 + wide, 1); // 腿(含腳丫)
+    // 腿(含腳丫):半徑要留得比腳丫 + 毛高(LEG_COVER),不然毛會從被子的縫戳出來
+    i = putSegment(out, i, a, b, LEG_COVER + thick, 0.2 + wide, 1);
     a.setFromMatrixPosition(this.limbs.legR.matrixWorld);
     b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(this.limbs.legR.matrixWorld);
-    return putSegment(out, i, a, b, 0.095 + thick, 0.2 + wide, 1);
+    i = putSegment(out, i, a, b, LEG_COVER + thick, 0.2 + wide, 1);
+    // 毛球尾巴:趴著時朝上(毛尖比背高 0.07),仰躺時在身體下、這段比軀幹低 → 取 max 沒影響
+    a.copy(TAIL_POS).applyMatrix4(this.root.matrixWorld);
+    return putSegment(out, i, a, a, 0.08 + thick, 0.17 + wide, 1); // 寬一點,和背上的鼓包接得平順
   }
 
   dispose(): void {
@@ -948,6 +948,33 @@ export class Character {
     for (const g of this.ownGeo) g.dispose();
     for (const m of this.ownInst) m.dispose();
   }
+}
+
+/** 掌墊 + 三顆趾頭:沿腳丫(半徑 0.078)的腳底方向貼在表面,壓扁成軟軟的圓片 */
+function pawPads(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const d = new THREE.Vector3();
+  const sc = new THREE.Vector3();
+  const list: [number, number, number, number, number][] = [
+    // 半徑, 方向 x y z, 前後壓扁
+    [0.028, 0, -1, 0.15, 0.85],
+    [0.012, -0.36, -0.86, 0.58, 1],
+    [0.012, 0, -0.8, 0.68, 1],
+    [0.012, 0.36, -0.86, 0.58, 1],
+  ];
+  for (const [r, x, y, z, flat] of list) {
+    const g = r > 0.02 ? new THREE.SphereGeometry(r, 12, 8) : new THREE.SphereGeometry(r, 10, 6);
+    d.set(x, y, z).normalize();
+    q.setFromUnitVectors(Y_AXIS, d);
+    g.applyMatrix4(m.compose(d.clone().multiplyScalar(0.077), q, sc.set(1, 0.4, flat)));
+    parts.push(g);
+  }
+  const merged = mergeGeometries(parts);
+  for (const g of parts) g.dispose();
+  if (!merged) throw new Error('paw pads: mergeGeometries failed');
+  return merged;
 }
 
 function putSegment(out: Float32Array, i: number, a: THREE.Vector3, b: THREE.Vector3, r: number, sigma: number, w: number): number {
@@ -963,5 +990,5 @@ function putSegment(out: Float32Array, i: number, a: THREE.Vector3, b: THREE.Vec
   return i + 9;
 }
 
-export const SEGMENTS_PER_CHAR = 4;
+export const SEGMENTS_PER_CHAR = 5;
 export const SEGMENT_STRIDE = 9;

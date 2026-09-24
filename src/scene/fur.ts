@@ -35,7 +35,10 @@ export interface ShellOptions {
   bare?: { dir: THREE.Vector3; angle: number; soft: number };
 }
 
-/** 把 base 做成 layers 層殼(attribute shellK = 第幾層 0..1、furMask = 這裡能不能長毛) */
+/**
+ * 把 base 做成 layers 層殼:第 k 層推到毛長的 (k+1)/K;attribute shellK = 這層的門檻 (k+1)/(K+1)
+ * (雜訊最大 254/255,門檻若是 1 最外層會整層被丟掉)、furMask = 這裡能不能長毛。
+ */
 export function shellGeometry(base: THREE.BufferGeometry, o: ShellOptions): THREE.BufferGeometry {
   const pos = base.getAttribute('position');
   const nor = base.getAttribute('normal');
@@ -49,8 +52,8 @@ export function shellGeometry(base: THREE.BufferGeometry, o: ShellOptions): THRE
   const M = new Float32Array(n * K);
   const v = new THREE.Vector3();
   for (let k = 0; k < K; k++) {
-    const t = (k + 1) / K;
-    const off = o.length * t;
+    const off = (o.length * (k + 1)) / K;
+    const h = (k + 1) / (K + 1);
     for (let i = 0; i < n; i++) {
       const j = k * n + i;
       v.fromBufferAttribute(nor, i).normalize();
@@ -62,7 +65,7 @@ export function shellGeometry(base: THREE.BufferGeometry, o: ShellOptions): THRE
       N[j * 3 + 2] = v.z;
       U[j * 2] = uv.getX(i) * o.uvScale[0];
       U[j * 2 + 1] = uv.getY(i) * o.uvScale[1];
-      S[j] = t;
+      S[j] = h;
       M[j] = o.bare ? THREE.MathUtils.smoothstep(v.angleTo(o.bare.dir), o.bare.angle, o.bare.angle + o.bare.soft) : 1;
     }
   }
@@ -74,7 +77,7 @@ export function shellGeometry(base: THREE.BufferGeometry, o: ShellOptions): THRE
   g.setAttribute('furMask', new THREE.BufferAttribute(M, 1));
   if (base.index) {
     const idx = base.index.array;
-    const I = new Uint32Array(idx.length * K);
+    const I = n * K > 65535 ? new Uint32Array(idx.length * K) : new Uint16Array(idx.length * K);
     for (let k = 0; k < K; k++) for (let i = 0; i < idx.length; i++) I[k * idx.length + i] = idx[i] + k * n;
     g.setIndex(new THREE.BufferAttribute(I, 1));
   }
@@ -107,7 +110,8 @@ export function furShellMaterial(color: THREE.ColorRepresentation, noise: THREE.
         .replace('#include <uv_vertex>', `#include <uv_vertex>\nvAlphaMapUv *= vec2(${glslFloat(u)}, ${glslFloat(v)});`)
         .replace(
           '#include <begin_vertex>',
-          `#include <begin_vertex>\nvShellK = float(gl_InstanceID + 1) / ${glslFloat(instanced.layers)};\nvFurMask = 1.0;\ntransformed += normalize(objectNormal) * (vShellK * ${glslFloat(instanced.length)});`,
+          // 同 shellGeometry:第 k 層推到 (k+1)/K 的毛長,門檻 (k+1)/(K+1)
+          `#include <begin_vertex>\nfloat furLayer = float(gl_InstanceID + 1);\nvShellK = furLayer / ${glslFloat(instanced.layers + 1)};\nvFurMask = 1.0;\ntransformed += normalize(objectNormal) * (furLayer * ${glslFloat(instanced.length)} / ${glslFloat(instanced.layers)});`,
         );
     } else {
       shader.vertexShader = shader.vertexShader
