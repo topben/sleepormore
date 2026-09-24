@@ -255,6 +255,17 @@ export default {
     locked: '還沒解鎖',
     lockedHint: '換個玩法,或許就會遇到。',
   },
+  /** 結局圖卡(分享的圖片) */
+  shareCard: {
+    title: '分享圖卡',
+    making: '圖卡製作中…',
+    share: '分享圖卡',
+    download: '下載圖片',
+    copy: '複製文字',
+    saveHint: '手機也可以長按圖片存到相簿。',
+    failed: '圖卡做不出來,改用文字分享吧。',
+    cta: '你能收集到幾種組合?',
+  },
 
   help: {
     title: '怎麼玩',

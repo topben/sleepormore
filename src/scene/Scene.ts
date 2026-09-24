@@ -385,6 +385,42 @@ export class BedroomScene {
     this.writeFilter(false);
   }
 
+  /**
+   * 結局圖卡用的截圖:用 w × h(沒有 HUD 遮擋)重新取景畫一張,複製到 2D canvas,再恢復原本的畫面。
+   * 預設拍寬一點(約 2:1):圖卡的框比較窄時只裁掉兩側的空白,床不會被切到。
+   * 同一個 task 內做完,瀏覽器不會畫出中間狀態。CSS 濾鏡(閉眼、灰階)不會進截圖。
+   */
+  snapshot(w = 1320, h = 630): HTMLCanvasElement | null {
+    if (this.disposed) return null;
+    const prevDpr = this.renderer.getPixelRatio();
+    const prev = this.renderer.getSize(new THREE.Vector2());
+    try {
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(w, h, false);
+      this.frameCamera(w, h, 0, 0);
+      this.updateCamera(0);
+      this.renderer.render(this.scene, this.camera);
+      const out = document.createElement('canvas');
+      out.width = w;
+      out.height = h;
+      const g = out.getContext('2d');
+      if (!g) return null;
+      g.drawImage(this.canvas, 0, 0, w, h);
+      return out;
+    } catch (err) {
+      console.warn('scene snapshot failed', err);
+      return null;
+    } finally {
+      // 直接還原畫布與取景(容器剛好被收起來時 layout() 會略過,不能只靠它)
+      this.renderer.setPixelRatio(prevDpr);
+      this.renderer.setSize(prev.x, prev.y, false);
+      if (prev.x >= 2 && prev.y >= 2) this.frameCamera(prev.x, prev.y, this.insets.top, this.insets.bottom);
+      this.updateCamera(0);
+      this.layoutKey = '';
+      this.layout();
+    }
+  }
+
   /** UI 蓋在畫布上下的區域(CSS px);床會置中在中間沒被擋住的帶狀區 */
   setViewInsets(insets: { top: number; bottom: number }): void {
     this.insets = { top: Math.max(0, insets.top || 0), bottom: Math.max(0, insets.bottom || 0) };
@@ -720,13 +756,18 @@ export class BedroomScene {
     this.layoutKey = key;
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h, false);
+    this.frameCamera(w, h, this.insets.top, this.insets.bottom);
+    this.updateCamera(0);
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  /** 取景:整張床剛好塞進 w × (h − 上下被 UI 擋住的部分),床的投影中心對準帶狀區中心 */
+  private frameCamera(w: number, h: number, top: number, bottom: number): void {
     const cam = this.camera;
     cam.aspect = w / h;
     cam.fov = w / h < 1 ? 58 : 42;
     cam.clearViewOffset();
 
-    let top = this.insets.top;
-    let bottom = this.insets.bottom;
     const minBand = h * 0.3;
     if (h - top - bottom < minBand) {
       const k = (h - minBand) / Math.max(1, top + bottom);
@@ -752,8 +793,6 @@ export class BedroomScene {
     cam.setViewOffset(w, h, (box.minX + box.maxX) / 2 - w / 2, (box.minY + box.maxY) / 2 - (top + band / 2), w, h);
     this.fog.near = hi * 1.05;
     this.fog.far = hi + 6.5;
-    this.updateCamera(0);
-    this.renderer.render(this.scene, this.camera);
   }
 
   private projectFrame(dist: number, w: number, h: number, out: { minX: number; maxX: number; minY: number; maxY: number }): void {

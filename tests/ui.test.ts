@@ -6,6 +6,13 @@ import { makeEnding } from '../src/game/endings';
 import { createGame } from '../src/game/turn';
 import { newTally } from '../src/game/titles';
 import { loadCollection, recordCombo } from '../src/ui/collection';
+import { renderShareCard } from '../src/ui/shareCard';
+
+// 圖卡畫在 canvas 上:happy-dom 沒有 2D canvas,換成假的 PNG(畫圖本身在瀏覽器 E2E 驗證)
+vi.mock('../src/ui/shareCard', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/ui/shareCard')>()),
+  renderShareCard: vi.fn(async () => new Blob(['png'], { type: 'image/png' })),
+}));
 import type { GameState } from '../src/game/types';
 import { GameUI, type UIHandlers } from '../src/ui/UI';
 
@@ -212,22 +219,58 @@ describe('GameUI: combo endings (you × partner), collection and sharing', () =>
     expect(root.querySelector('.gallery-detail-name')!.textContent).toContain('還沒解鎖');
   });
 
-  it('sharing uses the system share sheet when there is one, otherwise copies the text', async () => {
+  const stubNavigator = (props: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(props)) Object.defineProperty(navigator, k, { configurable: true, value: v });
+  };
+  afterEach(() => stubNavigator({ share: undefined, canShare: undefined }));
+
+  it('share opens a card preview; phones send the image to the share sheet, and the text can be copied', async () => {
     const { root, ui } = mount();
     finish(ui, endedNight());
     const share = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    stubNavigator({ share, canShare: vi.fn().mockReturnValue(true) });
     root.querySelector<HTMLButtonElement>('.combo-share')!.click();
-    await vi.waitFor(() => expect(share).toHaveBeenCalledTimes(1));
-    expect(share.mock.calls[0][0].text).toContain('邊聊邊翻身');
-    expect(share.mock.calls[0][0].url).toMatch(/^https?:/);
+    expect(root.querySelector('.share-card')).not.toBeNull();
+    expect(root.querySelector('.share-card-wait.making')).not.toBeNull(); // 先顯示「製作中」
+    await vi.waitFor(() => expect(root.querySelector('.share-card-img')).not.toBeNull());
+    expect(vi.mocked(renderShareCard).mock.calls.at(-1)![0].combo.id).toBe('talker_spinner');
 
-    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    root.querySelector<HTMLButtonElement>('.share-image')!.click();
+    expect(share).toHaveBeenCalledTimes(1); // 在點擊當下呼叫(檔案事先準備好)
+    const data = share.mock.calls[0][0] as ShareData;
+    expect(data.files![0].name).toBe('sleepormore-talker_spinner.png');
+    expect(data.text).toContain('邊聊邊翻身');
+
     const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
-    root.querySelector<HTMLButtonElement>('.combo-share')!.click();
-    await vi.waitFor(() => expect(root.querySelector('.toast')).not.toBeNull());
+    stubNavigator({ clipboard: { writeText } });
+    root.querySelector<HTMLButtonElement>('.share-copy')!.click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     expect(writeText.mock.calls[0][0]).toContain('邊聊邊翻身');
+    await vi.waitFor(() => expect(root.querySelector('.toast')).not.toBeNull());
+  });
+
+  it('without file sharing (desktop), the card offers a download instead', async () => {
+    const { root, ui } = mount();
+    finish(ui, endedNight());
+    root.querySelector<HTMLButtonElement>('.combo-share')!.click();
+    await vi.waitFor(() => expect(root.querySelector('.share-card-img')).not.toBeNull());
+    expect(root.querySelector('.share-image')).toBeNull();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    root.querySelector<HTMLButtonElement>('.share-download')!.click();
+    expect(click).toHaveBeenCalledTimes(1);
+    expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe('sleepormore-talker_spinner.png');
+    click.mockRestore();
+    root.querySelector<HTMLButtonElement>('.share-card .close')!.click();
+    expect(root.querySelector('.share-card')).toBeNull();
+  });
+
+  it('if the card cannot be drawn, the text can still be copied', async () => {
+    vi.mocked(renderShareCard).mockRejectedValueOnce(new Error('no canvas'));
+    const { root, ui } = mount();
+    finish(ui, endedNight());
+    root.querySelector<HTMLButtonElement>('.combo-share')!.click();
+    await vi.waitFor(() => expect(root.querySelector('.share-card-wait.failed')).not.toBeNull());
+    expect(root.querySelector('.share-copy')).not.toBeNull();
   });
 });
 

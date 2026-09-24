@@ -2046,6 +2046,60 @@ body.ending-neutral .hud {
   }
 }
 
+/* 結局圖卡:預覽(4:5)+ 分享 / 下載 / 複製 */
+.panel.share-card {
+  width: min(460px, 100%);
+}
+.share-card-preview {
+  margin-top: 12px;
+  display: grid;
+  place-items: center;
+}
+.share-card-img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: min(56vh, 520px);
+  height: auto;
+  aspect-ratio: 4 / 5;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  user-select: auto;
+  -webkit-user-select: auto;
+  -webkit-touch-callout: default;
+}
+.share-card-wait {
+  width: min(100%, 360px);
+  aspect-ratio: 4 / 5;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  text-align: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+.share-card-wait.making {
+  animation: fadeIn 1.2s ease-in-out infinite alternate;
+}
+.share-card-hint {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.share-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.share-card-actions button {
+  flex: 1 1 140px;
+  min-height: 48px;
+}
+
 /* ───────────── Toast ───────────── */
 
 .toast-layer {

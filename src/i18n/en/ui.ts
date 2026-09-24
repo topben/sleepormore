@@ -255,6 +255,16 @@ const ui: UiMessages = {
     locked: 'Not unlocked yet',
     lockedHint: 'Try playing a different way — you might just run into it.',
   },
+  shareCard: {
+    title: 'Share card',
+    making: 'Making your card…',
+    share: 'Share image',
+    download: 'Download image',
+    copy: 'Copy text',
+    saveHint: 'On a phone you can also long-press the image to save it.',
+    failed: 'Couldn’t make the card, so share the text instead.',
+    cta: 'How many combos can you collect?',
+  },
 
   help: {
     title: 'How to play',
