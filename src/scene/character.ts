@@ -1,9 +1,12 @@
-// 豆豆人 rig(SCENE-RIG §2):root 原點 = 髖中心,+y = 頭,+z = 臉,+x = 角色左側。
+// 角色 rig(SCENE-RIG §2):root 原點 = 髖中心,+y = 頭,+z = 臉,+x = 角色左側。
 // 所有會動的量都是 Tweens 頻道;update() 每幀把 cur 寫回 Object3D,並算呼吸、眨眼、顫抖。
-// 精緻化(DESIGN §14.6):細節只加在材質、動作、漫畫符號,比例維持豆豆人 ——
+// 精緻化(DESIGN §14.6):細節只加在材質、動作、漫畫符號 ——
 // 絨布睡衣(sheen + 花紋、滾邊、鈕扣)、橡皮管手臂 + 連指手套、伸手動作、臉紅分級、熟睡的鼻涕泡泡。
+// 毛絨玩具化(DESIGN §14.9):原創的設計師玩具風 —— 男方小熊(圓耳)、女方垂耳兔(+ 蝴蝶結),
+// 殼層毛、光滑的搪膠臉、亮晶晶的大眼睛、小鼻子、肉球腳掌、毛球尾巴;睡衣照穿。
 import * as THREE from 'three';
 import type { Posture, Role } from '../game/types';
+import { furNoiseTexture, furShellMaterial, shellGeometry, type InstancedFur } from './fur';
 import { HoseGeometry, bezier, bezierTangent } from './hose';
 import { ARM_LEN, LIMB_NAMES, RIG, reachArm, SHOULDER, type LimbName, type Pose } from './postures';
 import { PAJAMA_STYLE, blushHatchTexture, pajamaTexture, repeated } from './textures';
@@ -11,9 +14,16 @@ import type { Channel, TweenOpts, Tweens } from './tween';
 
 const TAU = Math.PI * 2;
 
-export const SKIN = 0xf1c9a5;
-const HAIR: Record<Role, number> = { male: 0x2b2b2b, female: 0x5a3825 };
+/** 毛絨玩具的配色:毛、毛的光澤、臉、內耳、鼻子、肉球 */
+const PLUSH: Record<Role, { fur: number; sheen: number; face: number; inner: number; nose: number; pad: number }> = {
+  male: { fur: 0xc58a55, sheen: 0xffd9a8, face: 0xf6dfc4, inner: 0xf0c49a, nose: 0x4a2c20, pad: 0x9a6444 },
+  female: { fur: 0xf1e4d4, sheen: 0xffffff, face: 0xfff6ee, inner: 0xf7b3c6, nose: 0xf07fa0, pad: 0xf5a3bb },
+};
+const BOW = 0xff6f9c;
 const NUMB_COLOR = new THREE.Color(0x8a6aa0);
+/** 臉的中心方向(頭的局部座標,稍微朝下);臉在這個方向 42° 內不長毛 */
+const FACE_DIR = new THREE.Vector3(0, -0.07, 1).normalize();
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 const LEG_LEN = 0.66;
 const CHEST_POS = new THREE.Vector3(0, 0.45, 0.13);
@@ -36,6 +46,8 @@ const SLEEVE_R: readonly [number, number] = [0.08, 0.072];
 /** 靜止時的弧度:手肘往外凸、稍微往後(曲線中點位移 = 控制點位移的一半) */
 const BEND_OUT = 0.075;
 const BEND_BACK = 0.035;
+/** 手臂的毛(手臂每幀變形 → 用實例當層) */
+const ARM_FUR: InstancedFur = { layers: 5, length: 0.011, uvScale: [3, 3] };
 /** 臉紅等級 → 腮紅不透明度 */
 const BLUSH_ALPHA = [0, 0.42, 0.72, 0.92];
 
@@ -46,10 +58,18 @@ export class CharacterKit {
     chest: new THREE.SphereGeometry(0.12, 24, 14),
     collar: new THREE.TorusGeometry(0.1, 0.022, 8, 24),
     head: new THREE.SphereGeometry(0.15, 32, 22),
-    hair: new THREE.SphereGeometry(0.158, 32, 14, 0, TAU, 0, 1.3),
-    backHair: new THREE.SphereGeometry(0.162, 32, 16, Math.PI, Math.PI, 0, 2.15),
-    bun: new THREE.SphereGeometry(0.058, 16, 12),
-    tuft: new THREE.ConeGeometry(0.025, 0.07, 8),
+    /** 搪膠臉:頭球正面的一片球冠,邊緣藏在毛下面 */
+    face: new THREE.SphereGeometry(0.1515, 28, 18, Math.PI / 2 - 0.87, 1.74, Math.PI / 2 - 0.8, 1.75),
+    nose: new THREE.SphereGeometry(0.013, 12, 8),
+    earBear: new THREE.SphereGeometry(0.062, 18, 12),
+    earLop: new THREE.SphereGeometry(0.06, 18, 14),
+    innerEar: new THREE.SphereGeometry(0.04, 14, 10),
+    bowLoop: new THREE.SphereGeometry(0.03, 12, 8),
+    bowKnot: new THREE.SphereGeometry(0.014, 10, 8),
+    tail: new THREE.SphereGeometry(0.05, 16, 12),
+    pad: new THREE.SphereGeometry(0.028, 12, 8),
+    toe: new THREE.SphereGeometry(0.012, 10, 6),
+    eyeHi: new THREE.SphereGeometry(0.0072, 8, 6),
     palm: new THREE.SphereGeometry(0.058, 16, 12),
     thumb: new THREE.SphereGeometry(0.025, 10, 8),
     cuff: new THREE.TorusGeometry(0.075, 0.0105, 8, 22),
@@ -57,14 +77,30 @@ export class CharacterKit {
     button: new THREE.SphereGeometry(0.019, 12, 8),
     leg: new THREE.CapsuleGeometry(0.08, 0.5, 6, 18),
     foot: new THREE.SphereGeometry(0.078, 16, 10),
-    eye: new THREE.SphereGeometry(0.022, 14, 10),
+    eye: new THREE.SphereGeometry(0.026, 16, 12),
     blush: new THREE.CircleGeometry(0.03, 18),
     hatch: new THREE.PlaneGeometry(0.066, 0.066),
     dark: new THREE.CircleGeometry(0.036, 18),
     mouth: new THREE.TorusGeometry(0.024, 0.0065, 6, 14, Math.PI),
+    /** ω 嘴:兩個小弧 */
+    mouthSmall: new THREE.TorusGeometry(0.012, 0.0055, 6, 12, Math.PI),
     bubble: new THREE.SphereGeometry(1, 16, 12),
   };
+  readonly furNoise = furNoiseTexture();
+  /** 毛(殼層):頭(臉挖掉)、耳朵(內耳挖掉)、手、腳(腳底挖掉露出肉球)、尾巴 */
+  readonly shells = {
+    head: shellGeometry(this.geo.head, { layers: 9, length: 0.022, uvScale: [7, 4], bare: { dir: FACE_DIR, angle: 0.73, soft: 0.2 } }),
+    // 耳朵正面挖掉一塊露出內耳(淺色絨布片)
+    earBear: shellGeometry(this.geo.earBear, { layers: 6, length: 0.016, uvScale: [3, 2], bare: { dir: Z_AXIS, angle: 0.5, soft: 0.22 } }),
+    earLop: shellGeometry(this.geo.earLop, { layers: 6, length: 0.014, uvScale: [3, 3], bare: { dir: Z_AXIS, angle: 0.5, soft: 0.2 } }),
+    palm: shellGeometry(this.geo.palm, { layers: 6, length: 0.013, uvScale: [3, 2] }),
+    thumb: shellGeometry(this.geo.thumb, { layers: 5, length: 0.01, uvScale: [2, 1] }),
+    foot: shellGeometry(this.geo.foot, { layers: 6, length: 0.015, uvScale: [3, 2], bare: { dir: new THREE.Vector3(0, -1, 0.35).normalize(), angle: 0.62, soft: 0.25 } }),
+    tail: shellGeometry(this.geo.tail, { layers: 7, length: 0.022, uvScale: [3, 2] }),
+  };
   readonly eyeMat = new THREE.MeshBasicMaterial({ color: 0x1c1422 });
+  /** 眼睛裡的亮點(搪膠玩具的大眼睛) */
+  readonly eyeHiMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   readonly darkMat = new THREE.MeshBasicMaterial({ color: 0x3a2850, transparent: true, opacity: 0.8, depthWrite: false });
   readonly mouthMat = new THREE.MeshBasicMaterial({ color: 0x7a3440 });
   readonly hatchTex = blushHatchTexture();
@@ -82,8 +118,10 @@ export class CharacterKit {
 
   dispose(): void {
     for (const g of Object.values(this.geo)) g.dispose();
-    for (const m of [this.eyeMat, this.darkMat, this.mouthMat, this.hatchMat, this.bubbleMat]) m.dispose();
+    for (const g of Object.values(this.shells)) g.dispose();
+    for (const m of [this.eyeMat, this.eyeHiMat, this.darkMat, this.mouthMat, this.hatchMat, this.bubbleMat]) m.dispose();
     this.hatchTex.dispose();
+    this.furNoise.dispose();
   }
 }
 
@@ -123,8 +161,8 @@ interface ArmRig {
   lastB: number;
 }
 
-const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const NEG_Y = new THREE.Vector3(0, -1, 0);
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 /** 把臉部貼片放在頭球表面(沿法線朝外) */
 function onHead(obj: THREE.Object3D, x: number, y: number, z: number, r: number): void {
@@ -160,18 +198,26 @@ export class Character {
 
   private readonly chest: THREE.Mesh;
   private readonly eyes: THREE.Mesh[] = [];
+  /** 眼睛的亮點(閉眼時藏起來,不然閉著的眼睛會像瞇眼偷看) */
+  private readonly eyeHi: THREE.Mesh[] = [];
   private readonly blush: THREE.Mesh[] = [];
   private readonly hatch: THREE.Mesh[] = [];
   private readonly blushMat: THREE.MeshBasicMaterial;
   private readonly dark: THREE.Mesh[] = [];
   private readonly mouth: THREE.Mesh;
+  /** ω 嘴(笑的時候) */
+  private readonly mouthW: THREE.Mesh[] = [];
   private readonly bubble: THREE.Mesh;
   private readonly armMat: Record<ArmName, THREE.MeshStandardMaterial>;
+  /** 手臂、手上的毛(手麻時跟手臂一起變紫) */
+  private readonly armFur: Record<ArmName, THREE.MeshStandardMaterial>;
+  private readonly handFur: Record<ArmName, THREE.MeshStandardMaterial>;
   private readonly arms: Record<ArmName, ArmRig>;
   private readonly ownMats: THREE.Material[] = [];
   private readonly ownTex: THREE.Texture[] = [];
   private readonly ownGeo: THREE.BufferGeometry[] = [];
-  private readonly skin = new THREE.Color(SKIN);
+  private readonly ownInst: THREE.InstancedMesh[] = [];
+  private readonly furColor: THREE.Color;
 
   private phase = Math.random() * TAU;
   private ampK = 1;
@@ -246,11 +292,28 @@ export class Character {
     const chestMat = fabric(topTex, dotted ? 7 : 6, dotted ? 4 : 1);
     const sleeveMat = fabric(topTex, dotted ? 4 : 4, dotted ? 1.5 : 1);
     const pantsMat = fabric(pantsTex, dotted ? 5 : 4, dotted ? 7 : 1);
-    const skin = std(SKIN, 0.55);
-    const hair = std(HAIR[role], 0.55);
     const trim = std(style.trim, 0.72);
     const buttonMat = std(style.button, 0.35);
-    this.armMat = { armL: std(SKIN, 0.55), armR: std(SKIN, 0.55) };
+    // 毛絨:本體用 sheen(絨毛的柔光),外面再長一層殼層毛
+    const plush = PLUSH[role];
+    this.furColor = new THREE.Color(plush.fur);
+    const furBody = () =>
+      own(new THREE.MeshPhysicalMaterial({ color: plush.fur, roughness: 0.88, metalness: 0, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(plush.sheen) }));
+    const fur = furBody();
+    const furShell = own(furShellMaterial(plush.fur, kit.furNoise));
+    const faceMat = std(plush.face, 0.42);
+    const innerMat = std(plush.inner, 0.7);
+    const noseMat = std(plush.nose, 0.3);
+    const padMat = std(plush.pad, 0.55);
+    this.armMat = { armL: furBody(), armR: furBody() };
+    this.armFur = { armL: own(furShellMaterial(plush.fur, kit.furNoise, ARM_FUR)), armR: own(furShellMaterial(plush.fur, kit.furNoise, ARM_FUR)) };
+    this.handFur = { armL: own(furShellMaterial(plush.fur, kit.furNoise)), armR: own(furShellMaterial(plush.fur, kit.furNoise)) };
+    /** 在 parent 上長一層毛(殼層幾何共用;parent 的縮放照樣套用) */
+    const furOn = (parent: THREE.Object3D, shell: THREE.BufferGeometry, mat: THREE.Material = furShell) => {
+      const m = new THREE.Mesh(shell, mat);
+      parent.add(m);
+      return m;
+    };
     this.blushMat = own(new THREE.MeshBasicMaterial({ color: 0xff7f9e, transparent: true, opacity: 0.75, depthWrite: false }));
 
     const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, parent: THREE.Object3D, x = 0, y = 0, z = 0) => {
@@ -278,53 +341,90 @@ export class Character {
       b.scale.set(1, 1, 0.45);
     }
 
-    // 頭
+    // 頭:毛絨的頭 + 搪膠臉(臉的範圍不長毛)
     this.head.position.set(0, 0.9, 0);
     this.head.scale.setScalar(HEAD_SCALE);
     this.root.add(this.head);
-    mesh(g.head, skin, this.head);
-    const cap = mesh(g.hair, hair, this.head);
-    cap.rotation.x = 0.12; // 規格 −0.4;往前蓋出瀏海,床尾視角才看得到頭髮
-    if (role === 'female') {
-      mesh(g.backHair, hair, this.head); // 後腦到耳下的鮑伯頭,從正面看框住臉
+    const headMesh = mesh(g.head, fur, this.head);
+    furOn(headMesh, kit.shells.head);
+    mesh(g.face, faceMat, this.head);
+    if (role === 'male') {
+      // 小熊:頭頂兩側的圓耳朵(正面朝前)
       for (const s of [-1, 1]) {
-        const bun = mesh(g.bun, hair, this.head);
-        onHead(bun, s * 0.13, 0.07, -0.04, 0.15);
+        const ear = mesh(g.earBear, fur, this.head, s * 0.11, 0.1, 0.03);
+        ear.rotation.set(-0.2, 0, -s * 0.4);
+        ear.scale.set(1, 0.92, 0.5);
+        furOn(ear, kit.shells.earBear);
+        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.004, 0.05);
+        inner.scale.set(0.95, 0.88, 0.35);
       }
     } else {
-      const tuft = mesh(g.tuft, hair, this.head, 0.02, 0.16, 0.03);
-      tuft.rotation.set(0.5, 0, -0.5);
+      // 垂耳兔:從頭頂往兩側攤開、垂下來的長耳朵(粉紅內耳朝前)+ 蝴蝶結
+      for (const s of [-1, 1]) {
+        const pivot = new THREE.Group();
+        pivot.position.set(s * 0.09, 0.115, 0.005);
+        pivot.rotation.set(-0.3, 0, s * 0.72);
+        this.head.add(pivot);
+        const ear = mesh(g.earLop, fur, pivot, 0, -0.11, 0);
+        ear.scale.set(0.64, 2, 0.32);
+        furOn(ear, kit.shells.earLop);
+        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.004, 0.05);
+        inner.scale.set(0.8, 1.05, 0.3);
+      }
+      const bow = new THREE.Group();
+      onHead(bow, 0.07, 0.125, 0.05, 0.158);
+      bow.rotateZ(-0.3);
+      this.head.add(bow);
+      const bowMat = std(BOW, 0.5);
+      for (const s of [-1, 1]) {
+        const loop = mesh(g.bowLoop, bowMat, bow, s * 0.032, 0, 0);
+        loop.scale.set(1.25, 0.8, 0.45);
+        loop.rotation.z = s * 0.35;
+      }
+      mesh(g.bowKnot, bowMat, bow);
     }
     for (const s of [-1, 1]) {
       const eye = mesh(g.eye, kit.eyeMat, this.head);
-      onHead(eye, s * 0.052, 0.03, 0.14, 0.143);
+      onHead(eye, s * 0.056, 0.03, 0.14, 0.147);
       eye.quaternion.identity();
       eye.scale.copy(EYE_SCALE);
+      this.eyeHi.push(mesh(g.eyeHi, kit.eyeHiMat, eye, 0.009, 0.011, 0.021));
       this.eyes.push(eye);
       const b = mesh(g.blush, this.blushMat, this.head);
-      onHead(b, s * 0.092, -0.025, 0.125, 0.1525);
+      onHead(b, s * 0.092, -0.03, 0.125, 0.1525);
       b.visible = false;
       this.blush.push(b);
       const hx = mesh(g.hatch, kit.hatchMat, this.head);
-      onHead(hx, s * 0.092, -0.025, 0.125, 0.1535);
+      onHead(hx, s * 0.092, -0.03, 0.125, 0.1532);
       hx.visible = false;
       this.hatch.push(hx);
       const d = mesh(g.dark, kit.darkMat, this.head);
-      onHead(d, s * 0.052, -0.012, 0.14, 0.1515);
+      onHead(d, s * 0.056, -0.01, 0.14, 0.1522);
       d.scale.set(1.1, 0.75, 1);
       d.visible = false;
       this.dark.push(d);
     }
+    const nose = mesh(g.nose, noseMat, this.head);
+    onHead(nose, 0, -0.026, 0.15, 0.152);
+    nose.scale.set(1.3, 0.85, 0.7);
     const mouthPivot = new THREE.Group();
-    onHead(mouthPivot, 0, -0.062, 0.137, 0.149);
+    onHead(mouthPivot, 0, -0.064, 0.137, 0.1525);
     this.head.add(mouthPivot);
     this.mouth = mesh(g.mouth, kit.mouthMat, mouthPivot);
+    for (const s of [-1, 1]) {
+      const w = mesh(g.mouthSmall, kit.mouthMat, mouthPivot, s * 0.0118, 0.004, 0);
+      w.rotation.z = Math.PI; // ∪ ∪ = ω
+      this.mouthW.push(w);
+    }
     this.setExpression('smile');
     // 鼻涕泡泡(熟睡時隨呼吸脹縮,偶爾破掉)
     this.bubble = mesh(g.bubble, kit.bubbleMat, this.head);
-    onHead(this.bubble, 0.035, -0.038, 0.14, 0.168);
+    onHead(this.bubble, 0.024, -0.034, 0.15, 0.172);
     this.bubble.visible = false;
     this.bubble.renderOrder = 5;
+    // 毛球尾巴:後腰(仰躺時壓在身體下看不到,趴著、背對時露出來)
+    const tail = mesh(g.tail, fur, this.root, 0, 0.2, -0.17);
+    furOn(tail, kit.shells.tail);
 
     // 四肢(Group pivot = 肩 / 髖)
     const limb = (name: LimbName, x: number, y: number, z: number) => {
@@ -346,13 +446,18 @@ export class Character {
       this.ownGeo.push(sleeve, arm);
       const sm = mesh(sleeve, sleeveMat, grp);
       const am = mesh(arm, this.armMat[name], grp);
-      sm.frustumCulled = am.frustumCulled = false;
+      const af = new THREE.InstancedMesh(arm, this.armFur[name], ARM_FUR.layers);
+      grp.add(af);
+      this.ownInst.push(af);
+      sm.frustumCulled = am.frustumCulled = af.frustumCulled = false;
       const cuff = mesh(g.cuff, trim, grp);
       const hand = new THREE.Group();
       grp.add(hand);
       const palm = mesh(g.palm, this.armMat[name], hand, 0, -0.022, 0);
       palm.scale.set(0.95, 1.18, 0.72);
-      mesh(g.thumb, this.armMat[name], hand, -side * 0.043, -0.004, 0.022);
+      furOn(palm, kit.shells.palm, this.handFur[name]);
+      const thumb = mesh(g.thumb, this.armMat[name], hand, -side * 0.043, -0.004, 0.022);
+      furOn(thumb, kit.shells.thumb, this.handFur[name]);
       return { sleeve, arm, cuff, hand, side, lastS: NaN, lastB: NaN };
     };
     this.arms = { armL: buildArm(armL, 'armL'), armR: buildArm(armR, 'armR') };
@@ -360,7 +465,21 @@ export class Character {
       mesh(g.leg, pantsMat, grp, 0, -0.33, 0);
       const c = mesh(g.legCuff, trim, grp, 0, -0.535, 0);
       c.rotation.x = Math.PI / 2;
-      mesh(g.foot, skin, grp, 0, -0.6, 0.02); // 圓腳丫(拉長會戳出被子)
+      const foot = mesh(g.foot, fur, grp, 0, -0.6, 0.02); // 圓腳丫(拉長會戳出被子)
+      furOn(foot, kit.shells.foot);
+      // 腳底的肉球(仰躺時腳底朝床尾 = 朝相機;被子被搶走或掉下床時看得到)
+      const pads: [THREE.BufferGeometry, number, number, number][] = [
+        [g.pad, 0, -1, 0.15],
+        [g.toe, -0.36, -0.86, 0.58],
+        [g.toe, 0, -0.8, 0.68],
+        [g.toe, 0.36, -0.86, 0.58],
+      ];
+      for (const [geo, x, y, z] of pads) {
+        const d = new THREE.Vector3(x, y, z).normalize();
+        const pad = mesh(geo, padMat, foot, d.x * 0.077, d.y * 0.077, d.z * 0.077);
+        pad.quaternion.setFromUnitVectors(Y_AXIS, d);
+        pad.scale.set(1, 0.4, geo === g.pad ? 0.85 : 1);
+      }
     }
     this.limbs = { armL, armR, legL, legR, head: this.head };
 
@@ -542,16 +661,20 @@ export class Character {
     for (const d of this.dark) d.visible = on;
   }
 
+  /** 笑 = ω、平 = 一條線、皺眉 = ∩ */
   setExpression(e: Expression): void {
+    this.mouth.visible = e !== 'smile';
+    for (const w of this.mouthW) w.visible = e === 'smile';
     this.mouth.rotation.z = e === 'frown' ? 0 : Math.PI;
-    this.mouth.scale.set(1, e === 'neutral' ? 0.25 : 1, 1);
-    this.mouth.position.y = e === 'frown' ? -0.012 : e === 'neutral' ? 0 : 0.008;
+    this.mouth.scale.set(e === 'neutral' ? 0.7 : 1, e === 'neutral' ? 0.25 : 1, 1);
+    this.mouth.position.y = e === 'frown' ? -0.012 : 0;
   }
 
   setNumb(n: number): void {
     this.numb = n;
     const t = Math.min(1, Math.max(0, (n - 75) / 25));
-    this.armMat.armL.color.copy(this.skin).lerp(NUMB_COLOR, n >= 75 ? 0.35 + 0.65 * t : 0);
+    const k = n >= 75 ? 0.35 + 0.65 * t : 0;
+    for (const m of [this.armMat.armL, this.armFur.armL, this.handFur.armL]) m.color.copy(this.furColor).lerp(NUMB_COLOR, k);
   }
 
   setSnore(level: number): void {
@@ -699,6 +822,7 @@ export class Character {
     }
     const open = Math.max(0.12, this.ceye.cur * blink);
     for (const e of this.eyes) e.scale.y = EYE_SCALE.y * open;
+    for (const h of this.eyeHi) h.visible = open > 0.5;
 
     this.updateBubble(dt, b, open);
   }
@@ -822,6 +946,7 @@ export class Character {
     for (const m of this.ownMats) m.dispose();
     for (const t of this.ownTex) t.dispose();
     for (const g of this.ownGeo) g.dispose();
+    for (const m of this.ownInst) m.dispose();
   }
 }
 
