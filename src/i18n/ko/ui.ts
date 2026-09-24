@@ -255,6 +255,16 @@ const ui: UiMessages = {
     locked: '아직 잠겨 있어요',
     lockedHint: '다르게 플레이하면 만날 수 있을지도 몰라요.',
   },
+  shareCard: {
+    title: '공유 이미지',
+    making: '이미지 만드는 중…',
+    share: '이미지 공유',
+    download: '이미지 저장',
+    copy: '텍스트 복사',
+    saveHint: '휴대폰에서는 이미지를 길게 눌러 저장할 수도 있어요.',
+    failed: '이미지를 만들지 못했어요. 텍스트로 공유해 주세요.',
+    cta: '조합 몇 개까지 모을 수 있을까?',
+  },
 
   help: {
     title: '게임 방법',

@@ -21,12 +21,14 @@ import {
   languagePicker,
   personaLabel,
   settingsScreen,
+  shareCardScreen,
   startScreen,
   toast,
   type ComboView,
 } from './screens';
 import { loadSettings, saveSettings, type Settings } from './settings';
-import { shareText } from './share';
+import { canShareFile, copyText, shareFile } from './share';
+import { renderShareCard } from './shareCard';
 import './style.css';
 
 export interface UIHandlers {
@@ -40,9 +42,12 @@ export interface UIHandlers {
   onSettings(s: Settings): void;
   /** HUD 遮住畫面的上下範圍(CSS px),給 3D 相機避開 */
   onLayout(insets: { top: number; bottom: number }): void;
+  /** 結局圖卡用的 3D 場景截圖(沒有就不放) */
+  snapshot?(): HTMLCanvasElement | null;
 }
 
 type Screen = 'start' | 'goal' | 'game' | 'ending';
+type Modal = 'help' | 'settings' | 'lang' | 'gallery' | 'share';
 
 const TONE: Record<string, BubbleTone> = {
   wakeAngry: 'angry',
@@ -80,9 +85,14 @@ export class GameUI {
   private lastNoise: number | null = null;
   private busy = false;
   private goalResolve: (() => void) | null = null;
-  private modal: 'help' | 'settings' | 'lang' | 'gallery' | null = null;
+  private modal: Modal | null = null;
   /** 這一局的組合結局(showEnding 算一次;換語言重畫時沿用,NEW 不會因此消失) */
   private combo: ComboView | null = null;
+  /** 結局當下的 3D 場景截圖(結局卡第一次出現時拍,圖卡用) */
+  private endSnapshot: HTMLCanvasElement | null = null;
+  /** 結局圖卡:製作中 / 好了(圖檔 + 預覽網址)/ 失敗;token 用來丟掉過期的非同步結果 */
+  private card: { status: 'making' | 'ready' | 'failed'; url?: string; file?: File } | null = null;
+  private cardToken = 0;
   private endingTimer = 0;
   private lastInsets = '';
 
@@ -229,6 +239,7 @@ export class GameUI {
     const c = comboOf(state);
     const isNew = recordCombo(c.id);
     this.combo = { ...c, rarity: comboRarity(c.id), isNew, collected: loadCollection().size };
+    this.endSnapshot = null;
     this.bannerLayer.replaceChildren(endingBanner(state));
     document.body.classList.add(`ending-${state.ending!.style}`);
     this.endingTimer = window.setTimeout(() => this.renderEndingCard(), 2500);
@@ -236,28 +247,82 @@ export class GameUI {
 
   private renderEndingCard() {
     if (!this.state?.ending) return;
+    // 結局演出播了 2.5 秒:這時的畫面最有戲(掉下床、日出、愛心),拍下來給圖卡用
+    if (!this.endSnapshot) this.endSnapshot = this.handlers.snapshot?.() ?? null;
     this.hud.el.hidden = true;
     this.screenLayer.replaceChildren(
       endingCard(this.state, {
         onAgain: () => this.handlers.onReplay(),
         onChangeRole: () => this.handlers.onRestart(),
         combo: this.combo,
-        onShare: () => void this.shareCombo(),
+        onShare: () => this.openShareCard(),
         onGallery: () => this.openModal('gallery'),
       }),
     );
   }
 
-  /** 分享這一局的組合(手機:系統分享選單;電腦:複製文字) */
-  private async shareCombo() {
-    const c = this.combo;
-    if (!c) return;
+  /** 分享用的一句話 + 網址 */
+  private shareMessage(): string {
+    const c = this.combo!;
     const t = m().ui.ending;
     const text = fmt(t.shareText, { rarity: t.rarity[c.rarity], name: m().game.combo[c.id].name, a: personaLabel(c.me), b: personaLabel(c.partner) });
-    const url = `${location.origin}${location.pathname}`;
-    const r = await shareText(text, url);
-    if (r === 'copied') toast(this.toastLayer, t.copied);
-    else if (r === 'failed') toast(this.toastLayer, `${text} ${url}`, 6000);
+    return `${text} ${location.origin}${location.pathname}`;
+  }
+
+  /** 結局圖卡:先開預覽視窗,背景畫圖;畫好後才能分享(分享必須在點擊當下呼叫,所以檔案要先準備好) */
+  private openShareCard() {
+    const c = this.combo;
+    const s = this.state;
+    if (!c || !s?.ending) return;
+    this.releaseCard();
+    const token = ++this.cardToken;
+    this.card = { status: 'making' };
+    this.modal = 'share';
+    this.renderModal();
+    renderShareCard({ state: s, combo: c, snapshot: this.endSnapshot, host: location.host })
+      .then((blob) => {
+        if (token !== this.cardToken) return;
+        const file = new File([blob], `sleepormore-${c.id}.png`, { type: 'image/png' });
+        this.card = { status: 'ready', url: URL.createObjectURL(blob), file };
+        if (this.modal === 'share') this.renderModal();
+      })
+      .catch((err: unknown) => {
+        if (token !== this.cardToken) return;
+        console.warn('share card failed', err);
+        this.card = { status: 'failed' };
+        if (this.modal === 'share') this.renderModal();
+      });
+  }
+
+  /** 丟掉目前的圖卡(釋放預覽網址;還在畫的結果作廢) */
+  private releaseCard() {
+    if (this.card?.url) URL.revokeObjectURL(this.card.url);
+    this.card = null;
+    this.cardToken++;
+  }
+
+  private shareCardFile() {
+    const file = this.card?.file;
+    if (!file) return;
+    void shareFile(file, this.shareMessage()).then((r) => {
+      if (r === 'failed') this.downloadCard(); // 分享不了就改成下載
+    });
+  }
+
+  private downloadCard() {
+    const url = this.card?.url;
+    if (!url || !this.combo) return;
+    const a = h('a', { href: url, download: `sleepormore-${this.combo.id}.png` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+
+  private async copyShareText() {
+    if (!this.combo) return;
+    const msg = this.shareMessage();
+    if (await copyText(msg)) toast(this.toastLayer, m().ui.ending.copied);
+    else toast(this.toastLayer, msg, 6000);
   }
 
   private clearEnding() {
@@ -382,12 +447,14 @@ export class GameUI {
 
   // ───────────── 設定 / 說明 / 語言 ─────────────
 
-  private openModal(which: 'help' | 'settings' | 'lang' | 'gallery') {
+  private openModal(which: Exclude<Modal, 'share'>) {
+    if (this.modal === 'share') this.releaseCard();
     this.modal = which;
     this.renderModal();
   }
 
   private closeModal() {
+    if (this.modal === 'share') this.releaseCard();
     this.modal = null;
     this.modalLayer.replaceChildren();
   }
@@ -397,7 +464,17 @@ export class GameUI {
     const el =
       this.modal === 'help'
         ? helpScreen(() => this.closeModal())
-        : this.modal === 'gallery'
+        : this.modal === 'share'
+          ? shareCardScreen({
+              status: this.card?.status ?? 'making',
+              imgUrl: this.card?.url,
+              canShareFile: !!this.card?.file && canShareFile(this.card.file),
+              onShare: () => this.shareCardFile(),
+              onDownload: () => this.downloadCard(),
+              onCopy: () => void this.copyShareText(),
+              onClose: () => this.closeModal(),
+            })
+          : this.modal === 'gallery'
           ? galleryScreen({
               unlocked: loadCollection(),
               highlight: this.screen === 'ending' ? this.combo?.id : undefined,
@@ -453,7 +530,8 @@ export class GameUI {
     }
     this.renderHud();
     this.updateYouTag(); // 「你」標籤也要換語言
-    if (this.modal) this.renderModal();
+    if (this.modal === 'share') this.openShareCard(); // 圖卡上的字也要換語言:重畫
+    else if (this.modal) this.renderModal();
   }
 
   // ───────────── 版面 ─────────────

@@ -16,6 +16,8 @@ interface SceneLike {
   setViewInsets(insets: { top: number; bottom: number }): void;
   setMuted(muted: boolean): void;
   unlockAudio(): void;
+  /** 結局圖卡用的場景截圖(沒有 3D 時 null) */
+  snapshot(): HTMLCanvasElement | null;
 }
 
 const NULL_SCENE: SceneLike = {
@@ -26,6 +28,7 @@ const NULL_SCENE: SceneLike = {
   setViewInsets: () => undefined,
   setMuted: () => undefined,
   unlockAudio: () => undefined,
+  snapshot: () => null,
 };
 
 const PLAYER_SEGMENT_MS = 1000;
@@ -90,6 +93,7 @@ async function boot() {
     onReplay: () => void startGame(role),
     onSettings: (s) => scene.setMuted(!s.sound),
     onLayout: (insets) => scene.setViewInsets(insets),
+    snapshot: () => scene.snapshot(),
   });
   ui.setBubbleAnchor((r) => scene.projectHead(r));
   scene.setMuted(!ui.settings.sound);

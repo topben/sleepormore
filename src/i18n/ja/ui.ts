@@ -255,6 +255,16 @@ const ui: UiMessages = {
     locked: '未発見',
     lockedHint: '遊び方を変えれば、出会えるかも。',
   },
+  shareCard: {
+    title: 'シェア画像',
+    making: '画像を作成中…',
+    share: '画像をシェア',
+    download: '画像を保存',
+    copy: 'テキストをコピー',
+    saveHint: 'スマホは画像を長押しでも保存できます。',
+    failed: '画像を作れませんでした。テキストでシェアしてね。',
+    cta: '何種類コンプできる?',
+  },
 
   help: {
     title: '遊び方',

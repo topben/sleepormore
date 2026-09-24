@@ -256,6 +256,16 @@ const ui: UiMessages = {
     locked: 'Chưa mở khóa',
     lockedHint: 'Thử đổi cách chơi, biết đâu sẽ gặp.',
   },
+  shareCard: {
+    title: 'Thẻ chia sẻ',
+    making: 'Đang tạo thẻ…',
+    share: 'Chia sẻ thẻ',
+    download: 'Tải ảnh',
+    copy: 'Sao chép chữ',
+    saveHint: 'Trên điện thoại, bạn cũng có thể nhấn giữ ảnh để lưu.',
+    failed: 'Không tạo được thẻ, hãy chia sẻ bằng chữ nhé.',
+    cta: 'Bạn sưu tầm được bao nhiêu cặp?',
+  },
 
   help: {
     title: 'Cách chơi',

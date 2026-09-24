@@ -256,6 +256,16 @@ const ui: UiMessages = {
     locked: '还没解锁',
     lockedHint: '换个玩法,说不定就能遇到。',
   },
+  shareCard: {
+    title: '分享图卡',
+    making: '图卡生成中…',
+    share: '分享图卡',
+    download: '下载图片',
+    copy: '复制文字',
+    saveHint: '手机也可以长按图片保存到相册。',
+    failed: '图卡生成失败,改用文字分享吧。',
+    cta: '你能集齐几种组合?',
+  },
 
   help: {
     title: '怎么玩',

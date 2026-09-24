@@ -256,6 +256,16 @@ const ui: UiMessages = {
     locked: 'Sin desbloquear',
     lockedHint: 'Juega de otra manera y quizá te la encuentres.',
   },
+  shareCard: {
+    title: 'Tarjeta para compartir',
+    making: 'Creando tu tarjeta…',
+    share: 'Compartir imagen',
+    download: 'Descargar imagen',
+    copy: 'Copiar texto',
+    saveHint: 'En el móvil también puedes mantener pulsada la imagen para guardarla.',
+    failed: 'No se pudo crear la tarjeta; comparte el texto.',
+    cta: '¿Cuántas combinaciones puedes coleccionar?',
+  },
 
   help: {
     title: 'Cómo jugar',

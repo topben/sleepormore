@@ -379,6 +379,45 @@ export function galleryScreen(opts: { unlocked: Set<ComboId>; highlight?: ComboI
   );
 }
 
+/** 結局圖卡:預覽 + 分享圖片(手機)/ 下載圖片 / 複製文字 */
+export function shareCardScreen(opts: {
+  status: 'making' | 'ready' | 'failed';
+  imgUrl?: string;
+  /** 瀏覽器能直接分享圖片檔(Web Share API Level 2) */
+  canShareFile: boolean;
+  onShare(): void;
+  onDownload(): void;
+  onCopy(): void;
+  onClose(): void;
+}): HTMLElement {
+  const t = m().ui.shareCard;
+  const closeBtn = h('button', { class: 'icon-btn close', type: 'button', 'aria-label': m().ui.common.close, onClick: opts.onClose }, '✕');
+  const ready = opts.status === 'ready' && !!opts.imgUrl;
+  const preview = ready
+    ? h('img', { class: 'share-card-img', src: opts.imgUrl, alt: t.title, width: 1080, height: 1350 })
+    : h('div', { class: `share-card-wait ${opts.status}`, role: 'status', text: opts.status === 'failed' ? t.failed : t.making });
+  const shareBtn = ready && opts.canShareFile ? h('button', { class: 'primary share-image', type: 'button', onClick: opts.onShare }, `📤 ${t.share}`) : null;
+  const downloadBtn = ready ? h('button', { class: shareBtn ? 'secondary share-download' : 'primary share-download', type: 'button', onClick: opts.onDownload }, `⬇️ ${t.download}`) : null;
+  const copyBtn = h('button', { class: 'secondary share-copy', type: 'button', onClick: opts.onCopy }, `🔗 ${t.copy}`);
+  queueMicrotask(() => (shareBtn ?? downloadBtn ?? closeBtn).focus());
+  return h(
+    'div',
+    { class: 'screen modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': t.title, onClick: (e: Event) => e.target === e.currentTarget && opts.onClose() },
+    h(
+      'div',
+      { class: 'panel share-card' },
+      h('div', { class: 'panel-head' }, h('h2', { text: `📤 ${t.title}` }), closeBtn),
+      h(
+        'div',
+        { class: 'panel-body' },
+        h('div', { class: 'share-card-preview' }, preview),
+        ready ? h('p', { class: 'share-card-hint', text: t.saveHint }) : null,
+        h('div', { class: 'share-card-actions' }, shareBtn, downloadBtn, copyBtn),
+      ),
+    ),
+  );
+}
+
 export function toast(layer: HTMLElement, text: string, ms = 2200): void {
   const el = h('div', { class: 'toast', role: 'status', text });
   layer.append(el);
