@@ -45,4 +45,4 @@ src/
 tests/           vitest
 ```
 
-部署:Vercel(自動偵測 Vite,零設定)。
+部署:Vercel(自動偵測 Vite,零設定)。流量統計用 Vercel Web Analytics(`@vercel/analytics`),要在 Vercel 專案的 Analytics 分頁啟用後才會有資料。
