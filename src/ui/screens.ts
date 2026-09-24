@@ -85,7 +85,7 @@ export function startScreen(opts: { onRole(r: Role): void; onHelp(): void; onLan
     h(
       'button',
       { class: `role-btn ${r}`, type: 'button', onClick: () => opts.onRole(r) },
-      h('span', { class: 'role-emoji', 'aria-hidden': 'true', text: r === 'male' ? '👨' : '👩' }),
+      h('span', { class: 'role-emoji', 'aria-hidden': 'true', text: r === 'male' ? '🐻' : '🐰' }), // 角色是小熊 / 垂耳兔玩偶(DESIGN §14.9)
       h('span', { class: 'role-main', text: r === 'male' ? t.playMale : t.playFemale }),
       h('span', { class: 'role-sub', text: r === 'male' ? t.sideLeft : t.sideRight }),
     );
