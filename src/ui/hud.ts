@@ -1,14 +1,15 @@
 // 遊戲中 HUD:上方列、建議列、我/對方狀態卡、儀表(親密度/噪音/床位)、閉眼鈕、動作選單、事件記錄。
 // 骨架只建一次,之後原地更新數值(讓 CSS 過場動畫生效)。
 import { ACTIONS, CATEGORY_ORDER } from '../game/actions';
-import { BAL, EDGE_WARN, MAX_TURNS, SLEEP_ASLEEP, SLEEP_AWAKE, clockLabel } from '../game/constants';
-import { clueLean, goalProgress, suggestAction, type Suggestion } from '../game/hints';
+import { BAL, COMFORT, EDGE_WARN, HARD, MAX_TURNS, SLEEP_ASLEEP, SLEEP_AWAKE, clockLabel } from '../game/constants';
+import { HARD_TEXT_VARS, clueLean, goalProgress, hintVars, suggestAction, type Suggestion } from '../game/hints';
 import { breathRate, isFakingSleep, noiseRisk, projectedNoise, snoreLevel, wakeThreshold } from '../game/rules';
 import type { ActionCategory, ActionId, AvailableAction, CharacterState, GameState, Role } from '../game/types';
 import { partnerOf } from '../game/types';
 import { currentLocaleInfo, fmt, m } from '../i18n';
 import { h } from './dom';
 import { describe, type LogItem } from './log';
+import { goalEmoji, goalName } from './screens';
 
 const pct = (v: number) => `${Math.max(0, Math.min(100, v))}%`;
 
@@ -18,10 +19,21 @@ class StatRow {
   private fill = h('i', { class: 'st-fill' });
   private valEl = h('span', { class: 'st-val' });
   private tagEl = h('span', { class: 'st-tag' });
+  private bar: HTMLElement;
+  private markKey = '';
 
   constructor(icon: string, marks: number[] = [], kind = '') {
-    const bar = h('span', { class: 'st-bar' }, this.fill, ...marks.map((v) => h('b', { class: 'st-mark', style: { left: `${v}%` } })));
-    this.el = h('div', { class: `st ${kind}` }, h('span', { class: 'st-icon', 'aria-hidden': 'true', text: icon }), this.labelEl, bar, this.valEl, this.tagEl);
+    this.bar = h('span', { class: 'st-bar' }, this.fill);
+    this.setMarks(marks);
+    this.el = h('div', { class: `st ${kind}` }, h('span', { class: 'st-icon', 'aria-hidden': 'true', text: icon }), this.labelEl, this.bar, this.valEl, this.tagEl);
+  }
+
+  /** 刻度(困難模式的體溫刻度依體質而不同) */
+  setMarks(marks: number[]): void {
+    const key = marks.join(',');
+    if (key === this.markKey) return;
+    this.markKey = key;
+    this.bar.replaceChildren(this.fill, ...marks.map((v) => h('b', { class: 'st-mark', style: { left: `${v}%` } })));
   }
 
   set(label: string, v: number | null, tone = '', tag = ''): this {
@@ -144,6 +156,8 @@ export class Hud {
   private intimVal = h('span', { class: 'm-val' });
   private intimLabel = h('span', { class: 'm-label' });
   private intimNudge = h('span', { class: 'm-nudge' });
+  /** 困難模式:你睡得安穩要的親密度 */
+  private intimNeed = h('b', { class: 'm-mark need' });
   private intimMeter: HTMLElement;
   private noiseFill = h('i');
   private noiseMark = h('b', { class: 'noise-mark' });
@@ -196,7 +210,7 @@ export class Hud {
       { class: 'meter intimacy' },
       h('span', { class: 'm-icon', text: '♥' }),
       this.intimLabel,
-      h('span', { class: 'm-bar' }, this.intimFill),
+      h('span', { class: 'm-bar' }, this.intimFill, this.intimNeed),
       this.intimVal,
       this.intimNudge,
     );
@@ -259,17 +273,23 @@ export class Hud {
     this.el.dataset.player = P;
 
     // ── 上方列 ──
+    const hard = s.mode === 'hard';
     this.timeEl.textContent = clockLabel(s.turn);
-    this.turnEl.textContent = fmt(t.hud.turn, { n: Math.min(s.turn + 1, MAX_TURNS), max: MAX_TURNS });
+    // 困難模式標籤:手機上只留 🔥(字太長會擠掉目標列)
+    const hardTag = hard ? [' · 🔥', h('span', { class: 'hard-word', text: t.hud.hardTag })] : [];
+    this.turnEl.replaceChildren(fmt(t.hud.turn, { n: Math.min(s.turn + 1, MAX_TURNS), max: MAX_TURNS }), ...hardTag);
     this.dotsEl.replaceChildren(...Array.from({ length: MAX_TURNS }, (_, i) => h('i', { class: i < s.turn ? 'done' : i === s.turn ? 'now' : '' })));
     const prog = goalProgress(s);
-    this.goalEl.className = `goal-badge ${prog.goal} status-${prog.status}`;
-    this.goalEmoji.textContent = prog.goal === 'sleep' ? '😴' : '💞';
-    this.goalName.textContent = g.goal[prog.goal];
+    this.goalEl.className = `goal-badge ${prog.goal} status-${prog.status}${hard ? ' hard' : ''}`;
+    this.goalEmoji.textContent = goalEmoji(me, s.mode);
+    const name = goalName(me, s.mode);
+    this.goalName.textContent = name;
     this.goalFill.style.width = pct((prog.value / prog.target) * 100);
-    this.goalText.textContent = `${fmt(t.hud.progress[prog.goal], { v: prog.value, t: prog.target })} · ${t.hud.status[prog.status]}`;
-    this.goalShort.textContent = `${prog.value}/${prog.target} · ${t.hud.status[prog.status]}`;
-    this.goalEl.title = `${g.goal[prog.goal]} — ${this.goalText.textContent}`;
+    // 親密度是小數(力道、困難模式的亂跳),跟下方親密度條一樣取整數顯示;睡眠分數保留 .5
+    const v = prog.kind === 'sleep' || prog.kind === 'morningSleep' ? prog.value : Math.round(prog.value);
+    this.goalText.textContent = `${fmt(t.hud.progress[prog.kind], { ...HARD_TEXT_VARS, v, t: prog.target })} · ${t.hud.status[prog.status]}`;
+    this.goalShort.textContent = `${v}/${prog.target} · ${t.hud.status[prog.status]}`;
+    this.goalEl.title = `${name} — ${this.goalText.textContent}`;
     const loc = currentLocaleInfo();
     this.langBtn.replaceChildren(h('span', { 'aria-hidden': 'true', text: '🌐' }), h('span', { class: 'lang-short', lang: loc.id, text: loc.short }));
     this.langBtn.title = `${t.settings.language} · Language: ${loc.name}`;
@@ -286,7 +306,7 @@ export class Hud {
     const sug: Suggestion | null = view.hints ? suggestAction(s) : null;
     this.hintEl.hidden = !sug;
     if (sug) {
-      this.hintText.textContent = fmt(g.hint[sug.key], { n: BAL.sleepyMood });
+      this.hintText.textContent = fmt(g.hint[sug.key], hintVars(s));
       this.hintEl.classList.toggle('urgent', !!sug.urgent);
       this.hintHide.title = t.hud.hideHints;
       this.hintHide.setAttribute('aria-label', t.hud.hideHints);
@@ -298,7 +318,18 @@ export class Hud {
     this.meTitle.textContent = `${t.hud.me} · ${P === 'male' ? t.common.male : t.common.female}`;
     const st = t.hud.stat;
     this.meSleep.set(st.sleep, me.sleep, 'sleep', sleepTag(me.sleep));
-    this.meWarm.set(st.warmth, me.warmth, me.warmth < 30 ? 'danger' : me.warmth < 45 ? 'warn' : 'ok', me.warmth < 30 ? t.hud.cold : '');
+    if (hard) {
+      // 困難模式:刻度 = 你的體質舒服的範圍(垂耳兔沒有上限)
+      const body = COMFORT[P];
+      this.meWarm.setMarks(body.warmHi < 100 ? [body.warmLo, body.warmHi] : [body.warmLo]);
+      const cold = me.warmth < body.warmLo;
+      const hot = me.warmth > body.warmHi;
+      const edge = me.warmth < body.warmLo + 8 || me.warmth > body.warmHi - 8;
+      this.meWarm.set(st.warmth, me.warmth, cold || hot ? 'danger' : edge ? 'warn' : 'ok', cold ? t.hud.cold : hot ? t.hud.hot : '');
+    } else {
+      this.meWarm.setMarks([30]);
+      this.meWarm.set(st.warmth, me.warmth, me.warmth < 30 ? 'danger' : me.warmth < 45 ? 'warn' : 'ok', me.warmth < 30 ? t.hud.cold : '');
+    }
     this.meMood.set(st.mood, me.mood, me.mood < 40 ? 'warn' : 'ok');
     this.meRest.set(
       st.restless,
@@ -350,7 +381,17 @@ export class Hud {
     this.intimLabel.textContent = t.hud.intimacy;
     this.intimFill.style.width = pct(s.intimacy);
     this.intimVal.textContent = String(Math.round(s.intimacy));
-    const nudge = open && s.intimacy >= 90 && q.sleep < SLEEP_ASLEEP && me.goal === 'intimacy';
+    // 困難模式:刻度 = 你睡得安穩要的親密度;低於它時條子變色
+    const need = COMFORT[P].intimacy;
+    this.intimNeed.hidden = !hard;
+    if (hard) {
+      this.intimNeed.style.left = pct(need);
+      this.intimNeed.title = fmt(t.hud.need, { n: need });
+    }
+    this.intimMeter.classList.toggle('lonely', hard && s.intimacy < need);
+    // 早上親熱的夜裡親密度滿了反而是「太早」,不要催
+    const tooEarly = hard && me.timing === 'morning' && s.turn < HARD.morningTurn - 1;
+    const nudge = open && s.intimacy >= 90 && q.sleep < SLEEP_ASLEEP && me.goal === 'intimacy' && !tooEarly;
     this.intimNudge.textContent = nudge ? t.hud.intimacyNudge : '';
     this.intimMeter.classList.toggle('nudge', nudge);
 

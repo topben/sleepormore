@@ -1,5 +1,5 @@
 // 數值常數。語意見 docs/DESIGN.md §1–§7;調整後請跑 tests/playthrough.test.ts(§12 勝率)。
-import type { ForceBand, Posture } from './types';
+import type { ForceBand, Posture, Role } from './types';
 
 export const MAX_TURNS = 12;
 export const START_MINUTES = 22 * 60; // 22:00
@@ -91,4 +91,69 @@ export const BAL = {
   sleepyMood: 75,
   /** 想睡且已昏沉(睡意 >= 30)的對方被示好時,翻身背對的機率 */
   drowsyTurnAway: 0.5,
+};
+
+/**
+ * 困難模式(DESIGN §15):親熱分「立即 / 早上」,睡覺要維持舒適的體溫與親密度。
+ * 回合數:nowDeadline / morningTurn 跟結局判定一樣看「回合結束後的 turn」(clockLabel(turn) = 那回合結束的時刻);
+ * wakeTurn / dawnTurn / chillTurn 看「正在進行的回合」(clockLabel(turn) = 那回合開始、選動作時看到的時刻)。
+ * 可在測試/模擬中暫時修改。
+ */
+export const HARD = {
+  /** 睡覺:睡眠分數要到這裡(困難模式要「舒服地睡著」才算滿分) */
+  sleepWin: 5,
+  /** 開局的親密度(簡單模式 INITIAL.intimacy) */
+  startIntimacy: 20,
+  /** 立即親熱:turn 到這裡(02:00)還沒達成就輸 */
+  nowDeadline: 6,
+  /** 早上親熱:turn >= 此值(04:40)才算早上 */
+  morningTurn: 10,
+  /** 早上親熱:達成時睡眠分數至少要有(先睡過) */
+  morningSleep: 4,
+  /** 早上親熱的對方:04:00 開始的回合(turn >= 此值)自己醒來,醒來後睡意壓到 wakeSleep */
+  wakeTurn: 9,
+  wakeSleep: 40,
+  /** 早晨(turn >= wakeTurn)的親熱加倍甜:動作帶來的親密度 × morningBoost */
+  morningBoost: 2,
+  /** 早上親熱:晚上先把親密度養到這附近(提示用;別養到 100) */
+  morningPrep: 40,
+  /**
+   * 後半夜越睡越淺:03:20 開始的回合(turn >= dawnTurn)起,回合末睡意最多 dawnCap − (turn − dawnTurn) × dawnStep
+   * (80 → 60 → 40 → 20,早上叫得醒);那時睡飽的人(睡意 >= 70)心情 +restedMood
+   */
+  dawnTurn: 8,
+  dawnCap: 80,
+  dawnStep: 20,
+  restedMood: 8,
+  /**
+   * 體溫會往「目標」靠攏(每回合 warmRate):目標 = warmBase + 蓋到的比例 × warmCover,
+   * 00:40 開始的回合(turn >= chillTurn)起深夜變冷 −chill,抱著 +hugHeat、枕著手臂 +pillowHeat;另外每回合隨機 ±warmDrift
+   */
+  warmBase: 10,
+  warmCover: 100,
+  warmRate: 0.5,
+  warmDrift: 6,
+  chillTurn: 4,
+  chill: 15,
+  hugHeat: 15,
+  pillowHeat: 8,
+  /**
+   * 親密度:兩人都醒著卻沒有親熱動作、也沒抱著 / 枕著手臂時每回合 −intimacyDecay(有人睡著時不掉);
+   * 抱著 +hugIntimacy;另外每回合隨機 ±intimacyJitter。這些回合末的變化(加上枕手臂)最多到 99,對方睡著時也停在 99
+   */
+  intimacyDecay: 4,
+  intimacyJitter: 3,
+  hugIntimacy: 2,
+  /** 不舒服時「閉眼睡」的睡意倍率 */
+  hotSleep: 0.6,
+  coldSleep: 0.5,
+  lonelySleep: 0.75,
+  /** 睡著但太熱 / 太冷:回合末睡意 −uncomfySleep */
+  uncomfySleep: 8,
+};
+
+/** 困難模式的體質(男女不同):舒服的體溫範圍、睡得安穩要有的親密度 */
+export const COMFORT: Record<Role, { warmLo: number; warmHi: number; intimacy: number }> = {
+  male: { warmLo: 30, warmHi: 70, intimacy: 15 }, // 小熊怕熱
+  female: { warmLo: 55, warmHi: 100, intimacy: 30 }, // 垂耳兔怕冷,也要多一點安全感
 };

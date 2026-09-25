@@ -3,7 +3,7 @@ import { inject } from '@vercel/analytics';
 import { listAvailableActions } from './game/actions';
 import { randomSeed } from './game/rng';
 import { createGame, playTurn, splitPhases, toggleEyes } from './game/turn';
-import type { ActionId, Ending, Eyes, GameEvent, GameState, Goal, Role } from './game/types';
+import type { ActionId, Ending, Eyes, GameEvent, GameState, Goal, IntimacyTiming, Mode, Role } from './game/types';
 import { detectLocale, setLocale } from './i18n';
 import { GameUI } from './ui/UI';
 
@@ -37,10 +37,24 @@ const PREVIEW_SEED = 20260924;
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+const query = (k: string) => new URLSearchParams(location.search).get(k);
+
 /** ?goal=sleep|intimacy:練習指定目標(不指定 = 隨機) */
 function practiceGoal(): Goal | undefined {
-  const g = new URLSearchParams(location.search).get('goal');
+  const g = query('goal');
   return g === 'sleep' || g === 'intimacy' ? g : undefined;
+}
+
+/** ?mode=easy|hard:開始畫面預選的難度(不指定 = 上次選的) */
+function practiceMode(): Mode | undefined {
+  const v = query('mode');
+  return v === 'easy' || v === 'hard' ? v : undefined;
+}
+
+/** ?timing=now|morning:困難模式練習指定親熱的種類 */
+function practiceTiming(): IntimacyTiming | undefined {
+  const v = query('timing');
+  return v === 'now' || v === 'morning' ? v : undefined;
 }
 
 /** 偵測到的語系載入失敗(網路、部署換版)時退回主程式內建的繁中,頁面不會空白 */
@@ -96,6 +110,9 @@ async function boot() {
     snapshot: () => scene.snapshot(),
   });
   ui.setBubbleAnchor((r) => scene.projectHead(r));
+  // ?mode= 預選開始畫面的難度(不存檔;畫面上點選照樣能改)
+  const pm = practiceMode();
+  if (pm) ui.settings = { ...ui.settings, mode: pm };
   scene.setMuted(!ui.settings.sound);
   scene.reset(preview());
   ui.showStart();
@@ -105,7 +122,7 @@ async function boot() {
     role = r;
     busy = false;
     scene.unlockAudio();
-    state = createGame(r, randomSeed(), { playerGoal: practiceGoal() });
+    state = createGame(r, randomSeed(), { playerGoal: practiceGoal(), mode: ui.settings.mode, playerTiming: practiceTiming() });
     scene.reset(state);
     await ui.showGoal(state);
     if (gen !== generation || !state) return;

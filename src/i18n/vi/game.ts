@@ -90,6 +90,11 @@ const game: GameMessages = {
     wokeYourself: 'Bạn tự làm mình tỉnh giấc',
     partnerStoleBlanket: 'Người ấy ngủ mơ mà cuốn mất chăn rồi',
     partnerBurrito: 'Người ấy cuộn mình thành cuốn nem rồi',
+    // hard mode
+    sleepHot: 'Nóng quá, ngủ không ngon',
+    sleepLonely: 'Trong lòng trống trải, ngủ không yên',
+    partnerKickedBlanket: 'Người ấy nóng quá nên đạp chăn ra',
+    partnerWokeUp: 'Người ấy tỉnh dậy, vươn vai một cái',
   },
 
   // Dùng giữa câu ("Bạn chuyển sang {posture}") nên viết thường
@@ -103,6 +108,9 @@ const game: GameMessages = {
   band: { timid: 'Quá nhẹ', gentle: 'Nhẹ nhàng', firm: 'Mạnh tay', rough: 'Thô bạo' },
 
   goal: { sleep: 'Ngủ thật ngon', intimacy: 'Gần gũi' },
+
+  /** hard mode intimacy: right now / in the morning */
+  timing: { now: 'Gần gũi ngay', morning: 'Gần gũi buổi sáng' },
 
   ending: {
     kickedOff: {
@@ -139,7 +147,7 @@ const game: GameMessages = {
       title: 'Mắt gấu trúc',
       caption: 'SLEEPLESS',
       description: 'Trời sáng rồi mà bạn gần như chưa chợp mắt được tí nào.',
-      tip: 'Cần đạt 7 điểm ngủ: nhắm mắt rồi bấm “Ngủ” thật đều, nhớ giữ ấm và đừng để bị đánh thức.',
+      tip: 'Cần đạt {target} điểm ngủ: nhắm mắt rồi bấm “Ngủ” thật đều, nhớ giữ ấm và đừng để bị đánh thức.',
     },
     intimacyLoseFellAsleep: {
       title: 'Bạn ngủ mất rồi',
@@ -152,6 +160,31 @@ const game: GameMessages = {
       caption: 'TOO LATE',
       description: 'Chẳng có gì xảy ra cả. Chuông báo thức reo rồi.',
       tip: 'Hãy “Quay mặt vào”, “Nhích lại gần” rồi mới hôn. Người ấy mà muốn ngủ thì phải nâng tâm trạng người ấy lên {n} trước.',
+    },
+    // hard mode
+    intimacyLoseDeadline: {
+      title: 'Hết giờ',
+      caption: "TIME'S UP",
+      description: 'Đã quá {deadline}, chẳng còn không khí gì nữa. Người ấy ngáp một cái thật dài rồi trở mình ngủ mất.',
+      tip: '“Gần gũi ngay” là cuộc đua với thời gian: ngay lượt đầu hãy “Quay mặt vào”, “Nhích lại gần”; hôn mạnh tay một chút (vùng vàng) sẽ nhanh hơn, nhưng đừng thô bạo.',
+    },
+    intimacyMorningWin: {
+      title: 'Nụ hôn chào buổi sáng',
+      caption: 'GOOD MORNING',
+      description: 'Ngủ đủ giấc, trời cũng vừa sáng. Một buổi sáng thật vừa vặn.',
+      tip: 'Hoàn hảo! Ngủ cho đã trước, trời sáng mới hành động.',
+    },
+    intimacyTooEarly: {
+      title: 'Nôn nóng quá',
+      caption: 'TOO EAGER',
+      description: 'Đã định ngủ cho đủ rồi đợi tới sáng mà… thôi, vậy cũng được.',
+      tip: '“Gần gũi buổi sáng” phải ngủ đủ trước ({sleep} điểm ngủ) và chỉ tính từ {morning} trở đi. Ban đêm mà độ thân mật sắp đầy thì hãy quay lưng hoặc nhắm mắt ngủ.',
+    },
+    intimacyLoseOverslept: {
+      title: 'Ngủ quên',
+      caption: 'OVERSLEPT',
+      description: 'Chuông báo thức reo ba lần rồi mà vẫn nhắm mắt nằm ườn. Kế hoạch buổi sáng đi tong.',
+      tip: 'Sau {dawn} ai cũng ngủ nông dần: buổi sáng hãy mở mắt, quay mặt vào người ấy và hôn khi người ấy còn thức (gần gũi buổi sáng hiệu quả gấp đôi).',
     },
   },
 
@@ -266,6 +299,14 @@ const game: GameMessages = {
     caress: 'Vuốt ve người ấy, giữ lực trong vùng xanh.',
     whisper: 'Thì thầm vài câu cho gần nhau hơn.',
     almostThere: 'Sắp được rồi! Hôn thêm cái nữa khi người ấy còn thức.',
+    // hard mode
+    tooHot: 'Nóng quá! Chia bớt chăn cho người ấy (“Đắp chăn giúp”).',
+    needCloseness: 'Trong lòng chưa yên: độ thân mật phải từ {need} trở lên mới ngủ ngon. Ôm một cái hoặc thì thầm đôi câu.',
+    hurry: 'Sắp hết giờ rồi! Phải xong trước {deadline}, hôn nhanh khi người ấy còn thức.',
+    morningSleepFirst: 'Ngủ cho ngon trước đã: từ {morning} mới là buổi sáng, giờ mà gần gũi thì sớm quá.',
+    tooEarlyWarn: 'Độ thân mật sắp đầy mà chưa tới sáng! Quay lưng hoặc nhắm mắt ngủ trước đã.',
+    morningPrep: 'Tranh thủ lúc người ấy còn thức, vun đắp chút tình cảm trước (đừng để đầy). Buổi sáng gần gũi hiệu quả gấp đôi.',
+    morningGo: 'Trời sáng rồi! Mở mắt, quay mặt vào người ấy và gần gũi khi người ấy còn thức.',
   },
 
   speech: {
@@ -327,6 +368,11 @@ const game: GameMessages = {
     intimacyHigh: ['Tim đập nhanh quá…', 'Sao hôm nay dính như sam vậy?', 'Không khí hình như… hơi khác.'],
     partnerInitiate: ['Đừng trốn mà.', 'Lại đây chút nào.', 'Sao nằm xa tít vậy?'],
     wakeUp: ['Dậy đi mà~', 'Ê, ngủ rồi hả? Thức thêm chút đi mà.', 'Không được ngủ!'],
+    // hard mode
+    goodMorning: ['Ừm… sáng rồi à?', '(vươn vai)… chào buổi sáng~', 'Dậy chưa?… Tỉnh rồi nè.', 'Sáng rồi nè… hì hì.'],
+    giveUp: ['…thôi, ngủ.', 'Hứ, kệ đó. Ngủ ngon.', '(thở dài)… ngủ thôi.'],
+    tooHot: ['Nóng quá…', 'Nóng muốn chết, ngủ không nổi…', '(lấy tay quạt quạt)…'],
+    needCuddle: ['Ôm một cái rồi hẵng ngủ mà…', 'Chẳng thèm để ý gì hết…', 'Nói chúc ngủ ngon đi mà.'],
 
     // Màn kết: morning_{mục tiêu người chơi}_{mục tiêu người ấy}; together = gần gũi thành công, floor = rơi khỏi giường
     morning_sleep_sleep: [

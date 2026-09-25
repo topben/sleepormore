@@ -1,4 +1,4 @@
-// 規則核心:§1 衍生純函式、§3 力道、§4 噪音與吵醒、§5 動作結算、§6 回合末結算。
+// 規則核心:§1 衍生純函式、§3 力道、§4 噪音與吵醒、§5 動作結算、§6 回合末結算;困難模式的差異見 §15。
 // resolveAction / endOfTurn 直接修改傳入的 state(呼叫端 turn.ts 負責先 clone)。
 import { ACTIONS, POSTURE_OF, checkAction, isAffection } from './actions';
 import {
@@ -9,9 +9,11 @@ import {
   CLOSED_EYES_NOISE,
   CLOSED_EYES_PULL_WINDOW,
   COLD,
+  COMFORT,
   EDGE_WARN,
   FIRM_ANNOY,
   FIRM_SPAN,
+  HARD,
   NUMB_PER_TURN,
   RESTLESS_NOTICE,
   ROUGH_ANNOY,
@@ -49,6 +51,49 @@ export function snoreLevel(c: CharacterState): 0 | 1 | 2 | 3 {
   if (c.sleep < SLEEP_ASLEEP || c.posture === 'prone') return 0;
   if (c.posture === 'supine') return c.sleep >= 90 ? 3 : 2;
   return 1;
+}
+
+export const isHard = (s: GameState): boolean => s.mode === 'hard';
+
+export interface Comfort {
+  hot: boolean;
+  cold: boolean;
+  /** 親密度不夠,睡不安穩(困難模式) */
+  lonely: boolean;
+}
+
+/** 舒適度:困難模式依體質(COMFORT);簡單模式只有「冷」(warmth < 30) */
+export function comfortOf(s: GameState, r: Role): Comfort {
+  const c = s.chars[r];
+  if (!isHard(s)) return { hot: false, cold: c.warmth < COLD, lonely: false };
+  const k = COMFORT[r];
+  return { hot: c.warmth > k.warmHi, cold: c.warmth < k.warmLo, lonely: s.intimacy < k.intimacy };
+}
+
+/** 困難模式:體溫會靠攏的目標(蓋被比例、深夜變冷、抱著 / 枕著手臂的體溫) */
+export function warmthTarget(s: GameState, r: Role): number {
+  let t = HARD.warmBase + coverOf(r, s.blanketOffset) * HARD.warmCover;
+  if (s.turn >= HARD.chillTurn) t -= HARD.chill;
+  if (s.embrace) t += HARD.hugHeat;
+  if (s.armPillow.inUse) t += HARD.pillowHeat;
+  return t;
+}
+
+export const isComfy = (s: GameState, r: Role): boolean => {
+  const k = comfortOf(s, r);
+  return !k.hot && !k.cold && !k.lonely;
+};
+
+/**
+ * 對方 AI 行為上的目標(困難模式):立即親熱的對方過了時限就放棄去睡;
+ * 早上親熱的對方天亮前像想睡的人一樣先睡。其他情況 = 真正的目標。
+ */
+export function behaviorGoal(s: GameState, r: Role): Goal {
+  const c = s.chars[r];
+  if (!isHard(s) || c.goal !== 'intimacy') return c.goal;
+  if (c.timing === 'now' && s.turn >= HARD.nowDeadline) return 'sleep';
+  if (c.timing === 'morning' && s.turn < HARD.wakeTurn) return 'sleep';
+  return 'intimacy';
 }
 
 /** AI 只看表象判斷玩家睡了沒 */
@@ -178,6 +223,8 @@ export interface ResolveOpts {
   notes?: MsgKey[];
   /** 睡著的 AI 無意識動作:不扣自己睡意、不加翻身指數 */
   unconscious?: boolean;
+  /** 困難模式:早上親熱的對方天亮自己醒來(睡意壓到 HARD.wakeSleep) */
+  wakeUp?: boolean;
 }
 
 /** AI 行為本身透露的線索(沒有台詞線索時才算) */
@@ -204,6 +251,10 @@ export function resolveAction(
   const isPlayer = actor === s.playerRole;
   const aiRole = partnerOf(s.playerRole);
   const unconscious = !!opts.unconscious;
+  if (opts.wakeUp) A.sleep = Math.min(A.sleep, HARD.wakeSleep);
+  // 困難模式:早晨的親熱加倍甜(只加成動作帶來的親密度)
+  const boost = isHard(s) && s.turn >= HARD.wakeTurn ? HARD.morningBoost : 1;
+  const love = (d: number) => bumpIntimacy(s, d > 0 ? d * boost : d);
 
   const f = def.usesForce ? clamp(Number.isFinite(force) ? force : 0, 0, 100) : 0;
   const band: ForceBand = def.usesForce ? forceBand(forceWindow(s, actor, id), f) : 'gentle';
@@ -314,7 +365,7 @@ export function resolveAction(
               say(bRole, 'sleepyDecline');
             } else say(bRole, 'receptiveHug');
             setEmbrace(true);
-            bumpIntimacy(s, 8 * eff * k);
+            love(8 * eff * k);
             bump(B, 'mood', 5 * k);
             gather();
             bump(B, 'sleep', -5);
@@ -325,14 +376,14 @@ export function resolveAction(
         } else if (!woke) {
           if (!rough) {
             setEmbrace(true);
-            bumpIntimacy(s, 3);
+            love(3);
             notes.push('sneakHug');
           }
           bump(B, 'sleep', -5);
         } else if (B.goal === 'intimacy') {
           if (!rough) {
             setEmbrace(true);
-            bumpIntimacy(s, 6);
+            love(6);
             bump(B, 'mood', 8);
             gather();
           }
@@ -353,7 +404,7 @@ export function resolveAction(
               bump(B, 'annoyance', 6);
               say(bRole, 'sleepyDecline');
             } else say(bRole, kiss ? 'receptiveKiss' : 'receptiveCaress');
-            bumpIntimacy(s, (kiss ? 12 : 10) * eff * k);
+            love((kiss ? 12 : 10) * eff * k);
             bump(B, 'mood', (kiss ? 6 : 4) * k);
             bump(B, 'sleep', -5);
             if (kiss && band === 'timid') notes.push('ticklish');
@@ -364,14 +415,14 @@ export function resolveAction(
           }
         } else if (!woke) {
           if (!rough) {
-            bumpIntimacy(s, 2);
+            love(2);
             notes.push(kiss ? 'sneakKiss' : 'sneakCaress');
           }
           bump(B, 'sleep', -5);
         } else if (B.goal === 'intimacy') {
           if (!rough) {
             bump(B, 'mood', 8);
-            bumpIntimacy(s, 6);
+            love(6);
           }
         } else {
           bump(B, 'annoyance', 12);
@@ -383,7 +434,7 @@ export function resolveAction(
         if (!bAsleep) {
           if (bRecv) {
             bump(B, 'mood', 6);
-            bumpIntimacy(s, 4);
+            love(4);
             say(bRole, 'whisperReply');
           } else {
             bump(B, 'annoyance', 3);
@@ -399,7 +450,7 @@ export function resolveAction(
         bump(B, 'sleep', BAL.patSleep * eff);
         bump(B, 'mood', 2);
         if (B.goal === 'intimacy' && !bAsleep) {
-          bumpIntimacy(s, 2);
+          love(2);
           say(bRole, 'patReply');
         }
         if (bAsleep && !woke && bSnore0 >= 2) {
@@ -421,7 +472,7 @@ export function resolveAction(
       case 'restOnArm': {
         ap.inUse = true;
         armEvt();
-        bumpIntimacy(s, 5);
+        love(5);
         bump(s.chars.male, 'mood', 4);
         setLateral('female', Math.min(s.chars.female.lateral, 0.15));
         setPosture('female', 'sideFacing');
@@ -481,9 +532,10 @@ export function resolveAction(
         const o0 = s.blanketOffset;
         s.blanketOffset = clamp(o0 - sideSign(actor) * 0.25 * eff, -1, 1);
         sub.push({ type: 'blanket', offset: s.blanketOffset });
-        if (Math.abs(s.blanketOffset - o0) >= 0.05 && !bAsleep && !rough) {
+        // 睡夢中把棉被踢過去(困難模式,太熱)不算貼心,不道謝也不加親密度
+        if (Math.abs(s.blanketOffset - o0) >= 0.05 && !bAsleep && !rough && !unconscious) {
           bump(B, 'mood', 5);
-          bumpIntimacy(s, 3);
+          love(3);
           say(bRole, 'blanketTucked');
         }
         break;
@@ -517,9 +569,18 @@ export function resolveAction(
 
       case 'sleep': {
         let gain = A.sleep >= SLEEP_ASLEEP ? 12 : 18;
-        if (A.warmth < COLD) {
-          gain *= 0.5;
+        const cf = comfortOf(s, actor);
+        if (cf.cold) {
+          gain *= isHard(s) ? HARD.coldSleep : 0.5;
           notes.push('sleepCold');
+        }
+        if (cf.hot) {
+          gain *= HARD.hotSleep;
+          notes.push('sleepHot');
+        }
+        if (cf.lonely) {
+          gain *= HARD.lonelySleep;
+          notes.push('sleepLonely');
         }
         if (A.mood < 40) {
           gain *= 0.75;
@@ -619,16 +680,23 @@ export function endOfTurn(s: GameState, rng: Rng, events: GameEvent[]): void {
   const say = (who: Role, key: SpeechKey) => emitSpeech(s, who, key, rng, events);
   const intimacyBefore = s.intimacy;
 
-  // 1. 溫暖
+  // 1. 溫暖(困難模式:往蓋被 / 夜裡 / 抱著決定的目標體溫靠攏,再隨機亂跳;冷熱依體質)
+  const hard = isHard(s);
   for (const r of ROLES) {
     const c = s.chars[r];
-    const was = c.warmth;
-    bump(c, 'warmth', (coverOf(r, s.blanketOffset) - 0.55) * 80);
-    if (c.warmth < COLD) {
+    const wasComfort = comfortOf(s, r);
+    const dw = hard ? (warmthTarget(s, r) - c.warmth) * HARD.warmRate + (rng() * 2 - 1) * HARD.warmDrift : (coverOf(r, s.blanketOffset) - 0.55) * 80;
+    bump(c, 'warmth', dw);
+    const cf = comfortOf(s, r);
+    if (cf.cold) {
       events.push({ type: 'cold', who: r });
-      if (was >= COLD && c.sleep < SLEEP_ASLEEP) say(r, 'coldAwake');
-      if (c.sleep >= SLEEP_ASLEEP) bump(c, 'sleep', -8);
+      if (!wasComfort.cold && c.sleep < SLEEP_ASLEEP) say(r, 'coldAwake');
     }
+    if (cf.hot) {
+      events.push({ type: 'hot', who: r });
+      if (!wasComfort.hot && c.sleep < SLEEP_ASLEEP) say(r, 'tooHot');
+    }
+    if ((cf.cold || cf.hot) && c.sleep >= SLEEP_ASLEEP) bump(c, 'sleep', hard ? -HARD.uncomfySleep : -8);
   }
 
   // 2. 時間流逝
@@ -638,6 +706,15 @@ export function endOfTurn(s: GameState, rng: Rng, events: GameEvent[]): void {
   }
   if (s.embrace && s.chars.male.sleep >= SLEEP_AWAKE && s.chars.female.sleep >= SLEEP_AWAKE) {
     for (const r of ROLES) bump(s.chars[r], 'sleep', 2);
+  }
+  // 困難模式:天漸漸亮了,睡得越來越淺(睡意上限一回合比一回合低)
+  if (hard && s.turn >= HARD.dawnTurn) {
+    const cap = HARD.dawnCap - (s.turn - HARD.dawnTurn) * HARD.dawnStep;
+    for (const r of ROLES) {
+      const c = s.chars[r];
+      if (c.sleep >= SLEEP_ASLEEP) bump(c, 'mood', HARD.restedMood); // 睡飽了,醒來心情好
+      c.sleep = Math.min(c.sleep, cap);
+    }
   }
 
   // 2b. 盯著看
@@ -724,16 +801,40 @@ export function endOfTurn(s: GameState, rng: Rng, events: GameEvent[]): void {
     c.mood = c.mood > 60 ? Math.max(60, c.mood - 2) : Math.min(60, c.mood + 2);
     bump(c, 'restless', c.eyes === 'closed' ? -20 : -15);
   }
-  if (!isAffection(p.lastAction) && !isAffection(ai.lastAction) && s.intimacy < 100) bumpIntimacy(s, -3);
+  const affection = isAffection(p.lastAction) || isAffection(ai.lastAction);
+  if (!hard) {
+    if (!affection && s.intimacy < 100) bumpIntimacy(s, -3);
+  } else {
+    if (s.intimacy < 100) {
+      // 困難模式:親密度不穩定 —— 兩人都醒著又沒有互動就往下掉(抱著 / 枕著手臂、有人睡著時撐得住);
+      // 另外每回合小幅亂跳
+      const cuddling = s.embrace || ap.inUse;
+      const bothAwake = p.sleep < SLEEP_ASLEEP && ai.sleep < SLEEP_ASLEEP;
+      if (s.embrace) bumpIntimacy(s, HARD.hugIntimacy);
+      if (!affection && !cuddling && bothAwake) bumpIntimacy(s, -HARD.intimacyDecay);
+      s.intimacy = clamp(s.intimacy + (rng() * 2 - 1) * HARD.intimacyJitter, 0, 99);
+    }
+    // 回合末的被動變化(抱著、枕手臂、亂跳)最多到 99:最後一下要靠親吻、撫摸這些動作
+    if (intimacyBefore < 100) s.intimacy = Math.min(s.intimacy, 99);
+  }
 
   // 親密度在回合末(手臂枕)衝到 100,但對方睡著
   if (s.intimacy >= 100 && intimacyBefore < 100 && ai.sleep >= SLEEP_ASLEEP) {
     events.push({ type: 'note', who: P, text: ZH.msg.tooLateEndTurn, key: 'tooLateEndTurn' });
   }
 
-  // 7. 睡眠分數
-  if (p.sleep >= SLEEP_ASLEEP) s.sleepScore += 1;
-  else if (p.sleep >= SLEEP_AWAKE) s.sleepScore += 0.5;
+  // 7. 睡眠分數(困難模式:要舒服才算滿分 —— 睡著 +1 / 不舒服 +0.5;昏沉且舒服 +0.5)
+  if (!hard) {
+    if (p.sleep >= SLEEP_ASLEEP) s.sleepScore += 1;
+    else if (p.sleep >= SLEEP_AWAKE) s.sleepScore += 0.5;
+  } else {
+    const comfy = isComfy(s, P);
+    if (p.sleep >= SLEEP_ASLEEP) s.sleepScore += comfy ? 1 : 0.5;
+    else if (p.sleep >= SLEEP_AWAKE && comfy) s.sleepScore += 0.5;
+  }
 
   syncAiEyes(s, events);
+  // 困難模式:對方睡著時親密度停在 99 —— 睡著的人沒辦法親熱,要等對方醒著時再補最後一下
+  // (不然晚上偷偷衝滿,天亮對方一醒就自動算「早上親熱」)
+  if (hard && s.intimacy >= 100 && ai.sleep >= SLEEP_ASLEEP) s.intimacy = 99;
 }

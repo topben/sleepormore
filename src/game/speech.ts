@@ -17,6 +17,9 @@ export const CLUE_OF: Partial<Record<SpeechKey, Goal>> = {
   partnerInitiate: 'intimacy',
   wakeUp: 'intimacy',
   stare: 'sleep',
+  // 困難模式:早上醒來撒嬌、立即親熱放棄時的「算了」都透露對方想親熱
+  goodMorning: 'intimacy',
+  giveUp: 'intimacy',
 };
 
 /** 開場晚安池前 2 句是兩個目標共用的曖昧句,不算線索 */

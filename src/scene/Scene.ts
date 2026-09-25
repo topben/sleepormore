@@ -319,8 +319,9 @@ export class BedroomScene {
     const player: Role = this.state?.playerRole ?? 'male';
     const partner = partnerOf(player);
     this.focusRole = player;
-    // 早晨/被踢醒:玩家睜眼,畫面不再暗;只有「你睡著了」維持閉眼
-    if (ending.id !== 'intimacyLoseFellAsleep') {
+    // 早晨/被踢醒:玩家睜眼,畫面不再暗;只有「你睡著了」「睡過頭」維持閉眼
+    const dozing = ending.id === 'intimacyLoseFellAsleep' || ending.id === 'intimacyLoseOverslept';
+    if (!dozing) {
       this.chars[player].setEyes(true);
       this.eyesClosed = false;
       this.zOff[player] = true;
@@ -356,6 +357,22 @@ export class BedroomScene {
           this.effects.puffZ(player);
           if (!this.fallen[partner]) this.chars[partner].tweenPose(basePose(partner, 'sideAway'), 0.8);
           break;
+        case 'intimacyLoseDeadline':
+          // 時間到:對方打個呵欠翻過去睡了
+          this.effects.zMult[partner] = 2;
+          this.effects.zOn[partner] = true;
+          this.effects.puffZ(partner);
+          if (!this.fallen[partner]) this.chars[partner].tweenPose(basePose(partner, 'sideAway'), 0.8);
+          break;
+        case 'intimacyLoseOverslept':
+          // 睡過頭:天亮了、鬧鐘響,你還閉著眼賴床
+          this.sunrise();
+          this.clockShakeT = 2;
+          this.audio.alarm();
+          this.effects.zMult[player] = 3;
+          this.effects.zOn[player] = true;
+          this.effects.puffZ(player);
+          break;
         default:
           break;
       }
@@ -363,7 +380,15 @@ export class BedroomScene {
       this.rt.set('lamp.i', 2.0, 1);
       this.setColor(this.chLamp, GOLD, 1);
       this.audio.chime();
-      if (ending.id === 'intimacyWin') {
+      if (ending.id === 'intimacyMorningWin') {
+        // 早安親親:天亮 + 愛心(不熄燈)
+        this.sunrise();
+        this.setColor(this.chLamp, PINK, 1.5);
+        this.blushT.male = this.blushT.female = 99;
+        this.blushBase = 3;
+        this.effects.hearts(5);
+        this.effects.flyBirds();
+      } else if (ending.id === 'intimacyWin') {
         this.setColor(this.chLamp, PINK, 1.5);
         this.blushT.male = this.blushT.female = 99;
         this.blushBase = 3;
@@ -525,6 +550,9 @@ export class BedroomScene {
       case 'cold':
         this.chars[e.who].shiver(0.8);
         this.effects.mark(e.who, 'shiver', 1.3);
+        break;
+      case 'hot':
+        this.effects.mark(e.who, 'sweat', 1.3);
         break;
       case 'noticed': {
         const ch = this.chars[e.by];

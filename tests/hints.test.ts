@@ -251,7 +251,7 @@ describe('goalProgress', () => {
     );
 
   it('sleep goal: sleepScore toward 7 over the remaining turns', () => {
-    expect(goalProgress(createGame('male', 1, { playerGoal: 'sleep' }))).toEqual({ goal: 'sleep', value: 0, target: 7, remainingTurns: 12, status: 'onTrack' });
+    expect(goalProgress(createGame('male', 1, { playerGoal: 'sleep' }))).toEqual({ goal: 'sleep', kind: 'sleep', value: 0, target: 7, remainingTurns: 12, status: 'onTrack' });
     expect(sleepAt(2, 0).status).toBe('onTrack'); // need 7 of 10 (≤ 7.5)
     expect(sleepAt(3, 0).status).toBe('tight'); // need 7 > 9 × 0.75
     expect(sleepAt(5, 0).status).toBe('tight'); // need 7 of 7
@@ -263,6 +263,7 @@ describe('goalProgress', () => {
   it('intimacy goal: intimacy toward 100 (≤ 10/turn on track, ≤ 20/turn tight)', () => {
     expect(goalProgress(createGame('female', 1, { playerGoal: 'intimacy' }))).toEqual({
       goal: 'intimacy',
+      kind: 'intimacy',
       value: 10,
       target: 100,
       remainingTurns: 12,

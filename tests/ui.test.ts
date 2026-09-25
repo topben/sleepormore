@@ -274,6 +274,72 @@ describe('GameUI: combo endings (you × partner), collection and sharing', () =>
   });
 });
 
+describe('GameUI: hard mode', () => {
+  const hardGame = (goal: 'sleep' | 'intimacy', timing?: 'now' | 'morning') =>
+    createGame('male', 3, { mode: 'hard', playerGoal: goal, playerTiming: timing, partnerGoal: 'sleep' });
+
+  it('the goal card shows the body-type note with its own class (not the top bar’s .goal-body) and focuses Start without scrolling', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    const { root, ui } = mount();
+    void ui.showGoal(hardGame('sleep'));
+    await Promise.resolve();
+    expect(root.querySelector('.goal-card .goal-physique')?.textContent).toContain('🐻');
+    expect(root.querySelector('.goal-card .goal-body')).toBeNull();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    focus.mockRestore();
+  });
+
+  it('the top bar rounds intimacy and keeps the 🔥 label word in its own span (phones show only 🔥)', async () => {
+    const { root, ui } = mount();
+    const s = hardGame('intimacy', 'now');
+    s.intimacy = 25.68330670380965;
+    await begin(ui, root, s);
+    const text = root.querySelector('.goal-text')!.textContent!;
+    expect(text).toContain('26/100');
+    expect(text).not.toContain('25.68');
+    expect(root.querySelector('.goal-text.short')!.textContent).toMatch(/^26\/100 · /);
+    expect(root.querySelector('.clock-turn .hard-word')!.textContent).toBe('困難');
+  });
+
+  it('the start screen’s difficulty buttons show just the name (no small print)', () => {
+    const { root, ui } = mount();
+    ui.showStart();
+    expect([...root.querySelectorAll('.mode-btn')].map((b) => b.textContent)).toEqual(['🌙 簡單', '🔥 困難']);
+    expect(root.querySelector('.mode-desc')).toBeNull();
+  });
+
+  it('the goal card spells out the win conditions line by line: win / draw / lose / scoring, numbers filled in', () => {
+    const { root, ui } = mount();
+    const lines = (s: GameState) => {
+      void ui.showGoal(s);
+      // 圖示和文字是兩欄,這裡拼回「🏆 ……」
+      return [...root.querySelectorAll('.goal-card .goal-win li')].map((li) => [...li.children].map((c) => c.textContent).join(' '));
+    };
+    const morning = lines(hardGame('intimacy', 'morning'));
+    expect(morning).toEqual([
+      '🏆 04:40 以後讓親密度到 100 就贏(那時睡眠分數要有 4 分以上,對方也要醒著)。',
+      '🤝 太早到 100(還沒到 04:40,或睡眠分數不到 4)算平手。',
+      '💀 06:00 前沒達成就輸。',
+      '💤 睡眠分數:每回合結束時,睡著又舒服 +1;睡著但不舒服、或昏沉但舒服 +0.5。舒服的條件見下方。',
+    ]);
+    expect(lines(hardGame('intimacy', 'now'))).toEqual(['🏆 02:00 前讓親密度到 100 就贏(那時對方要醒著)。', '💀 到 02:00 還沒達成就輸,這局提早結束。']);
+    expect(lines(hardGame('sleep'))[0]).toBe('🏆 06:00 時睡眠分數有 5 分以上就贏。');
+    expect(lines(createGame('male', 3, { playerGoal: 'sleep' }))).toEqual(['🏆 06:00 時睡眠分數有 7 分以上就贏。', '💤 睡眠分數:每回合結束時,睡著 +1、昏沉 +0.5。']);
+    expect(lines(createGame('male', 3, { playerGoal: 'intimacy' }))).toEqual(['🏆 06:00 前讓親密度到 100 就贏(那時對方要醒著)。']);
+  });
+
+  it('the “sleepless” ending tip names the hard-mode sleep target', () => {
+    const { root, ui } = mount();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    ui.showEnding({ ...hardGame('sleep'), turn: 12, sleepScore: 4, ending: makeEnding('sleepLoseTired') });
+    vi.advanceTimersByTime(2600);
+    vi.useRealTimers();
+    const tip = root.querySelector('.ending-tip p')!.textContent!;
+    expect(tip).toContain('睡眠分數要 5 分');
+    expect(tip).not.toContain('{target}');
+  });
+});
+
 describe('collection storage', () => {
   it('when storage is blocked (private mode), a combo is NEW once per session and the count stays consistent', () => {
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {

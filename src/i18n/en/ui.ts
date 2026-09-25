@@ -26,6 +26,8 @@ const ui: UiMessages = {
     subtitle: 'SLEEP OR MORE',
     tagline: 'Tonight, do you just want to sleep… or?',
     chooseRole: 'Choose your role',
+    modeLabel: 'Difficulty',
+    mode: { easy: 'Easy', hard: 'Hard' },
     playMale: 'Play as him',
     playFemale: 'Play as her',
     sideLeft: 'Sleeps on the left',
@@ -46,7 +48,10 @@ const ui: UiMessages = {
     winLabel: 'How to win',
     tipsLabel: 'Tips',
     sleep: {
-      win: 'Make it to 06:00 with a sleep score of {n} (+1 per turn asleep, +0.5 per turn drowsy).',
+      win: [
+        '🏆 Win with a sleep score of {n} or more at 06:00.',
+        '💤 Sleep score: at the end of each turn, +1 if you’re asleep, +0.5 if you’re drowsy.',
+      ],
       tips: [
         'First close your eyes with the eye button up top, then tap “💤 Sleep” to build sleepiness.',
         'Lose the blanket and you’ll get cold, and it’s hard to sleep when you’re cold.',
@@ -54,12 +59,55 @@ const ui: UiMessages = {
       ],
     },
     intimacy: {
-      win: 'Get intimacy to 100 before dawn, while your partner is still awake.',
+      win: [
+        '🏆 Win by getting intimacy to 100 by 06:00, while your partner is awake.',
+      ],
       tips: [
         'Keep your eyes open, use “Face them”, and “Scoot closer” if you’re too far apart.',
         'Kisses and hugs need charging: hold, then release in the green zone. Too much force annoys your partner.',
         'If your partner wants to sleep, first raise their mood to {n} with whispers and tucking them in.',
       ],
+    },
+    // hard mode
+    hardBadge: '🔥 Hard mode',
+    now: {
+      win: [
+        '🏆 Win by getting intimacy to 100 by {deadline}, while your partner is awake.',
+        '💀 Not there by {deadline}? You lose, and the night ends there.',
+      ],
+      tips: [
+        'On turn one, “Face them”; if you’re too far apart, “Scoot closer”.',
+        'Firm kisses (yellow zone) are faster, but never rough.',
+        'If your partner wants to sleep, you’ll almost never make it, so watch how they react.',
+      ],
+    },
+    morning: {
+      win: [
+        '🏆 Win by getting intimacy to 100 at {morning} or later, with a sleep score of {sleep} or more and your partner awake.',
+        '🤝 Reaching 100 too early (before {morning}, or with a sleep score under {sleep}) is a draw.',
+        '💀 Not there by 06:00? You lose.',
+        '💤 Sleep score: at the end of each turn, +1 if you’re asleep and comfortable; +0.5 if you’re asleep but uncomfortable, or drowsy but comfortable. What counts as comfortable is below.',
+      ],
+      tips: [
+        'At night, build a little closeness while your partner is awake, then close your eyes and sleep.',
+        'If intimacy is nearly full, turn away or close your eyes so it doesn’t fill up at night.',
+        'After {dawn} everyone sleeps lighter; morning affection counts double, so kiss while they’re awake.',
+      ],
+    },
+    sleepHard: {
+      win: [
+        '🏆 Win with a sleep score of {n} or more at 06:00.',
+        '💤 Sleep score: at the end of each turn, +1 if you’re asleep and comfortable; +0.5 if you’re asleep but uncomfortable, or drowsy but comfortable. What counts as comfortable is below.',
+      ],
+      tips: [
+        'Warmth wobbles and the night gets colder; if you’re too hot, share the blanket (“Tuck them in”); if you’re cold, pull it back.',
+        'Without enough intimacy you won’t sleep soundly: whisper or hug before bed. Intimacy doesn’t drop while one of you is asleep.',
+        'After {dawn} everyone sleeps lighter, so sleep well before dawn.',
+      ],
+    },
+    body: {
+      male: '🐻 The bear runs hot: comfortable at warmth {lo}–{hi}, and needs intimacy of {need}+.',
+      female: '🐰 The lop-eared bunny runs cold: comfortable at warmth {lo}+, and needs intimacy of {need}+ to feel safe.',
     },
     secret: 'Your partner has a goal of their own (it’s a secret). Figure it out from what they say and do!',
     hintsToggle: 'Show hints (recommended for beginners)',
@@ -71,6 +119,9 @@ const ui: UiMessages = {
     progress: {
       sleep: 'Sleep score {v}/{t}',
       intimacy: 'Intimacy {v}/{t}',
+      now: 'Intimacy {v}/{t} · before {deadline}',
+      morningSleep: 'Sleep first {v}/{t}',
+      morningLove: 'Intimacy {v}/{t} · after {morning}',
     },
     status: {
       done: 'Goal reached!',
@@ -116,6 +167,9 @@ const ui: UiMessages = {
     eyesState: { open: 'Open', closed: 'Closed' },
     snoreLevel: ['None', 'Soft', 'Medium', 'Very loud'],
     cold: 'So cold!',
+    hot: 'So hot!',
+    need: 'Closeness you need: {n}',
+    hardTag: 'Hard',
     restlessWarn: 'Careful',
     restlessDanger: 'Almost busted!',
     annoyPush: 'About to push!',
@@ -204,6 +258,7 @@ const ui: UiMessages = {
     armFree: 'Arm pulled back',
     armLeft: 'Head lifted off the arm',
     cold: { you: 'You’re cold', partner: 'Your partner is cold' },
+    hot: { you: 'You’re too hot', partner: 'Your partner is too hot' },
     numb: { you: 'Your arm went numb', partner: 'Your partner’s arm went numb' },
     noticed: { you: 'Your partner noticed you’re still awake', partner: 'You noticed your partner is still awake' },
     snore: { you: 'You’re snoring ({level})', partner: 'Your partner is snoring ({level})' },
@@ -227,6 +282,7 @@ const ui: UiMessages = {
     partnerWanted: 'Turns out your partner wanted to:',
     goalSleep: '😴 Sleep well',
     goalIntimacy: '💞 Get intimate',
+    hardTag: '🔥 Hard mode',
     morning: 'The next morning',
     stats: 'Stats',
     statTurns: 'Turns {n}/{max}',
@@ -275,6 +331,14 @@ const ui: UiMessages = {
           'At the start you draw tonight’s goal: 😴 Sleep well or 💞 Get intimate. Your partner has a goal too, but it’s a secret.',
           '😴 Sleep: make it to 06:00 with a sleep score of 7 (+1 per turn asleep, +0.5 per turn drowsy).',
           '💞 Intimacy: get intimacy to 100 before dawn, while your partner is still awake.',
+        ],
+      },
+      {
+        title: '🔥 Hard mode',
+        body: [
+          'Pick “Hard” on the start screen. Intimacy comes in two kinds: ⏱️ right now (before {deadline}, or you lose) and 🌅 morning (sleep well first; it only counts after {morning}, and too early is a draw).',
+          'You only need a sleep score of {sleepWin}, but sleep only scores when you sleep comfortably: warmth wobbles, the night gets colder, and intimacy drops while you’re both awake and not interacting. The bear runs hot (warmth {bearLo}–{bearHi}); the lop-eared bunny runs cold ({bunnyLo}+) and needs more closeness.',
+          'After {dawn} everyone sleeps lighter; morning affection counts double.',
         ],
       },
       {

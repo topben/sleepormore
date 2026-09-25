@@ -1,13 +1,13 @@
 // 回合流程(DESIGN §2):createGame / toggleEyes / playTurn。全部是純函式(回傳新 state)。
 import { ACTIONS } from './actions';
-import { INITIAL, SLEEP_ASLEEP } from './constants';
+import { HARD, INITIAL, SLEEP_ASLEEP } from './constants';
 import { checkEnding } from './endings';
 import { choosePartnerAction } from './partner';
 import { mulberry32, turnRng } from './rng';
 import { bump, emitSpeech, endOfTurn, resolveAction } from './rules';
 import { newTally, tallyTurn } from './titles';
 import { ZH, type MsgKey } from './text';
-import type { ActionId, CharacterState, Ending, Eyes, GameEvent, GameState, Goal, Role, TurnResult } from './types';
+import type { ActionId, CharacterState, Ending, Eyes, GameEvent, GameState, Goal, IntimacyTiming, Mode, Role, TurnResult } from './types';
 import { partnerOf } from './types';
 import { cloneState } from './util';
 
@@ -32,6 +32,11 @@ export interface GameOptions {
   playerGoal?: Goal;
   /** 指定對方目標(測試用) */
   partnerGoal?: Goal;
+  /** 難度(預設 easy = 原本的規則) */
+  mode?: Mode;
+  /** 困難模式:指定親熱的種類(練習 / 測試用);不指定 = 依 seed 隨機 */
+  playerTiming?: IntimacyTiming;
+  partnerTiming?: IntimacyTiming;
 }
 
 export function createGame(role: Role, seed: number, opts: GameOptions = {}): GameState {
@@ -44,12 +49,25 @@ export function createGame(role: Role, seed: number, opts: GameOptions = {}): Ga
   const moodF = INITIAL.moodBase + Math.floor(r() * INITIAL.moodSpread);
   if (opts.playerGoal) goals[role] = opts.playerGoal;
   if (opts.partnerGoal) goals[partnerOf(role)] = opts.partnerGoal;
+  const mode: Mode = opts.mode ?? 'easy';
+  const chars = { male: makeChar('male', goals.male, moodM), female: makeChar('female', goals.female, moodF) };
+  if (mode === 'hard') {
+    // 困難模式:親熱再分立即 / 早上(在原本的亂數之後才抽,同一個 seed 的簡單模式開局不變)
+    const timing: Record<Role, IntimacyTiming> = {
+      male: r() < 0.5 ? 'now' : 'morning',
+      female: r() < 0.5 ? 'now' : 'morning',
+    };
+    if (opts.playerTiming) timing[role] = opts.playerTiming;
+    if (opts.partnerTiming) timing[partnerOf(role)] = opts.partnerTiming;
+    for (const x of ['male', 'female'] as Role[]) if (chars[x].goal === 'intimacy') chars[x].timing = timing[x];
+  }
   return {
     turn: 0,
     playerRole: role,
-    chars: { male: makeChar('male', goals.male, moodM), female: makeChar('female', goals.female, moodF) },
+    mode,
+    chars,
     blanketOffset: 0,
-    intimacy: INITIAL.intimacy,
+    intimacy: mode === 'hard' ? HARD.startIntimacy : INITIAL.intimacy,
     embrace: false,
     armPillow: { offered: false, inUse: false, numbness: 0 },
     sleepScore: 0,
@@ -138,6 +156,8 @@ export function playTurn(state: GameState, actionId: ActionId, force: number): T
   const choice = choosePartnerAction(s, rng);
   const { actionId: aiAction, force: aiForce, ...opts } = choice;
   if (opts.speech === 'goodnight') s.memo.goodnightSpoken = true;
+  if (opts.speech === 'goodMorning') s.memo.morningSpoken = true;
+  if (opts.speech === 'giveUp') s.memo.gaveUpSpoken = true;
   s.memo.pullStreak = aiAction === 'pullBlanket' && opts.unconscious ? s.memo.pullStreak + 1 : 0;
   resolveAction(s, AI, aiAction, aiForce, rng, events, opts);
 

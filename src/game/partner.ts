@@ -1,8 +1,8 @@
-// 對方 AI(DESIGN §8)。只看表象判斷玩家睡了沒;必須回傳可用的動作,保底 sleep。
+// 對方 AI(DESIGN §8;困難模式 §15)。只看表象判斷玩家睡了沒;必須回傳可用的動作,保底 sleep。
 import { POSTURE_OF, canUse, isAffection } from './actions';
-import { BAL, REACH, SLEEP_ASLEEP, SLEEP_AWAKE } from './constants';
+import { BAL, COMFORT, HARD, REACH, SLEEP_ASLEEP, SLEEP_AWAKE } from './constants';
 import type { Rng } from './rng';
-import { apparentlyAsleep, snoreLevel, type ResolveOpts } from './rules';
+import { apparentlyAsleep, behaviorGoal, isHard, snoreLevel, type ResolveOpts } from './rules';
 import type { SpeechKey } from './speech';
 import type { MsgKey } from './text';
 import type { ActionId, GameState, Posture } from './types';
@@ -32,6 +32,12 @@ export function choosePartnerAction(s: GameState, rng: Rng): PartnerChoice {
   /** 依序挑第一個可用的候選;都不行 → sleep */
   const first = (...cands: PartnerChoice[]): PartnerChoice => cands.find((x) => can(x.actionId)) ?? c('sleep');
   const yAsleep = apparentlyAsleep(Y);
+  const hard = isHard(s);
+  /** 行為上的目標(困難模式:立即親熱過了時限就放棄、早上親熱天亮前先睡) */
+  const goal = behaviorGoal(s, pr);
+  const body = COMFORT[pr];
+  /** 冷到要拉棉被的體溫(困難模式依體質) */
+  const coldAt = hard ? body.warmLo : 30;
 
   // 開場:不暴露目標
   if (s.turn === 0) {
@@ -40,13 +46,22 @@ export function choosePartnerAction(s: GameState, rng: Rng): PartnerChoice {
     return first(c(id, 0, { speech: `goodnight_${P.goal}` }));
   }
 
+  // 困難模式:早上親熱的對方天亮自己醒來,伸個懶腰轉向你
+  if (hard && P.goal === 'intimacy' && P.timing === 'morning' && s.turn >= HARD.wakeTurn && P.sleep >= SLEEP_AWAKE && !s.memo.morningSpoken) {
+    const wake: ResolveOpts = { wakeUp: true, speech: 'goodMorning', notes: ['partnerWokeUp'] };
+    return first(c('lieSideFacing', 0, wake), c('whisper', 0, wake));
+  }
+
   // 睡著(無意識,不自醒):單一 r 依累積門檻分支
   if (P.sleep >= SLEEP_ASLEEP) {
     const r = rng();
     const pullNote: MsgKey = s.memo.pullStreak >= 1 ? 'partnerBurrito' : 'partnerStoleBlanket';
     const pull = (f: number) => c('pullBlanket', f, { notes: [pullNote], unconscious: true });
-    if (P.warmth < 30 && can('pullBlanket')) return pull(70);
-    if (r < 0.25 && can('pullBlanket')) return pull(55);
+    // 困難模式:熱到在睡夢中把棉被踢給你
+    if (hard && P.warmth > body.warmHi && can('tuckBlanket')) return c('tuckBlanket', 50, { notes: ['partnerKickedBlanket'], unconscious: true });
+    if (P.warmth < coldAt && can('pullBlanket')) return pull(70);
+    // 睡夢中捲棉被(困難模式:只有沒那麼暖的時候才捲)
+    if (r < 0.25 && (!hard || P.warmth < body.warmLo + 25) && can('pullBlanket')) return pull(55);
     if (r < 0.35) {
       const opts = (Object.keys(LIE) as Posture[]).filter((p) => p !== P.posture && can(LIE[p]));
       if (opts.length) return c(LIE[opts[Math.floor(rng() * opts.length) % opts.length]], 0, { unconscious: true });
@@ -62,8 +77,18 @@ export function choosePartnerAction(s: GameState, rng: Rng): PartnerChoice {
 
   if (pr === 'male' && ap.offered && ap.numbness >= 75) return first(c('withdrawArm', 40));
 
-  if (P.goal === 'sleep') {
-    if (P.warmth < 55 && can('pullBlanket')) return c('pullBlanket', 50);
+  // 困難模式:立即親熱的對方過了時限 → 「算了,睡覺」(說一次)
+  if (hard && P.goal === 'intimacy' && goal === 'sleep' && P.timing === 'now' && !s.memo.gaveUpSpoken) {
+    return first(c('lieSideAway', 0, { speech: 'giveUp' }), c('sleep', 0, { speech: 'giveUp' }));
+  }
+
+  if (goal === 'sleep') {
+    if (P.warmth < (hard ? body.warmLo : 55) && can('pullBlanket')) return c('pullBlanket', 50);
+    if (hard && P.warmth > body.warmHi && can('tuckBlanket')) return c('tuckBlanket', 30);
+    // 困難模式:安全感不夠睡不著 → 睡前想說說話(只在你還醒著的時候)
+    if (hard && s.intimacy < body.intimacy && !yAsleep && P.sleep < SLEEP_AWAKE && P.annoyance < 30 && rng() < 0.4) {
+      return c('whisper', 0, { speech: 'needCuddle' });
+    }
     if (
       pr === 'female' &&
       ap.offered &&
@@ -108,7 +133,9 @@ export function choosePartnerAction(s: GameState, rng: Rng): PartnerChoice {
     return c('sleep', 0, s.memo.goodnightSpoken ? {} : { speech: 'goodnight' });
   }
 
-  // P.goal === 'intimacy'
+  // goal === 'intimacy'
+  // 困難模式:太熱就把棉被讓給你(順便示好)
+  if (hard && P.warmth > body.warmHi && can('tuckBlanket')) return c('tuckBlanket', 30);
   // 已經閉眼睡了、沒被打擾 → 繼續睡;被拍拍 → 可能就這樣被哄睡
   const disturbed = isAffection(Y.lastAction) || Y.lastAction === 'scootIn' || Y.lastAction === 'pullBlanket';
   if (P.lastAction === 'sleep' && P.sleep >= BAL.momentumMinSleep && !disturbed) return c('sleep');

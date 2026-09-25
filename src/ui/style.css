@@ -221,6 +221,8 @@ input:focus-visible {
   inset: 0;
   display: grid;
   place-items: center;
+  /* 內容比畫面高時靠上對齊(不然上半部會被切掉、捲不到);不支援 safe 的瀏覽器沿用上一行 */
+  place-items: safe center;
   padding: 16px;
   pointer-events: auto;
   overflow-y: auto;
@@ -247,6 +249,11 @@ input:focus-visible {
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 4px 18px rgba(255, 126, 182, 0.35));
+}
+/* 拼音文字的標題比較長(英、西、越):字小一點,兩行內排完 */
+.title.long {
+  font-size: clamp(34px, 7vw, 58px);
+  letter-spacing: 0.02em;
 }
 .subtitle {
   letter-spacing: 0.55em;
@@ -307,6 +314,45 @@ input:focus-visible {
 .role-sub {
   font-size: 12px;
   color: var(--muted);
+}
+/* 難度(開始畫面,DESIGN §15) */
+.mode-pick {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  max-width: 424px;
+  margin: -10px auto 18px;
+}
+.mode-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(22, 19, 42, 0.72);
+  color: var(--muted);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.mode-btn:hover {
+  border-color: rgba(255, 255, 255, 0.42);
+}
+.mode-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #e9e3ff;
+}
+.mode-btn.selected {
+  border-color: #b9a8ff;
+  background: rgba(62, 52, 118, 0.88);
+  color: #dcd5ff;
+}
+.mode-btn.hard.selected {
+  border-color: #ff8a5c;
+  background: rgba(112, 42, 30, 0.82);
+  color: #ffdccb;
 }
 .footnote {
   color: var(--muted);
@@ -488,12 +534,42 @@ input:focus-visible {
 }
 .goal-win {
   margin: 0;
+  padding: 0;
+  list-style: none;
   line-height: 1.55;
+}
+.goal-win li {
+  display: flex;
+  gap: 0.45em;
+}
+.goal-win li + li {
+  margin-top: 4px;
+}
+.goal-win .line-icon {
+  flex: none;
 }
 .goal-tips {
   margin: 0;
   padding-left: 1.2em;
   line-height: 1.6;
+}
+.goal-mode {
+  margin-left: 10px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: #7a2a1a;
+  color: #ffdccb;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+}
+/* 困難模式目標卡的體質說明(別和上方列的 .goal-body 撞名) */
+.goal-physique {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 .goal-secret {
   margin: 14px 0 6px;
@@ -1011,6 +1087,20 @@ input:focus-visible {
   margin-left: -1px;
   background: var(--danger);
   border-radius: 2px;
+}
+/* 困難模式:你睡得安穩要的親密度 */
+.m-mark.need {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  border-radius: 2px;
+  opacity: 0.75;
+}
+.meter.intimacy.lonely .m-bar i {
+  background: linear-gradient(90deg, #b99ac4, #9a6fae);
 }
 .bed-line {
   position: relative;
@@ -1708,6 +1798,11 @@ body.ending-neutral .hud {
 .outcome-draw .ending-outcome {
   background: #b98bb0;
 }
+.ending-mode {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.4);
+}
 .ending-title {
   margin: 10px 0 0;
   font-size: 34px;
@@ -2234,6 +2329,15 @@ body.ending-neutral .hud {
   }
   .turn-dots {
     display: none;
+  }
+  /* 困難模式標籤只留 🔥,字給讀屏器 */
+  .clock-turn .hard-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .goal-badge {
     padding: 4px 8px;
