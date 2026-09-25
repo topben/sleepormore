@@ -28,6 +28,7 @@ const ui: UiMessages = {
     chooseRole: 'Choose your role',
     modeLabel: 'Difficulty',
     mode: { easy: 'Easy', hard: 'Hard' },
+    modeHint: { easy: 'Sleep or affection, with simpler rules.', hard: 'Balance warmth, closeness and timing.' },
     playMale: 'Play as him',
     playFemale: 'Play as her',
     sideLeft: 'Sleeps on the left',

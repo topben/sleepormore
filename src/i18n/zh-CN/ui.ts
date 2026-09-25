@@ -28,6 +28,7 @@ const ui: UiMessages = {
     chooseRole: '选择你的角色',
     modeLabel: '难度',
     mode: { easy: '简单', hard: '困难' },
+    modeHint: { easy: '睡觉或亲热，轻松熟悉玩法。', hard: '兼顾体温、亲密度与亲热时机。' },
     playMale: '我是男方',
     playFemale: '我是女方',
     sideLeft: '睡左边',

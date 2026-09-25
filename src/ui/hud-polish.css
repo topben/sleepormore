@@ -1,0 +1,223 @@
+/* Keep the bedroom palette; make information and actions easier to read. */
+.hud .topbar {
+  border-bottom: 1px solid rgba(185, 168, 255, 0.1);
+}
+.hud .card {
+  background: linear-gradient(145deg, rgba(31, 27, 54, 0.94), rgba(20, 17, 37, 0.87));
+  box-shadow: 0 8px 24px rgba(4, 3, 15, 0.15);
+}
+.hud .card h3 {
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+.hud .st-val,
+.hud .m-val { font-variant-numeric: tabular-nums; }
+.hud .hintbar {
+  background: rgba(50, 40, 40, 0.94);
+  border-color: rgba(255, 224, 138, 0.32);
+}
+.hud .hintbar.urgent {
+  background: rgba(62, 24, 43, 0.96);
+  border-color: rgba(255, 77, 109, 0.65);
+}
+.hud .dock {
+  background: linear-gradient(180deg, rgba(18, 15, 34, 0.88), rgba(14, 12, 27, 0.98));
+  border-top: 1px solid rgba(185, 168, 255, 0.16);
+  box-shadow: 0 -10px 32px rgba(4, 3, 15, 0.13);
+}
+.hud .group-title { color: #c0b6dc; }
+.hud .act {
+  background: linear-gradient(160deg, #30294f, #211c3d);
+  border-width: 1px;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.045);
+}
+.hud .act.risk-safe { border-color: rgba(110, 231, 183, 0.27); }
+.hud .act.risk-risky { border-color: var(--warn); }
+.hud .act.risk-loud { border-color: var(--danger); }
+.hud .act.no {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+  box-shadow: none;
+}
+.hud .act.suggested {
+  border-color: #ffe08a;
+  background: linear-gradient(160deg, #514271, #332750);
+  box-shadow: 0 0 0 1px rgba(255, 224, 138, 0.7);
+  animation: none;
+}
+.hud .eyes-btn.suggested {
+  border-color: #ffe08a;
+  box-shadow: 0 0 0 1px rgba(255, 224, 138, 0.4);
+  animation: none;
+}
+.hud .eyes-btn { background: #30294f; }
+.hud .eyes-btn.closed { background: #151224; }
+.hud .act-label { font-weight: 650; }
+.hud .act-hold { color: #ebc3de; }
+.hud .log { background: rgba(24, 20, 42, 0.94); }
+.hud .log-title { min-height: 32px; }
+
+@media (min-width: 720px) {
+  .hud .tray { gap: 8px 14px; }
+  .hud .group-title { padding-left: 4px; }
+  .hud .act { min-height: 70px; }
+  .hud .act-label { font-size: 12px; }
+  .hud .act-meta { gap: 5px; }
+  .hud .eyes-btn { align-self: stretch; }
+}
+
+@media (max-width: 719px) {
+  .hud .topbar { gap: 5px; }
+  .hud .tools { gap: 2px; }
+  .hud .icon-btn { width: 44px; height: 44px; }
+  .hud .icon-btn.lang-tool { min-width: 44px; padding: 0 2px; gap: 2px; font-size: 10px; white-space: nowrap; }
+  .hud .lang-short { flex: none; }
+  .hud .goal-badge { padding: 5px 7px; gap: 5px; border-radius: 12px; }
+  .hud .goal-emoji { font-size: 17px; }
+  .hud .goal-body { row-gap: 2px; }
+  .hud .goal-name { display: block; white-space: normal; font-size: 10.5px; line-height: 1.15; }
+  .hud .goal-bar { height: 4px; }
+  .hud .goal-text.short { font-size: 9px; }
+  .hud .hint-x { width: 36px; height: 36px; }
+  .hud .hintbar { margin-top: 3px; padding-top: 1px; padding-bottom: 1px; font-size: 12px; }
+  .hud .card { padding: 5px 7px; }
+  .hud .card h3 { font-size: 11px; padding-bottom: 3px; margin-bottom: 3px; }
+  .hud .st {
+    grid-template-columns: 13px minmax(0, 5.7em) minmax(20px, 1fr) 1.8em;
+    grid-template-areas: 'icon label bar val';
+    column-gap: 3px;
+    min-height: 16px;
+    font-size: 9.5px;
+  }
+  .hud .st-label {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #c1b8d9;
+  }
+  .hud .st-val { font-size: 10px; }
+  .hud .card .tr { font-size: 10px; margin-top: 1px; }
+  .hud .eyes-main { white-space: normal; font-size: 12px; }
+  .hud .eyes-sub { font-size: 10px; }
+  .hud .act { min-height: 52px; padding: 4px 2px 3px; }
+  .hud .act-label { font-size: 10.5px; line-height: 1.15; }
+  .hud .act-emoji { font-size: 18px; }
+  .hud .act-meta { font-size: 7px; gap: 2px; }
+  .hud .act-badge { top: -6px; right: -2px; font-size: 8px; }
+  .hud .log-title { min-height: 30px; }
+  .hud .log-list { padding-top: 7px; }
+}
+
+@media (max-width: 359px) {
+  .hud .goal-emoji { display: none; }
+  .hud .st { grid-template-columns: 12px minmax(0, 4.9em) minmax(16px, 1fr) 1.8em; font-size: 9px; }
+  .hud .act-label { font-size: 9.5px; }
+}
+
+@media (max-height: 700px) and (max-width: 719px) {
+  .hud .card h3 { border: 0; padding-bottom: 0; margin-bottom: 2px; }
+  .hud .card .tr { min-height: 13px; }
+  .hud .st { min-height: 14px; }
+  .hud .act { min-height: 44px; padding: 2px; }
+  .hud .act-meta { display: none; }
+}
+
+/* Short landscape screens need a compact dock even above the phone breakpoint. */
+@media (min-width: 560px) and (max-height: 500px) and (orientation: landscape) {
+  .hud .topbar { padding: max(4px, env(safe-area-inset-top)) 10px 4px; gap: 10px; }
+  .hud .clock-time { font-size: 20px; }
+  .hud .clock-sub { font-size: 10px; }
+  .hud .turn-dots { gap: 2px; }
+  .hud .turn-dots i { width: 4px; height: 4px; }
+  .hud .icon-btn { width: 44px; height: 44px; }
+  .hud .icon-btn.lang-tool { width: auto; min-width: 44px; }
+  .hud .goal-badge { padding: 5px 9px; }
+  .hud .goal-name { display: block; font-size: 12px; }
+  .hud .goal-emoji { font-size: 20px; }
+  .hud .goal-bar { height: 5px; }
+  .hud .goal-text { font-size: 10px; }
+  .hud .hintbar { margin-top: 2px; padding: 0 4px 0 9px; font-size: 11px; max-width: min(454px, calc(100% - 390px)); }
+  .hud .hint-x { width: 32px; height: 32px; }
+  .hud .cards { position: absolute; top: 58px; left: 0; right: 0; padding: 0 8px; }
+  .hud .card { width: 180px; padding: 5px 7px; border-radius: 12px; }
+  .hud .card h3 { margin-bottom: 3px; padding-bottom: 3px; font-size: 10px; }
+  .hud .st {
+    grid-template-columns: 12px minmax(0, 6em) minmax(20px, 1fr) 1.8em;
+    grid-template-areas: 'icon label bar val';
+    gap: 3px;
+    min-height: 14px;
+    font-size: 9px;
+  }
+  .hud .st-label { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .hud .st-val { font-size: 9px; }
+  .hud .st-tag { display: none; }
+  .hud .st[data-tone='danger'] .st-tag { display: block; grid-column: 1 / -1; grid-area: auto; font-size: 9px; }
+  .hud .card-note { font-size: 9px; }
+  .hud .card .tr { display: inline-flex; gap: 2px; margin: 1px 4px 0 0; min-height: 13px; font-size: 9px; }
+  .hud .card .tr .tr-label { display: none; }
+  .hud .card .tr .tr-val { text-align: left; }
+
+  .hud .dock {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr);
+    gap: 6px 10px;
+    padding: 6px 8px max(6px, env(safe-area-inset-bottom));
+  }
+  .hud .log {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+    height: 44px;
+    border-radius: 10px;
+  }
+  .hud .log-title { flex: 0 0 92px; width: 92px; min-height: 44px; padding: 4px 7px; font-size: 10px; }
+  .hud .log-list { flex: 1; min-width: 0; max-height: 36px; padding: 0 7px 0 0; font-size: 9px; line-height: 1.35; }
+  .hud .log:not(.collapsed) .log-list { max-height: 36px; width: auto; padding: 0 7px 0 0; }
+  .hud .log.collapsed .log-list { max-height: 24px; padding-bottom: 0; }
+  .hud .log.collapsed .log-title { font-size: 10px; }
+  .hud .log.collapsed .log-title::before { content: none; }
+  .hud .meters { grid-column: 2; grid-row: 1; gap: 6px; align-self: center; }
+  .hud .meter { padding: 5px 7px; gap: 4px; font-size: 10px; border-radius: 9px; }
+  .hud .m-bar { min-width: 20px; height: 6px; }
+  .hud .m-label,
+  .hud .m-nudge,
+  .hud .m-val.long { display: none; }
+  .hud .m-val.short { display: inline; font-size: 10px; }
+  .hud .bed-line { min-width: 45px; }
+  .hud .bed-dot.me::after { display: none; }
+
+  .hud .controls { grid-column: 1 / -1; flex-direction: row; gap: 8px; }
+  .hud .eyes-btn { width: 125px; min-height: 44px; padding: 7px; gap: 5px; border-radius: 12px; }
+  .hud .eyes-icon { font-size: 20px; }
+  .hud .eyes-text { flex-direction: column; align-items: flex-start; gap: 3px; }
+  .hud .eyes-main { font-size: 10.5px; line-height: 1.3; white-space: normal; }
+  .hud .eyes-sub { font-size: 9px; line-height: 1.25; white-space: normal; }
+  .hud .tray { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+  .hud .group,
+  .hud .group-btns { display: contents; }
+  .hud .group-title,
+  .hud .act-meta { display: none; }
+  .hud .act { width: auto; min-width: 0; min-height: 46px; padding: 3px 2px; gap: 1px; border-radius: 10px; }
+  .hud .act-emoji { font-size: 17px; }
+  .hud .act-label { font-size: 10px; line-height: 1.15; }
+  .hud .act-badge { top: -5px; right: -2px; font-size: 8px; }
+}
+
+@media (min-width: 560px) and (max-width: 619px) and (max-height: 500px) and (orientation: landscape) {
+  .hud .eyes-btn { width: 102px; }
+  .hud .eyes-icon { font-size: 17px; }
+  .hud .eyes-sub { display: none; }
+  .hud .hintbar { max-width: calc(100% - 350px); font-size: 10px; }
+  .hud .card { width: 160px; padding: 4px 6px; }
+  .hud .card h3 { border: 0; padding-bottom: 0; margin-bottom: 2px; font-size: 9.5px; }
+  .hud .st { min-height: 12px; font-size: 8.5px; }
+  .hud .card .tr { min-height: 12px; font-size: 8.5px; }
+  .hud .act-label { font-size: 9px; }
+}

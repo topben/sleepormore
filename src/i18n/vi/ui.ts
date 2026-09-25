@@ -28,6 +28,7 @@ const ui: UiMessages = {
     chooseRole: 'Chọn vai của bạn',
     modeLabel: 'Độ khó',
     mode: { easy: 'Dễ', hard: 'Khó' },
+    modeHint: { easy: 'Ngủ hay âu yếm, với luật đơn giản.', hard: 'Cân bằng độ ấm, thân mật và thời điểm.' },
     playMale: 'Mình là chàng',
     playFemale: 'Mình là nàng',
     sideLeft: 'Nằm bên trái',

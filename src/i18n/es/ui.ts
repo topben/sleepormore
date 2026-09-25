@@ -29,6 +29,7 @@ const ui: UiMessages = {
     chooseRole: 'Elige tu personaje',
     modeLabel: 'Dificultad',
     mode: { easy: 'Fácil', hard: 'Difícil' },
+    modeHint: { easy: 'Sueño o cariño, con reglas sencillas.', hard: 'Cuida el calor, la cercanía y el momento.' },
     playMale: 'Soy él',
     playFemale: 'Soy ella',
     sideLeft: 'Lado izquierdo',

@@ -179,8 +179,8 @@ export class Hud {
   private tray = h('div', { class: 'tray', role: 'toolbar' });
   // log
   private logEl = h('div', { class: 'log collapsed' });
-  private logTitle = h('button', { class: 'log-title', type: 'button' });
-  private logList = h('ol', { class: 'log-list', 'aria-live': 'polite' });
+  private logTitle = h('button', { class: 'log-title', type: 'button', 'aria-controls': 'event-log-items' });
+  private logList = h('ol', { class: 'log-list', id: 'event-log-items', 'aria-live': 'polite' });
 
   constructor(private hnd: HudHandlers) {
     this.langBtn = h('button', { class: 'icon-btn lang-tool', type: 'button', 'aria-haspopup': 'dialog', onClick: () => hnd.language() });
@@ -241,11 +241,13 @@ export class Hud {
 
     this.logTitle.addEventListener('click', () => {
       this.logEl.classList.toggle('collapsed');
+      this.logTitle.setAttribute('aria-expanded', String(!this.logEl.classList.contains('collapsed')));
       this.logList.scrollTop = this.logList.scrollHeight;
     });
     this.logEl.append(this.logTitle, this.logList);
     // 桌機預設展開記錄;手機只顯示最新一行,點標題展開
     if (typeof window !== 'undefined' && window.innerWidth >= 720) this.logEl.classList.remove('collapsed');
+    this.logTitle.setAttribute('aria-expanded', String(!this.logEl.classList.contains('collapsed')));
 
     this.dock = h(
       'footer',

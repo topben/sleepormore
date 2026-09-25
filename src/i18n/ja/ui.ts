@@ -28,6 +28,7 @@ const ui: UiMessages = {
     chooseRole: 'キャラクターを選ぼう',
     modeLabel: '難易度',
     mode: { easy: 'かんたん', hard: 'むずかしい' },
+    modeHint: { easy: 'シンプルなルールで、睡眠かスキンシップ。', hard: '体温・親密度・タイミングを考えよう。' },
     playMale: '男性でプレイ',
     playFemale: '女性でプレイ',
     sideLeft: '左側で寝る',

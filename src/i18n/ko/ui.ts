@@ -28,6 +28,7 @@ const ui: UiMessages = {
     chooseRole: '역할을 고르세요',
     modeLabel: '난이도',
     mode: { easy: '쉬움', hard: '어려움' },
+    modeHint: { easy: '간단한 규칙으로 수면과 애정을 배워요.', hard: '체온, 친밀도, 타이밍을 함께 챙겨요.' },
     playMale: '남자로 플레이',
     playFemale: '여자로 플레이',
     sideLeft: '왼쪽에서 자요',

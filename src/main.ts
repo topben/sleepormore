@@ -6,6 +6,8 @@ import { createGame, playTurn, splitPhases, toggleEyes } from './game/turn';
 import type { ActionId, Ending, Eyes, GameEvent, GameState, Goal, IntimacyTiming, Mode, Role } from './game/types';
 import { detectLocale, setLocale } from './i18n';
 import { GameUI } from './ui/UI';
+import './ui/start.css';
+import './ui/hud-polish.css';
 
 /** 場景需要的介面(WebGL 不可用時用空實作,遊戲仍可只靠 HUD 進行) */
 interface SceneLike {

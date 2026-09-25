@@ -108,6 +108,140 @@ describe('GameUI: a new game is always playable', () => {
     vi.advanceTimersByTime(2000);
     expect(handlers.onAction).not.toHaveBeenCalled();
   });
+
+  it.each(['pointercancel', 'blur'])('an interrupted charge (%s) never sends an action and can be retried', async (event) => {
+    const { root, ui, handlers } = mount();
+    await begin(ui, root, createGame('male', 5));
+    fakeClock();
+    root.querySelector<HTMLButtonElement>('.act.ok[data-id="pullBlanket"]')!
+      .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    vi.advanceTimersByTime(900);
+    window.dispatchEvent(event === 'pointercancel' ? new PointerEvent(event) : new Event(event));
+    window.dispatchEvent(new PointerEvent('pointerup')); // The stale release after returning must be harmless.
+    vi.advanceTimersByTime(2000);
+    expect(handlers.onAction).not.toHaveBeenCalled();
+    expect(root.querySelector('.force')!.classList.contains('charging')).toBe(false);
+    expect(root.querySelector('.force-hold')!.getAttribute('aria-valuenow')).toBe('0');
+
+    root.querySelector('.force-hold')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 7 }));
+    vi.advanceTimersByTime(600);
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 99 }));
+    expect(root.querySelector('.force')!.classList.contains('charging')).toBe(true); // Another finger is not this charge.
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7 }));
+    vi.advanceTimersByTime(700);
+    expect(handlers.onAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('a short tap opens the force dialog; Space still charges and returns focus to the action', async () => {
+    const { root, ui, handlers } = mount();
+    await begin(ui, root, createGame('male', 5));
+    fakeClock();
+    const action = root.querySelector<HTMLButtonElement>('.act.ok[data-id="pullBlanket"]')!;
+    await holdAction(root, 'pullBlanket', 80);
+    expect(handlers.onAction).not.toHaveBeenCalled();
+    const hold = root.querySelector<HTMLButtonElement>('.force-hold')!;
+    expect(document.activeElement).toBe(hold);
+    hold.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, cancelable: true }));
+    vi.advanceTimersByTime(600);
+    hold.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true, cancelable: true }));
+    vi.advanceTimersByTime(700);
+    expect(handlers.onAction).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(action);
+  });
+});
+
+describe('GameUI: dialog keyboard focus', () => {
+  const tab = (shiftKey = false) => document.activeElement!.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true }),
+  );
+  const escape = () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+  it.each([
+    ['help', '.start-links .link-btn'],
+    ['language', '.start-card .lang-btn'],
+    ['gallery', '.gallery-link'],
+  ])('%s contains Tab/Shift+Tab and restores its opener on Escape', async (_name, selector) => {
+    const { root, ui } = mount();
+    ui.showStart();
+    const opener = root.querySelector<HTMLButtonElement>(selector)!;
+    opener.focus();
+    opener.click();
+    await Promise.resolve();
+    const dialog = root.querySelector<HTMLElement>('.modal-layer [role="dialog"]')!;
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(root.querySelector<HTMLElement>('.screen-layer')!.inert).toBe(true);
+    const buttons = [...dialog.querySelectorAll<HTMLButtonElement>('button')];
+    buttons.at(-1)!.focus();
+    expect(tab()).toBe(false);
+    expect(document.activeElement).toBe(buttons[0]);
+    expect(tab(true)).toBe(false);
+    expect(document.activeElement).toBe(buttons.at(-1));
+    escape();
+    expect(root.querySelector('.modal-layer [role="dialog"]')).toBeNull();
+    expect(root.querySelector<HTMLElement>('.screen-layer')!.inert).toBe(false);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('settings retains the focused checkbox on change and the select on translation; Escape works from both', async () => {
+    const { root, ui } = mount();
+    await begin(ui, root, createGame('female', 8));
+    const opener = root.querySelector<HTMLButtonElement>('.tools button:last-child')!;
+    opener.focus();
+    opener.click();
+    await Promise.resolve();
+    const sound = root.querySelector<HTMLInputElement>('.settings input')!;
+    sound.focus();
+    sound.click();
+    await Promise.resolve();
+    expect(document.activeElement).toBe(root.querySelector('.settings input'));
+    const select = root.querySelector<HTMLSelectElement>('.settings select')!;
+    select.focus();
+    select.value = 'en';
+    select.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(document.documentElement.lang).toBe('en'));
+    expect(document.activeElement).toBe(root.querySelector('.settings select'));
+    escape();
+    expect(root.querySelector('.settings')).toBeNull();
+    expect(document.activeElement).toBe(opener);
+    const { setLocale } = await import('../src/i18n');
+    await setLocale('zh-TW');
+  });
+
+  it('a language choice returns focus to the rebuilt start-screen language button', async () => {
+    const { root, ui } = mount();
+    ui.showStart();
+    const opener = root.querySelector<HTMLButtonElement>('.start-card .lang-btn')!;
+    opener.focus();
+    opener.click();
+    root.querySelector<HTMLButtonElement>('.lang-choice[data-locale="en"]')!.click();
+    await vi.waitFor(() => expect(document.documentElement.lang).toBe('en'));
+    expect(document.activeElement).toBe(root.querySelector('.start-card .lang-btn'));
+    const { setLocale } = await import('../src/i18n');
+    await setLocale('zh-TW');
+  });
+
+  it('the force dialog traps focus, cancels from Escape and restores the action button', async () => {
+    const { root, ui, handlers } = mount();
+    await begin(ui, root, createGame('male', 5));
+    const action = root.querySelector<HTMLButtonElement>('.act.ok[data-id="pullBlanket"]')!;
+    action.focus();
+    action.click();
+    await Promise.resolve();
+    const hold = root.querySelector<HTMLButtonElement>('.force-hold')!;
+    const cancel = root.querySelector<HTMLButtonElement>('.force-x')!;
+    expect(document.activeElement).toBe(hold);
+    hold.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+    expect(root.querySelector('.force')!.classList.contains('charging')).toBe(true);
+    tab();
+    expect(document.activeElement).toBe(cancel);
+    expect(root.querySelector('.force')!.classList.contains('charging')).toBe(false);
+    tab(true);
+    expect(document.activeElement).toBe(hold);
+    escape();
+    expect(root.querySelector('.force')!.classList.contains('hidden')).toBe(true);
+    expect(document.activeElement).toBe(action);
+    expect(handlers.onAction).not.toHaveBeenCalled();
+  });
 });
 
 describe('GameUI: language switching', () => {
@@ -225,14 +359,22 @@ describe('GameUI: combo endings (you × partner), collection and sharing', () =>
   afterEach(() => stubNavigator({ share: undefined, canShare: undefined }));
 
   it('share opens a card preview; phones send the image to the share sheet, and the text can be copied', async () => {
+    let finishPreview!: (blob: Blob) => void;
+    vi.mocked(renderShareCard).mockImplementationOnce(() => new Promise((resolve) => { finishPreview = resolve; }));
     const { root, ui } = mount();
     finish(ui, endedNight());
     const share = vi.fn().mockResolvedValue(undefined);
     stubNavigator({ share, canShare: vi.fn().mockReturnValue(true) });
-    root.querySelector<HTMLButtonElement>('.combo-share')!.click();
+    const opener = root.querySelector<HTMLButtonElement>('.combo-share')!;
+    opener.focus();
+    opener.click();
     expect(root.querySelector('.share-card')).not.toBeNull();
     expect(root.querySelector('.share-card-wait.making')).not.toBeNull(); // 先顯示「製作中」
+    await Promise.resolve();
+    root.querySelector<HTMLButtonElement>('.share-copy')!.focus();
+    finishPreview(new Blob(['png'], { type: 'image/png' }));
     await vi.waitFor(() => expect(root.querySelector('.share-card-img')).not.toBeNull());
+    expect(document.activeElement).toBe(root.querySelector('.share-copy')); // Preview completion must not steal focus.
     expect(vi.mocked(renderShareCard).mock.calls.at(-1)![0].combo.id).toBe('talker_spinner');
 
     root.querySelector<HTMLButtonElement>('.share-image')!.click();
@@ -247,6 +389,8 @@ describe('GameUI: combo endings (you × partner), collection and sharing', () =>
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     expect(writeText.mock.calls[0][0]).toContain('邊聊邊翻身');
     await vi.waitFor(() => expect(root.querySelector('.toast')).not.toBeNull());
+    root.querySelector<HTMLButtonElement>('.share-card .close')!.click();
+    expect(document.activeElement).toBe(opener);
   });
 
   it('without file sharing (desktop), the card offers a download instead', async () => {
@@ -301,11 +445,13 @@ describe('GameUI: hard mode', () => {
     expect(root.querySelector('.clock-turn .hard-word')!.textContent).toBe('困難');
   });
 
-  it('the start screen’s difficulty buttons show just the name (no small print)', () => {
+  it('the start screen’s difficulty buttons pair names with visible explanations', () => {
     const { root, ui } = mount();
     ui.showStart();
-    expect([...root.querySelectorAll('.mode-btn')].map((b) => b.textContent)).toEqual(['🌙 簡單', '🔥 困難']);
-    expect(root.querySelector('.mode-desc')).toBeNull();
+    expect([...root.querySelectorAll('.mode-name')].map((b) => b.textContent)).toEqual(['🌙 簡單', '🔥 困難']);
+    const hints = [...root.querySelectorAll<HTMLElement>('.mode-hint')];
+    expect(hints).toHaveLength(2);
+    expect(hints.every((hint) => !!hint.textContent?.trim() && !hint.hidden)).toBe(true);
   });
 
   it('the goal card spells out the win conditions line by line: win / draw / lose / scoring, numbers filled in', () => {

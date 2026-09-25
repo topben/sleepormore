@@ -4,6 +4,7 @@ import { FIRM_SPAN, FORCE_FILL_MS } from '../game/constants';
 import { forceBand } from '../game/rules';
 import type { ForceBand } from '../game/types';
 import { h } from './dom';
+import { DialogFocus } from './dialogFocus';
 
 export interface ForceRequest {
   emoji: string;
@@ -36,12 +37,27 @@ export class ForceMeter {
   private readout!: HTMLElement;
   private msg!: HTMLElement;
   private holdBtn!: HTMLButtonElement;
+  private readonly focus: DialogFocus;
+  /** undefined = keyboard; null = pointer started on an action button. */
+  private pointerId: number | null | undefined;
 
   constructor(parent: HTMLElement) {
-    this.el = h('div', { class: 'force hidden', role: 'dialog', 'aria-modal': 'false' });
+    this.el = h('div', { class: 'force hidden', role: 'dialog', 'aria-modal': 'true' });
     parent.append(this.el);
-    window.addEventListener('pointerup', () => this.charging && this.release());
-    window.addEventListener('pointercancel', () => this.charging && this.release());
+    this.focus = new DialogFocus(parent);
+    window.addEventListener('pointerup', (e) => {
+      if (this.ownsPointer(e)) this.release();
+    });
+    window.addEventListener('pointercancel', (e) => {
+      if (this.ownsPointer(e)) this.abortCharge();
+    });
+    window.addEventListener('blur', () => this.abortCharge());
+    this.el.addEventListener('focusout', (e) => {
+      if (e.target === this.holdBtn && this.pointerId === undefined) this.abortCharge();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.abortCharge();
+    });
   }
 
   get isOpen(): boolean {
@@ -56,16 +72,19 @@ export class ForceMeter {
     this.force = 0;
     this.build(req);
     this.el.classList.remove('hidden');
+    this.el.setAttribute('aria-label', req.label);
+    this.focus.activate(this.el, null, this.holdBtn);
     this.update();
     if (chargeNow) {
-      this.press();
+      this.press(null);
       this.fromAction = true;
     }
   }
 
-  press(): void {
+  press(pointerId?: number | null): void {
     if (!this.req || this.locked || this.charging) return;
     this.charging = true;
+    this.pointerId = pointerId;
     this.startAt = performance.now();
     this.force = 0;
     this.msg.textContent = '';
@@ -82,6 +101,7 @@ export class ForceMeter {
   release(): void {
     if (!this.req || !this.charging) return;
     this.charging = false;
+    this.pointerId = undefined;
     cancelAnimationFrame(this.raf);
     this.el.classList.remove('charging');
     const held = performance.now() - this.startAt;
@@ -128,6 +148,7 @@ export class ForceMeter {
   }
 
   private close() {
+    cancelAnimationFrame(this.raf);
     clearTimeout(this.resultTimer);
     this.resultTimer = 0;
     this.locked = false;
@@ -135,8 +156,27 @@ export class ForceMeter {
     this.onDone = null;
     this.onClose = null;
     this.charging = false;
+    this.pointerId = undefined;
+    this.fromAction = false;
     this.el.classList.add('hidden');
     this.el.classList.remove('charging');
+    this.focus.close();
+  }
+
+  private ownsPointer(event: PointerEvent): boolean {
+    return this.charging && this.pointerId !== undefined && (this.pointerId === null || this.pointerId === event.pointerId);
+  }
+
+  /** A lost pointer/window focus is an interruption, never an intentional release. */
+  private abortCharge(): void {
+    if (!this.charging) return;
+    this.charging = false;
+    this.pointerId = undefined;
+    this.fromAction = false;
+    cancelAnimationFrame(this.raf);
+    this.force = 0;
+    this.el.classList.remove('charging');
+    this.update();
   }
 
   private update() {
@@ -171,8 +211,10 @@ export class ForceMeter {
         'aria-valuenow': '0',
         'aria-label': req.texts.holdButton,
         onPointerdown: (e: PointerEvent) => {
+          if (e.button !== 0) return;
           e.preventDefault();
-          this.press();
+          this.holdBtn.focus({ preventScroll: true });
+          this.press(e.pointerId);
         },
         onContextmenu: (e: Event) => e.preventDefault(),
       },

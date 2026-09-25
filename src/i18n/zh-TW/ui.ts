@@ -28,6 +28,7 @@ export default {
     chooseRole: '選擇你的角色',
     modeLabel: '難度',
     mode: { easy: '簡單', hard: '困難' },
+    modeHint: { easy: '睡覺或親熱，輕鬆熟悉玩法。', hard: '兼顧體溫、親密度與親熱時機。' },
     playMale: '我是男方',
     playFemale: '我是女方',
     sideLeft: '睡左邊',

@@ -9,6 +9,7 @@ import { fmt, getLocale, m, onLocaleChange, setLocale, speechLine, type Locale }
 import { Bubbles, type BubbleTone } from './bubbles';
 import { loadCollection, recordCombo } from './collection';
 import { h } from './dom';
+import { DialogFocus, rememberFocus, restoreFocus } from './dialogFocus';
 import { ForceMeter } from './forceMeter';
 import { Hud } from './hud';
 import type { LogItem } from './log';
@@ -104,6 +105,7 @@ export class GameUI {
   private readonly bannerLayer = h('div', { class: 'banner-layer' });
   private readonly bubbles: Bubbles;
   private readonly meter: ForceMeter;
+  private readonly modalFocus: DialogFocus;
   private readonly youTag = h('div', { class: 'you-tag', 'aria-hidden': 'true' });
   private anchor: (role: Role) => { x: number; y: number } | null = () => null;
   private youRaf = 0;
@@ -128,6 +130,7 @@ export class GameUI {
     root.append(eyelids, this.hud.el, this.bubbleLayer, this.bannerLayer, this.screenLayer, this.modalLayer, this.toastLayer);
     this.bubbles = new Bubbles(this.bubbleLayer);
     this.meter = new ForceMeter(root);
+    this.modalFocus = new DialogFocus(root);
 
     onLocaleChange(() => this.refresh());
     window.addEventListener('keydown', (e) => this.onKey(e, true));
@@ -359,7 +362,7 @@ export class GameUI {
     const tick = () => {
       const st = this.state;
       const p = st ? this.anchor(st.playerRole) : null;
-      if (p) this.youTag.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y + 30)}px) translate(-50%, -100%)`;
+      if (p) this.youTag.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y - 6)}px) translate(-50%, -100%)`;
       this.youTag.style.visibility = p ? '' : 'hidden';
       this.youRaf = requestAnimationFrame(tick);
     };
@@ -396,6 +399,7 @@ export class GameUI {
     const T = wakeThreshold(s.chars[partnerOf(P)]);
     const noise = Math.round(projectedNoise(s, P, id));
     const thr = !open ? t.hud.noise.thresholdUnknown : Number.isFinite(T) ? fmt(t.hud.noise.threshold, { t: Math.round(T) }) : t.hud.noise.none;
+    this.hud.el.querySelector<HTMLElement>(`.act[data-id="${id}"]`)?.focus({ preventScroll: true });
     this.meter.open(
       {
         emoji: def.emoji,
@@ -426,10 +430,16 @@ export class GameUI {
   }
 
   private onKey(e: KeyboardEvent, down: boolean) {
+    if (!this.root.isConnected || e.defaultPrevented) return;
+    if (down && e.key === 'Escape') {
+      if (this.meter.isOpen) this.meter.cancel();
+      else if (this.modal) this.closeModal();
+      return;
+    }
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.key === ' ' || e.code === 'Space') {
-      if (this.meter.isOpen) {
+      if (this.meter.isOpen && !(e.target instanceof Element && e.target.closest('.force-x'))) {
         e.preventDefault();
         if (down && !e.repeat) this.meter.press();
         if (!down) this.meter.release();
@@ -437,11 +447,6 @@ export class GameUI {
       return;
     }
     if (!down) return;
-    if (e.key === 'Escape') {
-      if (this.meter.isOpen) this.meter.cancel();
-      else if (this.modal) this.closeModal();
-      return;
-    }
     if (this.modal || this.meter.isOpen) return;
     const k = e.key.toLowerCase();
     if (k === 'e' && this.screen === 'game') this.toggleEyes();
@@ -461,10 +466,12 @@ export class GameUI {
     if (this.modal === 'share') this.releaseCard();
     this.modal = null;
     this.modalLayer.replaceChildren();
+    this.modalFocus.close();
   }
 
   private renderModal() {
     if (!this.modal) return;
+    const focus = this.modalFocus.capture();
     const el =
       this.modal === 'help'
         ? helpScreen(() => this.closeModal())
@@ -503,6 +510,7 @@ export class GameUI {
             },
           });
     this.modalLayer.replaceChildren(el);
+    this.modalFocus.activate(el, focus, this.modal === 'lang' ? el.querySelector<HTMLElement>('.lang-choice.current') ?? undefined : undefined);
   }
 
   private updateSettings(s: Settings) {
@@ -526,6 +534,7 @@ export class GameUI {
 
   /** 語系改變 → 重畫目前畫面 */
   private refresh() {
+    const focus = this.modal ? null : rememberFocus(this.root);
     if (this.screen === 'start') this.showStart();
     else if (this.screen === 'goal') this.renderGoal();
     else if (this.screen === 'ending') {
@@ -536,6 +545,9 @@ export class GameUI {
     this.updateYouTag(); // 「你」標籤也要換語言
     if (this.modal === 'share') this.openShareCard(); // 圖卡上的字也要換語言:重畫
     else if (this.modal) this.renderModal();
+    else queueMicrotask(() => {
+      if (!this.modal && !this.meter.isOpen) restoreFocus(this.root, focus);
+    });
   }
 
   // ───────────── 版面 ─────────────
@@ -544,7 +556,9 @@ export class GameUI {
     const rootRect = this.root.getBoundingClientRect();
     if (!rootRect.height) return;
     if (this.hud.el.hidden) return this.emitInsets(0, 0);
-    const narrow = rootRect.width < 720;
+    // Match hud-polish.css: short landscape keeps status cards at the sides.
+    const landscape = rootRect.width >= 560 && rootRect.height <= 500 && rootRect.width > rootRect.height;
+    const narrow = rootRect.width < 720 && !landscape;
     // 窄螢幕的狀態卡橫跨上方,也要算進上方遮擋
     const topEls = [this.hud.top, ...Array.from(this.hud.el.querySelectorAll<HTMLElement>(narrow ? '.hintbar, .card' : '.hintbar'))];
     let top = 0;

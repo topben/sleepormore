@@ -118,6 +118,8 @@ export function startScreen(opts: {
       'button',
       { class: `mode-btn ${md}${opts.mode === md ? ' selected' : ''}`, type: 'button', 'data-mode': md, 'aria-pressed': String(opts.mode === md), onClick: () => pickMode(md) },
       h('span', { class: 'mode-name', text: `${md === 'hard' ? '🔥' : '🌙'} ${t.mode[md]}` }),
+      h('span', { class: 'mode-hint', text: t.modeHint[md] }),
+      h('span', { class: 'mode-check', 'aria-hidden': 'true', text: '✓' }),
     );
     modeBtns.push(b);
     return b;
@@ -126,9 +128,18 @@ export function startScreen(opts: {
     h(
       'button',
       { class: `role-btn ${r}`, type: 'button', onClick: () => opts.onRole(r) },
-      h('span', { class: 'role-emoji', 'aria-hidden': 'true', text: r === 'male' ? '🐻' : '🐰' }), // 角色是小熊 / 垂耳兔玩偶(DESIGN §14.9)
-      h('span', { class: 'role-main', text: r === 'male' ? t.playMale : t.playFemale }),
-      h('span', { class: 'role-sub', text: r === 'male' ? t.sideLeft : t.sideRight }),
+      h(
+        'span',
+        { class: 'role-portrait', 'aria-hidden': 'true' },
+        h('img', { class: 'role-art', src: `/characters/${r === 'male' ? 'bear' : 'bunny'}.png`, alt: '', 'aria-hidden': 'true', width: 320, height: 320, draggable: 'false' }),
+      ),
+      h(
+        'span',
+        { class: 'role-caption' },
+        h('span', { class: 'role-main', text: r === 'male' ? t.playMale : t.playFemale }),
+        h('span', { class: 'role-sub', text: r === 'male' ? t.sideLeft : t.sideRight }),
+      ),
+      h('span', { class: 'role-arrow', 'aria-hidden': 'true', text: '→' }),
     );
   return h(
     'div',
@@ -136,12 +147,25 @@ export function startScreen(opts: {
     h(
       'div',
       { class: 'start-card' },
-      h('h1', { class: [...t.title].length > 8 ? 'title long' : 'title', text: t.title }),
-      h('div', { class: 'subtitle', text: t.subtitle }),
-      h('p', { class: 'tagline', text: t.tagline }),
-      h('div', { class: 'mode-pick', role: 'group', 'aria-label': t.modeLabel }, modeBtn('easy'), modeBtn('hard')),
-      h('div', { class: 'choose', text: t.chooseRole }),
-      h('div', { class: 'roles' }, roleBtn('male'), roleBtn('female')),
+      h(
+        'header',
+        { class: 'start-heading' },
+        h('div', { class: 'subtitle', text: t.subtitle }),
+        h('h1', { class: [...t.title].length > 8 ? 'title long' : 'title', text: t.title }),
+        h('p', { class: 'tagline', text: t.tagline }),
+      ),
+      h(
+        'section',
+        { class: 'start-difficulty', 'aria-labelledby': 'start-mode-label' },
+        h('h2', { class: 'start-label', id: 'start-mode-label', text: t.modeLabel }),
+        h('div', { class: 'mode-pick', role: 'group', 'aria-label': t.modeLabel }, modeBtn('easy'), modeBtn('hard')),
+      ),
+      h(
+        'section',
+        { class: 'start-characters', 'aria-labelledby': 'start-role-label' },
+        h('h2', { class: 'start-label choose', id: 'start-role-label', text: t.chooseRole }),
+        h('div', { class: 'roles' }, roleBtn('male'), roleBtn('female')),
+      ),
       h(
         'div',
         { class: 'start-links' },

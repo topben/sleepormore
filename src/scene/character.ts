@@ -34,7 +34,7 @@ const LEG_LEN = 0.66;
 const LEG_COVER = 0.12;
 const CHEST_POS = new THREE.Vector3(0, 0.45, 0.13);
 const CHEST_SCALE = new THREE.Vector3(1.05, 0.62, 0.5);
-const EYE_SCALE = new THREE.Vector3(1, 1.25, 0.6);
+const EYE_SCALE = new THREE.Vector3(1, 1.08, 0.6);
 /** 頭微微收下巴(臉朝腳 = 朝相機),讓床尾視角看得到五官 */
 export const HEAD_TILT = 0.22;
 /** 側躺時臉微微轉向天花板(−0.45·sin(roll)),不然從床尾只看得到後腦勺 */
@@ -69,6 +69,9 @@ export class CharacterKit {
     /** 搪膠臉:頭球正面的一片球冠,邊緣藏在毛下面 */
     face: new THREE.SphereGeometry(0.1515, 28, 18, Math.PI / 2 - 0.87, 1.74, Math.PI / 2 - 0.8, 1.75),
     nose: new THREE.SphereGeometry(0.013, 12, 8),
+    muzzle: new THREE.SphereGeometry(0.05, 24, 16),
+    lid: new THREE.TorusGeometry(0.02, 0.0036, 6, 18, Math.PI),
+    brow: new THREE.TorusGeometry(0.025, 0.0038, 6, 16, Math.PI),
     earBear: new THREE.SphereGeometry(0.062, 18, 12),
     earLop: new THREE.SphereGeometry(0.06, 18, 14),
     innerEar: new THREE.SphereGeometry(0.04, 14, 10),
@@ -77,27 +80,28 @@ export class CharacterKit {
     tail: new THREE.SphereGeometry(0.05, 16, 12),
     /** 腳底的肉球(掌墊 + 三顆趾頭,一個幾何 = 一次 draw call) */
     pads: pawPads(),
-    eyeHi: new THREE.SphereGeometry(0.0072, 8, 6),
+    eyeHi: new THREE.SphereGeometry(0.005, 8, 6),
     palm: new THREE.SphereGeometry(0.058, 16, 12),
     thumb: new THREE.SphereGeometry(0.025, 10, 8),
+    shoulder: new THREE.SphereGeometry(SLEEVE_R[0], 16, 12),
     cuff: new THREE.TorusGeometry(0.075, 0.0105, 8, 22),
     legCuff: new THREE.TorusGeometry(0.084, 0.014, 8, 22),
     button: new THREE.SphereGeometry(0.019, 12, 8),
     leg: new THREE.CapsuleGeometry(0.08, 0.5, 6, 18),
     foot: new THREE.SphereGeometry(0.078, 16, 10),
-    eye: new THREE.SphereGeometry(0.026, 16, 12),
+    eye: new THREE.SphereGeometry(0.022, 20, 14),
     blush: new THREE.CircleGeometry(0.03, 18),
     hatch: new THREE.PlaneGeometry(0.066, 0.066),
     dark: new THREE.CircleGeometry(0.036, 18),
-    mouth: new THREE.TorusGeometry(0.024, 0.0065, 6, 14, Math.PI),
+    mouth: new THREE.TorusGeometry(0.022, 0.004, 6, 16, Math.PI),
     /** ω 嘴:兩個小弧 */
-    mouthSmall: new THREE.TorusGeometry(0.012, 0.0055, 6, 12, Math.PI),
+    mouthSmall: new THREE.TorusGeometry(0.012, 0.0036, 6, 14, Math.PI),
     bubble: new THREE.SphereGeometry(1, 16, 12),
   };
   readonly furNoise = furNoiseTexture();
   /** 毛(殼層):頭(臉挖掉)、耳朵(內耳挖掉)、手、腳(腳底挖掉露出肉球)、尾巴 */
   readonly shells = {
-    head: shellGeometry(this.geo.head, { layers: 9, length: 0.022, uvScale: [7, 4], bare: { dir: FACE_DIR, angle: 0.73, soft: 0.2 } }),
+    head: shellGeometry(this.geo.head, { layers: 9, length: 0.016, uvScale: [7, 4], bare: { dir: FACE_DIR, angle: 0.73, soft: 0.2 } }),
     // 耳朵正面挖掉一塊露出內耳(淺色絨布片)
     earBear: shellGeometry(this.geo.earBear, { layers: 6, length: 0.016, uvScale: [3, 2], bare: { dir: Z_AXIS, angle: 0.5, soft: 0.22 } }),
     earLop: shellGeometry(this.geo.earLop, { layers: 6, length: 0.014, uvScale: [3, 3], bare: { dir: Z_AXIS, angle: 0.5, soft: 0.2 } }),
@@ -110,7 +114,6 @@ export class CharacterKit {
   /** 眼睛裡的亮點(搪膠玩具的大眼睛) */
   readonly eyeHiMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   readonly darkMat = new THREE.MeshBasicMaterial({ color: 0x3a2850, transparent: true, opacity: 0.8, depthWrite: false });
-  readonly mouthMat = new THREE.MeshBasicMaterial({ color: 0x7a3440 });
   readonly hatchTex = blushHatchTexture();
   readonly hatchMat = new THREE.MeshBasicMaterial({ map: this.hatchTex, transparent: true, depthWrite: false });
   /** 鼻涕泡泡:半透明、帶一點自發光(夜裡也看得到) */
@@ -127,7 +130,7 @@ export class CharacterKit {
   dispose(): void {
     for (const g of Object.values(this.geo)) g.dispose();
     for (const g of Object.values(this.shells)) g.dispose();
-    for (const m of [this.eyeMat, this.eyeHiMat, this.darkMat, this.mouthMat, this.hatchMat, this.bubbleMat]) m.dispose();
+    for (const m of [this.eyeMat, this.eyeHiMat, this.darkMat, this.hatchMat, this.bubbleMat]) m.dispose();
     this.hatchTex.dispose();
     this.furNoise.dispose();
   }
@@ -206,6 +209,8 @@ export class Character {
 
   private readonly chest: THREE.Mesh;
   private readonly eyes: THREE.Mesh[] = [];
+  private readonly lids: THREE.Mesh[] = [];
+  private readonly brows: THREE.Mesh[] = [];
   /** 眼睛的亮點(閉眼時藏起來,不然閉著的眼睛會像瞇眼偷看) */
   private readonly eyeHi: THREE.Mesh[] = [];
   private readonly blush: THREE.Mesh[] = [];
@@ -309,9 +314,17 @@ export class Character {
       own(new THREE.MeshPhysicalMaterial({ color: plush.fur, roughness: 0.88, metalness: 0, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(plush.sheen) }));
     const fur = furBody();
     const furShell = own(furShellMaterial(plush.fur, kit.furNoise));
-    const faceMat = std(plush.face, 0.42);
+    const faceMat = std(plush.face, 0.58);
+    // A little bounced warmth keeps the cream face readable in the moonlit room.
+    faceMat.emissive.setHex(plush.face);
+    faceMat.emissiveIntensity = 0.08;
+    const muzzleMat = std(role === 'male' ? 0xffe8ce : 0xfff8f0, 0.7);
+    muzzleMat.emissive.copy(faceMat.emissive);
+    muzzleMat.emissiveIntensity = 0.06;
     const innerMat = std(plush.inner, 0.7);
     const noseMat = std(plush.nose, 0.3);
+    const irisMat = std(role === 'male' ? 0x684330 : 0x654354, 0.24);
+    const stitchMat = own(new THREE.MeshBasicMaterial({ color: role === 'male' ? 0x694333 : 0x775767 }));
     const padMat = std(plush.pad, 0.55);
     this.armMat = { armL: furBody(), armR: furBody() };
     this.armFur = { armL: own(furShellMaterial(plush.fur, kit.furNoise, ARM_FUR)), armR: own(furShellMaterial(plush.fur, kit.furNoise, ARM_FUR)) };
@@ -351,7 +364,8 @@ export class Character {
 
     // 頭:毛絨的頭 + 搪膠臉(臉的範圍不長毛)
     this.head.position.set(0, 0.9, 0);
-    this.head.scale.setScalar(HEAD_SCALE);
+    // 小熊的臉略寬、兔子略長;厚度收一點,保留側躺擁抱時的空間。
+    this.head.scale.set(HEAD_SCALE * (role === 'male' ? 1.06 : 1.02), HEAD_SCALE * (role === 'male' ? 1 : 1.05), HEAD_SCALE * 0.97);
     this.root.add(this.head);
     const headMesh = mesh(g.head, fur, this.head);
     furOn(headMesh, kit.shells.head);
@@ -359,28 +373,29 @@ export class Character {
     if (role === 'male') {
       // 小熊:頭頂兩側的圓耳朵(正面朝前)
       for (const s of [-1, 1]) {
-        const ear = mesh(g.earBear, fur, this.head, s * 0.11, 0.1, 0.03);
-        ear.rotation.set(-0.2, 0, -s * 0.4);
-        ear.scale.set(1, 0.92, 0.5);
+        const ear = mesh(g.earBear, fur, this.head, s * 0.126, 0.106, 0.035);
+        ear.rotation.set(-0.12, s * 0.12, -s * 0.3);
+        ear.scale.set(1.08, 1.03, 0.68);
         furOn(ear, kit.shells.earBear);
-        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.004, 0.05);
-        inner.scale.set(0.95, 0.88, 0.35);
+        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.002, 0.057);
+        inner.scale.set(0.92, 0.94, 0.22);
       }
     } else {
       // 垂耳兔:從頭頂往兩側攤開、垂下來的長耳朵(粉紅內耳朝前)+ 蝴蝶結
       for (const s of [-1, 1]) {
         const pivot = new THREE.Group();
-        pivot.position.set(s * 0.09, 0.115, 0.005);
-        pivot.rotation.set(-0.3, 0, s * 0.72);
+        pivot.position.set(s * 0.112, 0.12, 0.018);
+        // One ear rests a little lower, like a well-loved, softly stuffed toy.
+        pivot.rotation.set(s < 0 ? -0.13 : -0.24, s * 0.12, s * (s < 0 ? 0.88 : 0.62));
         this.head.add(pivot);
-        const ear = mesh(g.earLop, fur, pivot, 0, -0.11, 0);
-        ear.scale.set(0.64, 2, 0.32);
+        const ear = mesh(g.earLop, fur, pivot, 0, -0.112, 0);
+        ear.scale.set(0.78, s < 0 ? 2.22 : 2.42, 0.48);
         furOn(ear, kit.shells.earLop);
-        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.004, 0.05);
-        inner.scale.set(0.8, 1.05, 0.3);
+        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.005, 0.055);
+        inner.scale.set(0.77, 1.22, 0.24);
       }
       const bow = new THREE.Group();
-      onHead(bow, 0.07, 0.125, 0.05, 0.158);
+      onHead(bow, 0.085, 0.105, 0.072, 0.162);
       bow.rotateZ(-0.3);
       this.head.add(bow);
       const bowMat = std(BOW, 0.5);
@@ -392,12 +407,31 @@ export class Character {
       mesh(g.bowKnot, bowMat, bow);
     }
     for (const s of [-1, 1]) {
-      const eye = mesh(g.eye, kit.eyeMat, this.head);
-      onHead(eye, s * 0.056, 0.03, 0.14, 0.147);
+      const eye = mesh(g.eye, irisMat, this.head);
+      onHead(eye, s * 0.058, 0.016, 0.14, 0.151);
       eye.quaternion.identity();
       eye.scale.copy(EYE_SCALE);
-      this.eyeHi.push(mesh(g.eyeHi, kit.eyeHiMat, eye, 0.009, 0.011, 0.021));
+      const pupil = mesh(g.eye, kit.eyeMat, eye, 0, 0.001, 0.009);
+      pupil.scale.set(0.76, 0.86, 0.72);
+      this.eyeHi.push(mesh(g.eyeHi, kit.eyeHiMat, eye, -0.006, 0.009, 0.03));
+      const glint = mesh(g.eyeHi, kit.eyeHiMat, eye, 0.008, -0.009, 0.029);
+      glint.scale.setScalar(0.42);
+      this.eyeHi.push(glint);
       this.eyes.push(eye);
+      // Sleep has its own soft stitched arc instead of a flattened eyeball.
+      const lid = mesh(g.lid, stitchMat, this.head);
+      lid.position.copy(eye.position);
+      lid.position.z += 0.008;
+      lid.rotation.z = Math.PI;
+      lid.scale.y = 0.48;
+      lid.visible = false;
+      this.lids.push(lid);
+      const browPivot = new THREE.Group();
+      onHead(browPivot, s * 0.057, 0.06, 0.14, 0.158);
+      this.head.add(browPivot);
+      const brow = mesh(g.brow, stitchMat, browPivot);
+      brow.scale.set(0.76, 0.28, 1);
+      this.brows.push(brow);
       const b = mesh(g.blush, this.blushMat, this.head);
       onHead(b, s * 0.092, -0.03, 0.125, 0.1525);
       b.visible = false;
@@ -407,20 +441,24 @@ export class Character {
       hx.visible = false;
       this.hatch.push(hx);
       const d = mesh(g.dark, kit.darkMat, this.head);
-      onHead(d, s * 0.056, -0.01, 0.14, 0.1522);
+      onHead(d, s * 0.056, -0.024, 0.14, 0.1522);
       d.scale.set(1.1, 0.75, 1);
       d.visible = false;
       this.dark.push(d);
     }
-    const nose = mesh(g.nose, noseMat, this.head);
-    onHead(nose, 0, -0.026, 0.15, 0.152);
-    nose.scale.set(1.3, 0.85, 0.7);
+    const muzzlePivot = new THREE.Group();
+    onHead(muzzlePivot, 0, -0.039, 0.146, 0.152);
+    this.head.add(muzzlePivot);
+    const muzzle = mesh(g.muzzle, muzzleMat, muzzlePivot);
+    muzzle.scale.set(role === 'male' ? 1.18 : 1.04, 0.76, 0.44);
+    const nose = mesh(g.nose, noseMat, muzzlePivot, 0, 0.014, 0.022);
+    nose.scale.set(role === 'male' ? 1.32 : 1.05, 0.8, 0.8);
     const mouthPivot = new THREE.Group();
-    onHead(mouthPivot, 0, -0.064, 0.137, 0.1525);
-    this.head.add(mouthPivot);
-    this.mouth = mesh(g.mouth, kit.mouthMat, mouthPivot);
+    mouthPivot.position.set(0, -0.018, 0.022);
+    muzzlePivot.add(mouthPivot);
+    this.mouth = mesh(g.mouth, stitchMat, mouthPivot);
     for (const s of [-1, 1]) {
-      const w = mesh(g.mouthSmall, kit.mouthMat, mouthPivot, s * 0.0118, 0.004, 0);
+      const w = mesh(g.mouthSmall, stitchMat, mouthPivot, s * 0.0118, 0.004, 0);
       w.rotation.z = Math.PI; // ∪ ∪ = ω
       this.mouthW.push(w);
     }
@@ -453,6 +491,9 @@ export class Character {
       const arm = new HoseGeometry(10, 14);
       this.ownGeo.push(sleeve, arm);
       const sm = mesh(sleeve, sleeveMat, grp);
+      // A soft shoulder closes the open hose end and joins the sleeve to the torso.
+      const shoulder = mesh(g.shoulder, sleeveMat, grp, 0, 0.015, 0);
+      shoulder.scale.y = 0.7;
       const am = mesh(arm, this.armMat[name], grp);
       const af = new THREE.InstancedMesh(arm, this.armFur[name], ARM_FUR.layers);
       grp.add(af);
@@ -664,6 +705,10 @@ export class Character {
     this.mouth.rotation.z = e === 'frown' ? 0 : Math.PI;
     this.mouth.scale.set(e === 'neutral' ? 0.7 : 1, e === 'neutral' ? 0.25 : 1, 1);
     this.mouth.position.y = e === 'frown' ? -0.012 : 0;
+    for (let i = 0; i < this.brows.length; i++) {
+      const side = i === 0 ? -1 : 1;
+      this.brows[i].rotation.z = side * (e === 'frown' ? 0.38 : e === 'neutral' ? 0 : -0.08);
+    }
   }
 
   setNumb(n: number): void {
@@ -817,7 +862,11 @@ export class Character {
       blink = 0.12 + 0.88 * Math.abs(this.blinkT / 0.08 - 1);
     }
     const open = Math.max(0.12, this.ceye.cur * blink);
-    for (const e of this.eyes) e.scale.y = EYE_SCALE.y * open;
+    for (const e of this.eyes) {
+      e.scale.y = EYE_SCALE.y * open;
+      e.visible = open > 0.22;
+    }
+    for (const lid of this.lids) lid.visible = open <= 0.22;
     for (const h of this.eyeHi) h.visible = open > 0.5;
 
     this.updateBubble(dt, b, open);
