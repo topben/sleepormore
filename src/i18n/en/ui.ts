@@ -27,10 +27,7 @@ const ui: UiMessages = {
     tagline: 'Tonight, do you just want to sleep… or?',
     chooseRole: 'Choose your role',
     modeLabel: 'Difficulty',
-    mode: {
-      easy: { name: 'Easy', desc: 'The classic rules' },
-      hard: { name: 'Hard', desc: 'Intimacy: now or morning; sleep needs warmth & closeness' },
-    },
+    mode: { easy: 'Easy', hard: 'Hard' },
     playMale: 'Play as him',
     playFemale: 'Play as her',
     sideLeft: 'Sleeps on the left',
@@ -51,7 +48,10 @@ const ui: UiMessages = {
     winLabel: 'How to win',
     tipsLabel: 'Tips',
     sleep: {
-      win: 'Make it to 06:00 with a sleep score of {n} (+1 per turn asleep, +0.5 per turn drowsy).',
+      win: [
+        '🏆 Win with a sleep score of {n} or more at 06:00.',
+        '💤 Sleep score: at the end of each turn, +1 if you’re asleep, +0.5 if you’re drowsy.',
+      ],
       tips: [
         'First close your eyes with the eye button up top, then tap “💤 Sleep” to build sleepiness.',
         'Lose the blanket and you’ll get cold, and it’s hard to sleep when you’re cold.',
@@ -59,7 +59,9 @@ const ui: UiMessages = {
       ],
     },
     intimacy: {
-      win: 'Get intimacy to 100 before dawn, while your partner is still awake.',
+      win: [
+        '🏆 Win by getting intimacy to 100 by 06:00, while your partner is awake.',
+      ],
       tips: [
         'Keep your eyes open, use “Face them”, and “Scoot closer” if you’re too far apart.',
         'Kisses and hugs need charging: hold, then release in the green zone. Too much force annoys your partner.',
@@ -69,7 +71,10 @@ const ui: UiMessages = {
     // hard mode
     hardBadge: '🔥 Hard mode',
     now: {
-      win: 'Get intimacy to 100 before {deadline}, while your partner is awake. When time runs out, you lose.',
+      win: [
+        '🏆 Win by getting intimacy to 100 by {deadline}, while your partner is awake.',
+        '💀 Not there by {deadline}? You lose, and the night ends there.',
+      ],
       tips: [
         'On turn one, “Face them”; if you’re too far apart, “Scoot closer”.',
         'Firm kisses (yellow zone) are faster, but never rough.',
@@ -77,7 +82,12 @@ const ui: UiMessages = {
       ],
     },
     morning: {
-      win: 'Sleep well first (sleep score {sleep}), then get intimacy to 100 after {morning} while your partner is awake. Too early doesn’t count.',
+      win: [
+        '🏆 Win by getting intimacy to 100 at {morning} or later, with a sleep score of {sleep} or more and your partner awake.',
+        '🤝 Reaching 100 too early (before {morning}, or with a sleep score under {sleep}) is a draw.',
+        '💀 Not there by 06:00? You lose.',
+        '💤 Sleep score: at the end of each turn, +1 if you’re asleep and comfortable; +0.5 if you’re asleep but uncomfortable, or drowsy but comfortable. What counts as comfortable is below.',
+      ],
       tips: [
         'At night, build a little closeness while your partner is awake, then close your eyes and sleep.',
         'If intimacy is nearly full, turn away or close your eyes so it doesn’t fill up at night.',
@@ -85,7 +95,10 @@ const ui: UiMessages = {
       ],
     },
     sleepHard: {
-      win: 'Make it to 06:00 with a sleep score of {n}. Only turns spent sleeping comfortably score a full point: warmth in your comfort range and enough intimacy.',
+      win: [
+        '🏆 Win with a sleep score of {n} or more at 06:00.',
+        '💤 Sleep score: at the end of each turn, +1 if you’re asleep and comfortable; +0.5 if you’re asleep but uncomfortable, or drowsy but comfortable. What counts as comfortable is below.',
+      ],
       tips: [
         'Warmth wobbles and the night gets colder; if you’re too hot, share the blanket (“Tuck them in”); if you’re cold, pull it back.',
         'Without enough intimacy you won’t sleep soundly: whisper or hug before bed. Intimacy doesn’t drop while one of you is asleep.',

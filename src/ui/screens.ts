@@ -117,8 +117,7 @@ export function startScreen(opts: {
     const b = h(
       'button',
       { class: `mode-btn ${md}${opts.mode === md ? ' selected' : ''}`, type: 'button', 'data-mode': md, 'aria-pressed': String(opts.mode === md), onClick: () => pickMode(md) },
-      h('span', { class: 'mode-name', text: `${md === 'hard' ? '🔥' : '🌙'} ${t.mode[md].name}` }),
-      h('span', { class: 'mode-desc', text: t.mode[md].desc }),
+      h('span', { class: 'mode-name', text: `${md === 'hard' ? '🔥' : '🌙'} ${t.mode[md]}` }),
     );
     modeBtns.push(b);
     return b;
@@ -162,6 +161,13 @@ export function startScreen(opts: {
   );
 }
 
+/** 「🏆 ……」這種一行:開頭的圖示自成一欄,折行時文字對齊(文字本身已說明贏 / 輸,圖示不唸) */
+function iconLine(text: string): HTMLElement {
+  const m = /^(\p{Extended_Pictographic}\uFE0F?)\s+(.*)$/su.exec(text);
+  if (!m) return h('li', { text });
+  return h('li', {}, h('span', { class: 'line-icon', 'aria-hidden': 'true', text: m[1] }), h('span', { text: m[2] }));
+}
+
 export function goalScreen(s: GameState, settings: Settings, opts: { onStart(): void; onHints(on: boolean): void }): HTMLElement {
   const t = m().ui.goal;
   const P = s.playerRole;
@@ -190,7 +196,8 @@ export function goalScreen(s: GameState, settings: Settings, opts: { onStart(): 
       h('div', { class: 'goal-big' }, h('span', { class: 'goal-big-emoji', 'aria-hidden': 'true', text: goalEmoji(me, s.mode) }), h('span', { text: goalName(me, s.mode) })),
       h('p', { class: 'goal-role', text: fmt(t.youAre, { role: P === 'male' ? m().ui.common.male : m().ui.common.female, side: P === 'male' ? t.left : t.right }) }),
       h('h4', { text: t.winLabel }),
-      h('p', { class: 'goal-win', text: fmt(info.win, winVars) }),
+      // 勝利條件逐條寫清楚:🏆 贏 / 🤝 平手 / 💀 輸 / 💤 怎麼計分
+      h('ul', { class: 'goal-win' }, ...info.win.map((line) => iconLine(fmt(line, winVars)))),
       showBody ? h('p', { class: 'goal-physique', text: fmt(t.body[P], vars) }) : null,
       h('h4', { text: t.tipsLabel }),
       h('ul', { class: 'goal-tips' }, ...info.tips.map((tip) => h('li', { text: fmt(tip, vars) }))),

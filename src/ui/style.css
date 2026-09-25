@@ -344,10 +344,6 @@ input:focus-visible {
   font-weight: 800;
   color: #e9e3ff;
 }
-.mode-desc {
-  font-size: 11.5px;
-  line-height: 1.35;
-}
 .mode-btn.selected {
   border-color: #b9a8ff;
   background: rgba(62, 52, 118, 0.88);
@@ -538,7 +534,19 @@ input:focus-visible {
 }
 .goal-win {
   margin: 0;
+  padding: 0;
+  list-style: none;
   line-height: 1.55;
+}
+.goal-win li {
+  display: flex;
+  gap: 0.45em;
+}
+.goal-win li + li {
+  margin-top: 4px;
+}
+.goal-win .line-icon {
+  flex: none;
 }
 .goal-tips {
   margin: 0;

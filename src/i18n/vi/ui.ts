@@ -27,10 +27,7 @@ const ui: UiMessages = {
     tagline: 'Đêm nay, bạn muốn ngủ thật ngon… hay là?',
     chooseRole: 'Chọn vai của bạn',
     modeLabel: 'Độ khó',
-    mode: {
-      easy: { name: 'Dễ', desc: 'Luật chơi như cũ' },
-      hard: { name: 'Khó', desc: 'Gần gũi: ngay / buổi sáng; ngủ cần ấm vừa phải và an tâm' },
-    },
+    mode: { easy: 'Dễ', hard: 'Khó' },
     playMale: 'Mình là chàng',
     playFemale: 'Mình là nàng',
     sideLeft: 'Nằm bên trái',
@@ -51,7 +48,10 @@ const ui: UiMessages = {
     winLabel: 'Điều kiện thắng',
     tipsLabel: 'Mẹo nhỏ',
     sleep: {
-      win: 'Trụ đến 06:00 và đạt {n} điểm ngủ (mỗi lượt đang ngủ +1, lơ mơ +0.5).',
+      win: [
+        '🏆 Lúc 06:00 có từ {n} điểm ngủ trở lên là thắng.',
+        '💤 Điểm ngủ: cuối mỗi lượt, đang ngủ +1, lơ mơ +0.5.',
+      ],
       tips: [
         'Bấm nút nhắm mắt ở phía trên trước, rồi bấm “💤 Ngủ” để tích lũy cơn buồn ngủ.',
         'Bị giành mất chăn sẽ lạnh, mà lạnh thì ngủ không ngon.',
@@ -59,7 +59,9 @@ const ui: UiMessages = {
       ],
     },
     intimacy: {
-      win: 'Đưa độ thân mật lên 100 trước khi trời sáng, và ngay lúc đó người ấy phải còn thức.',
+      win: [
+        '🏆 Đưa độ thân mật lên 100 trước 06:00 là thắng (lúc đó người ấy phải còn thức).',
+      ],
       tips: [
         'Giữ mắt mở, “Quay mặt vào” người ấy trước; xa quá thì “Nhích lại gần”.',
         'Hôn, ôm phải nhấn giữ để tụ lực, thả ra ở vùng xanh; mạnh tay quá sẽ chọc giận người ấy.',
@@ -69,7 +71,10 @@ const ui: UiMessages = {
     // hard mode
     hardBadge: '🔥 Chế độ khó',
     now: {
-      win: 'Đưa độ thân mật lên 100 trước {deadline}, và lúc đó người ấy phải còn thức. Hết giờ là thua.',
+      win: [
+        '🏆 Đưa độ thân mật lên 100 trước {deadline} là thắng (lúc đó người ấy phải còn thức).',
+        '💀 Tới {deadline} mà chưa xong là thua, ván kết thúc luôn.',
+      ],
       tips: [
         'Ngay lượt đầu hãy “Quay mặt vào” người ấy; xa quá thì “Nhích lại gần”.',
         'Hôn mạnh tay một chút (vùng vàng) sẽ nhanh hơn, nhưng đừng thô bạo.',
@@ -77,7 +82,12 @@ const ui: UiMessages = {
       ],
     },
     morning: {
-      win: 'Ngủ đủ trước ({sleep} điểm ngủ), rồi từ {morning} mới đưa độ thân mật lên 100 (người ấy phải còn thức). Sớm quá thì không tính.',
+      win: [
+        '🏆 Từ {morning} trở đi, đưa độ thân mật lên 100 là thắng (lúc đó cần từ {sleep} điểm ngủ trở lên và người ấy còn thức).',
+        '🤝 Lên 100 quá sớm (trước {morning}, hoặc chưa đủ {sleep} điểm ngủ) thì hòa.',
+        '💀 Tới 06:00 mà chưa xong là thua.',
+        '💤 Điểm ngủ: cuối mỗi lượt, đang ngủ mà thoải mái +1; đang ngủ nhưng không thoải mái, hoặc lơ mơ mà thoải mái +0.5. Thế nào là thoải mái thì xem bên dưới.',
+      ],
       tips: [
         'Ban đêm, tranh thủ lúc người ấy còn thức vun đắp chút tình cảm, rồi nhắm mắt ngủ.',
         'Độ thân mật sắp đầy thì quay lưng hoặc nhắm mắt, đừng để nó đầy ngay trong đêm.',
@@ -85,7 +95,10 @@ const ui: UiMessages = {
       ],
     },
     sleepHard: {
-      win: 'Trụ tới 06:00 và đạt {n} điểm ngủ. Chỉ những lượt ngủ thoải mái mới được trọn 1 điểm: thân nhiệt vừa phải và độ thân mật đủ cao.',
+      win: [
+        '🏆 Lúc 06:00 có từ {n} điểm ngủ trở lên là thắng.',
+        '💤 Điểm ngủ: cuối mỗi lượt, đang ngủ mà thoải mái +1; đang ngủ nhưng không thoải mái, hoặc lơ mơ mà thoải mái +0.5. Thế nào là thoải mái thì xem bên dưới.',
+      ],
       tips: [
         'Thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh; nóng quá thì chia chăn cho người ấy (“Đắp chăn giúp”), lạnh quá thì kéo lại.',
         'Độ thân mật thiếu thì ngủ không yên: trước khi ngủ hãy thì thầm hoặc ôm một cái. Khi có người đang ngủ, độ thân mật không giảm.',
