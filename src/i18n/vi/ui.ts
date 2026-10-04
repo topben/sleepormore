@@ -107,8 +107,8 @@ const ui: UiMessages = {
       ],
     },
     body: {
-      male: '🐻 Gấu sợ nóng: thân nhiệt {lo}–{hi} là dễ chịu nhất, độ thân mật cần từ {need} trở lên.',
-      female: '🐰 Thỏ tai cụp sợ lạnh: thân nhiệt từ {lo} trở lên là dễ chịu nhất, độ thân mật từ {need} trở lên mới thấy yên tâm.',
+      male: '👨 Chàng sợ nóng: thân nhiệt {lo}–{hi} là dễ chịu nhất, độ thân mật cần từ {need} trở lên.',
+      female: '👩 Nàng sợ lạnh: thân nhiệt từ {lo} trở lên là dễ chịu nhất, độ thân mật từ {need} trở lên mới thấy yên tâm.',
     },
     secret: 'Người ấy cũng có mục tiêu riêng (bí mật đấy). Hãy đoán qua lời nói và hành động nhé!',
     hintsToggle: 'Hiện gợi ý (khuyên dùng cho người mới)',
@@ -339,7 +339,7 @@ const ui: UiMessages = {
         title: '🔥 Chế độ khó',
         body: [
           'Ở màn hình bắt đầu có thể chọn “Khó”. Gần gũi có hai kiểu: ⏱️ gần gũi ngay (phải xong trước {deadline}, hết giờ là thua) và 🌅 gần gũi buổi sáng (ngủ đủ trước, chỉ tính từ {morning}, sớm quá thì hòa).',
-          'Chỉ cần {sleepWin} điểm ngủ, nhưng phải ngủ thoải mái mới được điểm: thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh, cả hai cùng thức mà không tương tác thì độ thân mật giảm. Gấu sợ nóng (thân nhiệt {bearLo}–{bearHi}), thỏ tai cụp sợ lạnh (từ {bunnyLo} trở lên) và cần nhiều cảm giác an toàn hơn.',
+          'Chỉ cần {sleepWin} điểm ngủ, nhưng phải ngủ thoải mái mới được điểm: thân nhiệt lên xuống thất thường, nửa đêm trời trở lạnh, cả hai cùng thức mà không tương tác thì độ thân mật giảm. Chàng sợ nóng (thân nhiệt {bearLo}–{bearHi}), nàng sợ lạnh (từ {bunnyLo} trở lên) và cần nhiều cảm giác an toàn hơn.',
           'Sau {dawn} ai cũng ngủ nông dần; gần gũi buổi sáng hiệu quả gấp đôi.',
         ],
       },

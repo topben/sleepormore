@@ -107,8 +107,8 @@ const ui: UiMessages = {
       ],
     },
     body: {
-      male: '🐻 The bear runs hot: comfortable at warmth {lo}–{hi}, and needs intimacy of {need}+.',
-      female: '🐰 The lop-eared bunny runs cold: comfortable at warmth {lo}+, and needs intimacy of {need}+ to feel safe.',
+      male: '👨 The man runs hot: comfortable at warmth {lo}–{hi}, and needs intimacy of {need}+.',
+      female: '👩 The woman runs cold: comfortable at warmth {lo}+, and needs intimacy of {need}+ to feel safe.',
     },
     secret: 'Your partner has a goal of their own (it’s a secret). Figure it out from what they say and do!',
     hintsToggle: 'Show hints (recommended for beginners)',
@@ -338,7 +338,7 @@ const ui: UiMessages = {
         title: '🔥 Hard mode',
         body: [
           'Pick “Hard” on the start screen. Intimacy comes in two kinds: ⏱️ right now (before {deadline}, or you lose) and 🌅 morning (sleep well first; it only counts after {morning}, and too early is a draw).',
-          'You only need a sleep score of {sleepWin}, but sleep only scores when you sleep comfortably: warmth wobbles, the night gets colder, and intimacy drops while you’re both awake and not interacting. The bear runs hot (warmth {bearLo}–{bearHi}); the lop-eared bunny runs cold ({bunnyLo}+) and needs more closeness.',
+          'You only need a sleep score of {sleepWin}, but sleep only scores when you sleep comfortably: warmth wobbles, the night gets colder, and intimacy drops while you’re both awake and not interacting. The man runs hot (warmth {bearLo}–{bearHi}); the woman runs cold ({bunnyLo}+) and needs more closeness.',
           'After {dawn} everyone sleeps lighter; morning affection counts double.',
         ],
       },

@@ -108,8 +108,8 @@ const ui: UiMessages = {
       ],
     },
     body: {
-      male: '🐻 El osito es caluroso: está a gusto con temperatura {lo}–{hi} y necesita intimidad {need} o más.',
-      female: '🐰 La conejita de orejas caídas es friolera: está a gusto desde {lo} de temperatura y necesita intimidad {need} o más para sentirse segura.',
+      male: '👨 Él es caluroso: está a gusto con temperatura {lo}–{hi} y necesita intimidad {need} o más.',
+      female: '👩 Ella es friolera: está a gusto desde {lo} de temperatura y necesita intimidad {need} o más para sentirse segura.',
     },
     secret: 'Tu pareja también tiene su propio objetivo (secreto). ¡Adivínalo por lo que dice y hace!',
     hintsToggle: 'Mostrar consejos (ideal para empezar)',
@@ -339,7 +339,7 @@ const ui: UiMessages = {
         title: '🔥 Modo difícil',
         body: [
           'En la pantalla de inicio puedes elegir «Difícil». La intimidad es de dos tipos: ⏱️ «Intimidad ya» (antes de las {deadline}, o pierdes) y 🌅 «Intimidad al despertar» (primero dormir bien; solo cuenta desde las {morning}, y demasiado pronto es empate).',
-          'Bastan {sleepWin} puntos de sueño, pero dormir solo puntúa si duermes a gusto: la temperatura sube y baja, la madrugada es fría y la intimidad baja si los dos están despiertos sin hacer nada. El osito es caluroso (temperatura {bearLo}–{bearHi}); la conejita de orejas caídas es friolera ({bunnyLo} o más) y necesita más cercanía.',
+          'Bastan {sleepWin} puntos de sueño, pero dormir solo puntúa si duermes a gusto: la temperatura sube y baja, la madrugada es fría y la intimidad baja si los dos están despiertos sin hacer nada. Él es caluroso (temperatura {bearLo}–{bearHi}); ella es friolera ({bunnyLo} o más) y necesita más cercanía.',
           'A partir de las {dawn} todos duermen más ligero; por la mañana los mimos cuentan el doble.',
         ],
       },

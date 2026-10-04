@@ -321,7 +321,7 @@ export class Hud {
     const st = t.hud.stat;
     this.meSleep.set(st.sleep, me.sleep, 'sleep', sleepTag(me.sleep));
     if (hard) {
-      // 困難模式:刻度 = 你的體質舒服的範圍(垂耳兔沒有上限)
+      // 困難模式:刻度 = 你的體質舒服的範圍(女方沒有上限)
       const body = COMFORT[P];
       this.meWarm.setMarks(body.warmHi < 100 ? [body.warmLo, body.warmHi] : [body.warmLo]);
       const cold = me.warmth < body.warmLo;

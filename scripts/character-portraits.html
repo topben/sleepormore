@@ -1,30 +1,48 @@
 <!doctype html>
 <!--
-  Source for public/characters/{bear,bunny}.png, rendered from our game models.
-  Open through the local Vite server, call portrait('male') / portrait('female'),
-  then capture the 384px canvas with a transparent background at pixel ratio 1.
+  Preview the actual animated anime game models through the local Vite server.
+  Generated selection artwork lives in public/characters/anime-{male,female}.png;
+  its prompts are recorded in character-portraits.prompt.md.
 -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Character portrait renderer</title>
+    <title>Anime character model preview</title>
     <link rel="icon" href="data:," />
     <style>
-      html, body { margin: 0; background: transparent; }
-      canvas { display: block; width: 384px; height: 384px; }
+      html, body { margin: 0; background: #171522; color: #f3eaff; font: 14px system-ui; }
+      nav { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; }
+      button { color: inherit; background: #39324e; border: 1px solid #86779e; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+      button[aria-pressed="true"] { background: #6e579c; border-color: #d9c59d; }
+      canvas { display: block; width: min(100vw, 640px); height: auto; margin: auto; }
+      output { display: block; padding: 4px 16px 12px; color: #baaccf; font: 12px ui-monospace, monospace; text-align: center; }
     </style>
   </head>
   <body>
+    <nav aria-label="Model preview">
+      <button type="button" data-role="male">男生</button>
+      <button type="button" data-role="female">女生</button>
+      <button type="button" data-view="portrait">肖像</button>
+      <button type="button" data-view="full">全身</button>
+      <button type="button" data-view="side">側面</button>
+      <button type="button" data-view="back">背面</button>
+      <button type="button" data-pose="standing">站姿</button>
+      <button type="button" data-pose="supine">仰躺</button>
+      <button type="button" data-pose="sideFacing">側睡</button>
+      <button type="button" data-pose="prone">趴睡</button>
+    </nav>
+    <output id="model-stats" aria-live="polite"></output>
     <script type="module">
       import * as THREE from 'three';
       import { Character, CharacterKit } from '/src/scene/character.ts';
+      import { basePose } from '/src/scene/postures.ts';
       import { Tweens } from '/src/scene/tween.ts';
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.05;
       renderer.setPixelRatio(1);
-      renderer.setSize(384, 384);
+      renderer.setSize(640, 640);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.setClearColor(0, 0);
       document.body.append(renderer.domElement);
@@ -44,8 +62,46 @@
       const kit = new CharacterKit();
       const tweens = new Tweens();
       let character;
+      let currentRole = new URLSearchParams(location.search).get('role') === 'female' ? 'female' : 'male';
+      let currentView = 'portrait';
+      let currentPose = 'standing';
+
+      function renderView() {
+        const lying = currentPose !== 'standing';
+        const pose = basePose(currentRole, lying ? currentPose : 'supine');
+        character.snapPose(pose, 0);
+        character.cx.snap(0);
+        character.cy.snap(0);
+        character.cz.snap(0);
+        if (!lying) character.cpitch.snap(0);
+        character.update(0, 0);
+        if (!lying) character.head.rotation.set(0.025, currentRole === 'male' ? -0.08 : 0.08, currentRole === 'male' ? -0.05 : 0.055);
+        const full = lying || currentView !== 'portrait';
+        const half = full ? 1.02 : 0.42;
+        camera.left = camera.bottom = -half;
+        camera.right = camera.top = half;
+        if (lying) {
+          camera.position.set(0, 3, 1.4);
+          camera.lookAt(0, 0, -0.17);
+        } else {
+          camera.position.set(0, full ? 0.22 : 0.82, 3);
+          camera.lookAt(0, full ? 0.22 : 0.82, 0);
+        }
+        camera.updateProjectionMatrix();
+        if (!lying) character.root.rotation.set(0, currentView === 'side' ? Math.PI / 2 : currentView === 'back' ? Math.PI : currentRole === 'male' ? 0.12 : -0.12, 0);
+        renderer.render(scene, camera);
+        const stats = document.getElementById('model-stats');
+        const { calls, triangles } = renderer.info.render;
+        stats.textContent = `${currentRole} · ${calls} draw calls · ${triangles.toLocaleString()} triangles`;
+        stats.dataset.drawCalls = String(calls);
+        stats.dataset.triangles = String(triangles);
+        for (const button of document.querySelectorAll('button')) {
+          button.setAttribute('aria-pressed', String(button.dataset.role ? button.dataset.role === currentRole : button.dataset.pose ? button.dataset.pose === currentPose : button.dataset.view === currentView));
+        }
+      }
 
       window.portrait = (role) => {
+        currentRole = role;
         if (character) {
           scene.remove(character.root);
           character.dispose();
@@ -61,10 +117,17 @@
         character.setExpression('smile');
         character.setBlush(1);
         scene.add(character.root);
-        renderer.render(scene, camera);
+        renderView();
       };
 
-      window.portrait(new URLSearchParams(location.search).get('role') || 'male');
+      for (const button of document.querySelectorAll('button')) {
+        button.addEventListener('click', () => {
+          if (button.dataset.role) window.portrait(button.dataset.role);
+          else if (button.dataset.pose) { currentPose = button.dataset.pose; renderView(); }
+          else { currentView = button.dataset.view; renderView(); }
+        });
+      }
+      window.portrait(currentRole);
       window.portraitReady = true;
     </script>
   </body>

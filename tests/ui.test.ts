@@ -427,7 +427,7 @@ describe('GameUI: hard mode', () => {
     const { root, ui } = mount();
     void ui.showGoal(hardGame('sleep'));
     await Promise.resolve();
-    expect(root.querySelector('.goal-card .goal-physique')?.textContent).toContain('🐻');
+    expect(root.querySelector('.goal-card .goal-physique')?.textContent).toContain('👨');
     expect(root.querySelector('.goal-card .goal-body')).toBeNull();
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     focus.mockRestore();

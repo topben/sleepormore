@@ -1,138 +1,83 @@
-// 角色 rig(SCENE-RIG §2):root 原點 = 髖中心,+y = 頭,+z = 臉,+x = 角色左側。
-// 所有會動的量都是 Tweens 頻道;update() 每幀把 cur 寫回 Object3D,並算呼吸、眨眼、顫抖。
-// 精緻化(DESIGN §14.6):細節只加在材質、動作、漫畫符號 ——
-// 絨布睡衣(sheen + 花紋、滾邊、鈕扣)、橡皮管手臂 + 圓手掌、伸手動作、臉紅分級、熟睡的鼻涕泡泡。
-// 毛絨玩具化(DESIGN §14.9):原創的設計師玩具風 —— 男方小熊(圓耳)、女方垂耳兔(+ 蝴蝶結),
-// 殼層毛、光滑的搪膠臉、亮晶晶的大眼睛、小鼻子、肉球腳掌、毛球尾巴;睡衣照穿。
+// 原創成年日系幻想角色。保留同一套肩 / 髖 rig、姿勢與 Tweens；造型使用輪廓明確的 toon 臉、分層髮束與緞面睡衣。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Posture, Role } from '../game/types';
-import { furNoiseTexture, furShellMaterial, shellGeometry, type InstancedFur } from './fur';
+import { almondGeometry, crescentGeometry, hairCapGeometry, hairLock, humanHeadGeometry, patchGeometry, profileGeometry, satinNormalTexture, toonRamp } from './anime';
 import { HoseGeometry, bezier, bezierTangent } from './hose';
+import { batchStaticMeshes, retireUnusedGeometries } from './modelBatch';
 import { ARM_LEN, LIMB_NAMES, RIG, reachArm, SHOULDER, type LimbName, type Pose } from './postures';
-import { PAJAMA_STYLE, blushHatchTexture, pajamaTexture, repeated } from './textures';
+import { blushHatchTexture } from './textures';
 import type { Channel, TweenOpts, Tweens } from './tween';
 
 const TAU = Math.PI * 2;
-
-/** 毛絨玩具的配色:毛、毛的光澤、臉、內耳、鼻子、肉球 */
-const PLUSH: Record<Role, { fur: number; sheen: number; face: number; inner: number; nose: number; pad: number }> = {
-  male: { fur: 0xc58a55, sheen: 0xffd9a8, face: 0xf6dfc4, inner: 0xf0c49a, nose: 0x4a2c20, pad: 0x9a6444 },
-  female: { fur: 0xf1e4d4, sheen: 0xffffff, face: 0xfff6ee, inner: 0xf7b3c6, nose: 0xf07fa0, pad: 0xf5a3bb },
-};
-const BOW = 0xff6f9c;
 const NUMB_COLOR = new THREE.Color(0x8a6aa0);
-/** 臉的中心方向(頭的局部座標,稍微朝下);臉在這個方向 42° 內不長毛 */
-const FACE_DIR = new THREE.Vector3(0, -0.07, 1).normalize();
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
-
 const LEG_LEN = 0.66;
-/**
- * 棉被蓋腿的鼓包半徑(腿中心線以上):腳丫頂 0.098 + 毛 0.012 = 0.11,
- * 被子在縫線處低 0.008、起伏再低 0.02 → 0.12 + 厚度 0.03 − 0.028 仍比毛尖高
- */
 const LEG_COVER = 0.12;
 const CHEST_POS = new THREE.Vector3(0, 0.45, 0.13);
-const CHEST_SCALE = new THREE.Vector3(1.05, 0.62, 0.5);
-const EYE_SCALE = new THREE.Vector3(1, 1.08, 0.6);
-/** 頭微微收下巴(臉朝腳 = 朝相機),讓床尾視角看得到五官 */
+const CHEST_SCALE = new THREE.Vector3(1.25, 0.72, 0.4);
+const EYE_SCALE = new THREE.Vector3(1, 1, 1);
+/** 頭微微收下巴，讓床尾视角仍看得到五官。 */
 export const HEAD_TILT = 0.22;
-/** 側躺時臉微微轉向天花板(−0.45·sin(roll)),不然從床尾只看得到後腦勺 */
 const FACE_UP = 0.45;
-/** 毛球尾巴的位置(root 局部座標:後腰) */
-const TAIL_POS = new THREE.Vector3(0, 0.2, -0.17);
-/** 大頭(規格 Sphere(0.15);放大讓臉在手機上也看得清楚) */
-const HEAD_SCALE = 1.2;
+const HEAD_SCALE = 0.82;
+const SKIN: Record<Role, number> = { male: 0xf2cdbb, female: 0xffe1d5 };
 
-// ── 橡皮管手臂 ──
 export const ARMS = ['armL', 'armR'] as const;
 export type ArmName = (typeof ARMS)[number];
-/** 袖口在手臂曲線上的位置(0 = 肩、1 = 手) */
-const SLEEVE_END = 0.34;
-const ARM_R: readonly [number, number] = [0.054, 0.046];
-const SLEEVE_R: readonly [number, number] = [0.08, 0.072];
-/** 靜止時的弧度:手肘往外凸、稍微往後(曲線中點位移 = 控制點位移的一半) */
-const BEND_OUT = 0.075;
+const ARM_R: readonly [number, number] = [0.043, 0.027];
+const SLEEVE_R: readonly [number, number] = [0.065, 0.051];
+const BEND_OUT = 0.06;
 const BEND_BACK = 0.035;
-/** 手臂的毛(手臂每幀變形 → 用實例當層) */
-const ARM_FUR: InstancedFur = { layers: 5, length: 0.011, uvScale: [3, 3] };
-/** 臉紅等級 → 腮紅不透明度 */
-const BLUSH_ALPHA = [0, 0.42, 0.72, 0.92];
+const BLUSH_ALPHA = [0, 0.28, 0.5, 0.74];
 
-/** 兩個角色共用的幾何與臉部材質 */
+/** 兩人共用平滑的身體、成年臉部比例與表情幾何。 */
 export class CharacterKit {
   readonly geo = {
-    torso: new THREE.CapsuleGeometry(0.17, 0.4, 8, 24),
-    chest: new THREE.SphereGeometry(0.12, 24, 14),
-    collar: new THREE.TorusGeometry(0.1, 0.022, 8, 24),
-    head: new THREE.SphereGeometry(0.15, 32, 22),
-    /** 搪膠臉:頭球正面的一片球冠,邊緣藏在毛下面 */
-    face: new THREE.SphereGeometry(0.1515, 28, 18, Math.PI / 2 - 0.87, 1.74, Math.PI / 2 - 0.8, 1.75),
-    nose: new THREE.SphereGeometry(0.013, 12, 8),
-    muzzle: new THREE.SphereGeometry(0.05, 24, 16),
-    lid: new THREE.TorusGeometry(0.02, 0.0036, 6, 18, Math.PI),
-    brow: new THREE.TorusGeometry(0.025, 0.0038, 6, 16, Math.PI),
-    earBear: new THREE.SphereGeometry(0.062, 18, 12),
-    earLop: new THREE.SphereGeometry(0.06, 18, 14),
-    innerEar: new THREE.SphereGeometry(0.04, 14, 10),
-    bowLoop: new THREE.SphereGeometry(0.03, 12, 8),
-    bowKnot: new THREE.SphereGeometry(0.014, 10, 8),
-    tail: new THREE.SphereGeometry(0.05, 16, 12),
-    /** 腳底的肉球(掌墊 + 三顆趾頭,一個幾何 = 一次 draw call) */
-    pads: pawPads(),
-    eyeHi: new THREE.SphereGeometry(0.005, 8, 6),
+    torso: new THREE.CapsuleGeometry(0.17, 0.4, 10, 32),
+    chest: new THREE.SphereGeometry(0.12, 24, 16),
+    neck: new THREE.CylinderGeometry(0.046, 0.055, 0.145, 20),
+    head: humanHeadGeometry(),
+    hairCap: hairCapGeometry(),
+    nose: new THREE.SphereGeometry(0.012, 14, 10),
+    ear: new THREE.SphereGeometry(0.021, 14, 10),
+    lid: new THREE.TorusGeometry(0.027, 0.0026, 6, 22, Math.PI),
+    brow: new THREE.TorusGeometry(0.027, 0.0023, 6, 20, Math.PI),
+    eyeHi: new THREE.SphereGeometry(0.0055, 8, 6),
     palm: new THREE.SphereGeometry(0.058, 16, 12),
-    thumb: new THREE.SphereGeometry(0.025, 10, 8),
-    shoulder: new THREE.SphereGeometry(SLEEVE_R[0], 16, 12),
-    cuff: new THREE.TorusGeometry(0.075, 0.0105, 8, 22),
-    legCuff: new THREE.TorusGeometry(0.084, 0.014, 8, 22),
-    button: new THREE.SphereGeometry(0.019, 12, 8),
-    leg: new THREE.CapsuleGeometry(0.08, 0.5, 6, 18),
-    foot: new THREE.SphereGeometry(0.078, 16, 10),
-    eye: new THREE.SphereGeometry(0.022, 20, 14),
-    blush: new THREE.CircleGeometry(0.03, 18),
-    hatch: new THREE.PlaneGeometry(0.066, 0.066),
-    dark: new THREE.CircleGeometry(0.036, 18),
-    mouth: new THREE.TorusGeometry(0.022, 0.004, 6, 16, Math.PI),
-    /** ω 嘴:兩個小弧 */
-    mouthSmall: new THREE.TorusGeometry(0.012, 0.0036, 6, 14, Math.PI),
+    thumb: new THREE.CapsuleGeometry(0.009, 0.026, 4, 10),
+    shoulder: new THREE.SphereGeometry(0.053, 16, 12),
+    cuff: new THREE.TorusGeometry(0.051, 0.0035, 6, 22),
+    legCuff: new THREE.TorusGeometry(0.058, 0.0035, 6, 22),
+    button: new THREE.SphereGeometry(0.01, 10, 8),
+    leg: profileGeometry([[0.01, 0.063, 0.069], [-0.15, 0.07, 0.072], [-0.29, 0.05, 0.057], [-0.37, 0.054, 0.058], [-0.5, 0.041, 0.046], [-0.6, 0.028, 0.03]]),
+    foot: new THREE.SphereGeometry(0.055, 18, 12),
+    eye: almondGeometry(),
+    iris: new THREE.SphereGeometry(0.015, 20, 14),
+    blush: new THREE.CircleGeometry(0.022, 18),
+    hatch: new THREE.PlaneGeometry(0.05, 0.046),
+    dark: new THREE.CircleGeometry(0.029, 18),
+    mouth: new THREE.TorusGeometry(0.017, 0.0018, 6, 20, Math.PI),
+    mouthSmall: new THREE.TorusGeometry(0.008, 0.0018, 6, 16, Math.PI),
     bubble: new THREE.SphereGeometry(1, 16, 12),
+    moon: crescentGeometry(),
   };
-  readonly furNoise = furNoiseTexture();
-  /** 毛(殼層):頭(臉挖掉)、耳朵(內耳挖掉)、手、腳(腳底挖掉露出肉球)、尾巴 */
-  readonly shells = {
-    head: shellGeometry(this.geo.head, { layers: 9, length: 0.016, uvScale: [7, 4], bare: { dir: FACE_DIR, angle: 0.73, soft: 0.2 } }),
-    // 耳朵正面挖掉一塊露出內耳(淺色絨布片)
-    earBear: shellGeometry(this.geo.earBear, { layers: 6, length: 0.016, uvScale: [3, 2], bare: { dir: Z_AXIS, angle: 0.5, soft: 0.22 } }),
-    earLop: shellGeometry(this.geo.earLop, { layers: 6, length: 0.014, uvScale: [3, 3], bare: { dir: Z_AXIS, angle: 0.5, soft: 0.2 } }),
-    palm: shellGeometry(this.geo.palm, { layers: 6, length: 0.013, uvScale: [3, 2] }),
-    thumb: shellGeometry(this.geo.thumb, { layers: 5, length: 0.01, uvScale: [2, 1] }),
-    foot: shellGeometry(this.geo.foot, { layers: 6, length: 0.012, uvScale: [3, 2], bare: { dir: new THREE.Vector3(0, -1, 0.35).normalize(), angle: 0.62, soft: 0.25 } }),
-    tail: shellGeometry(this.geo.tail, { layers: 7, length: 0.022, uvScale: [3, 2] }),
-  };
-  readonly eyeMat = new THREE.MeshBasicMaterial({ color: 0x1c1422 });
-  /** 眼睛裡的亮點(搪膠玩具的大眼睛) */
+  readonly ramp = toonRamp();
+  readonly satinNormal = satinNormalTexture();
+  readonly eyeMat = new THREE.MeshBasicMaterial({ color: 0x201a35 });
+  readonly eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xfff7ff, side: THREE.DoubleSide });
   readonly eyeHiMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  readonly darkMat = new THREE.MeshBasicMaterial({ color: 0x3a2850, transparent: true, opacity: 0.8, depthWrite: false });
+  readonly darkMat = new THREE.MeshBasicMaterial({ color: 0x3a2850, transparent: true, opacity: 0.5, depthWrite: false });
   readonly hatchTex = blushHatchTexture();
   readonly hatchMat = new THREE.MeshBasicMaterial({ map: this.hatchTex, transparent: true, depthWrite: false });
-  /** 鼻涕泡泡:半透明、帶一點自發光(夜裡也看得到) */
-  readonly bubbleMat = new THREE.MeshStandardMaterial({
-    color: 0xd6f1ff,
-    emissive: 0x2a4c66,
-    roughness: 0.08,
-    metalness: 0,
-    transparent: true,
-    opacity: 0.55,
-    depthWrite: false,
-  });
+  readonly bubbleMat = new THREE.MeshStandardMaterial({ color: 0xd6f1ff, emissive: 0x2a4c66, roughness: 0.08, transparent: true, opacity: 0.55, depthWrite: false });
 
   dispose(): void {
     for (const g of Object.values(this.geo)) g.dispose();
-    for (const g of Object.values(this.shells)) g.dispose();
-    for (const m of [this.eyeMat, this.eyeHiMat, this.darkMat, this.hatchMat, this.bubbleMat]) m.dispose();
+    for (const m of [this.eyeMat, this.eyeWhiteMat, this.eyeHiMat, this.darkMat, this.hatchMat, this.bubbleMat]) m.dispose();
     this.hatchTex.dispose();
-    this.furNoise.dispose();
+    this.ramp.dispose();
+    this.satinNormal.dispose();
   }
 }
 
@@ -163,6 +108,8 @@ interface Gesture extends Required<GestureOpts> {
 
 interface ArmRig {
   sleeve: HoseGeometry;
+  sleeveEnd: number;
+  armStart: number;
   arm: HoseGeometry;
   cuff: THREE.Mesh;
   hand: THREE.Group;
@@ -173,7 +120,6 @@ interface ArmRig {
 }
 
 const NEG_Y = new THREE.Vector3(0, -1, 0);
-const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 /** 把臉部貼片放在頭球表面(沿法線朝外) */
 function onHead(obj: THREE.Object3D, x: number, y: number, z: number, r: number): void {
@@ -208,6 +154,13 @@ export class Character {
   breath = 0;
 
   private readonly chest: THREE.Mesh;
+  private readonly cloth: THREE.Mesh;
+  private readonly clothBase: Float32Array;
+  private readonly hem: THREE.Mesh | null;
+  private readonly hemBase: Float32Array | null;
+  private lastClothPitchL = NaN;
+  private lastClothPitchR = NaN;
+  private lastClothBreath = NaN;
   private readonly eyes: THREE.Mesh[] = [];
   private readonly lids: THREE.Mesh[] = [];
   private readonly brows: THREE.Mesh[] = [];
@@ -218,19 +171,16 @@ export class Character {
   private readonly blushMat: THREE.MeshBasicMaterial;
   private readonly dark: THREE.Mesh[] = [];
   private readonly mouth: THREE.Mesh;
-  /** ω 嘴(笑的時候) */
+  /** 睡前微笑弧線 */
   private readonly mouthW: THREE.Mesh[] = [];
   private readonly bubble: THREE.Mesh;
-  private readonly armMat: Record<ArmName, THREE.MeshStandardMaterial>;
-  /** 手臂、手上的毛(手麻時跟手臂一起變紫) */
-  private readonly armFur: Record<ArmName, THREE.MeshStandardMaterial>;
-  private readonly handFur: Record<ArmName, THREE.MeshStandardMaterial>;
+  private readonly armMat: Record<ArmName, THREE.MeshToonMaterial>;
+  private readonly handMat: Record<ArmName, THREE.MeshToonMaterial>;
   private readonly arms: Record<ArmName, ArmRig>;
   private readonly ownMats: THREE.Material[] = [];
   private readonly ownTex: THREE.Texture[] = [];
   private readonly ownGeo: THREE.BufferGeometry[] = [];
-  private readonly ownInst: THREE.InstancedMesh[] = [];
-  private readonly furColor: THREE.Color;
+  private readonly skinColor: THREE.Color;
 
   private phase = Math.random() * TAU;
   private ampK = 1;
@@ -275,204 +225,279 @@ export class Character {
 
   constructor(role: Role, tweens: Tweens, kit: CharacterKit) {
     this.role = role;
+    const female = role === 'female';
     const g = kit.geo;
-    const style = PAJAMA_STYLE[role];
     const own = <M extends THREE.Material>(m: M): M => {
       this.ownMats.push(m);
       return m;
     };
-    const std = (color: number, roughness: number) => own(new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 }));
-    // 絨布:花紋貼圖 + sheen(掠射角的柔光 = 絨毛感);不同部位周長不同 → 各自的重複次數
-    const topTex = pajamaTexture(role, style.top);
-    const pantsTex = pajamaTexture(role, style.pants);
-    this.ownTex.push(topTex, pantsTex);
-    const fabric = (tex: THREE.Texture, u: number, v: number) => {
-      const t = repeated(tex, u, v);
-      this.ownTex.push(t);
-      return own(
-        new THREE.MeshPhysicalMaterial({
-          map: t,
-          roughness: 0.82,
-          metalness: 0,
-          sheen: 1,
-          sheenRoughness: 0.55,
-          sheenColor: new THREE.Color(style.sheen),
-        }),
-      );
+    const geometry = <G extends THREE.BufferGeometry>(geo: G): G => {
+      this.ownGeo.push(geo);
+      return geo;
     };
-    const dotted = role === 'female';
-    const torsoMat = fabric(topTex, dotted ? 10 : 8, dotted ? 8 : 1);
-    const chestMat = fabric(topTex, dotted ? 7 : 6, dotted ? 4 : 1);
-    const sleeveMat = fabric(topTex, dotted ? 4 : 4, dotted ? 1.5 : 1);
-    const pantsMat = fabric(pantsTex, dotted ? 5 : 4, dotted ? 7 : 1);
-    const trim = std(style.trim, 0.72);
-    const buttonMat = std(style.button, 0.35);
-    // 毛絨:本體用 sheen(絨毛的柔光),外面再長一層殼層毛
-    const plush = PLUSH[role];
-    this.furColor = new THREE.Color(plush.fur);
-    const furBody = () =>
-      own(new THREE.MeshPhysicalMaterial({ color: plush.fur, roughness: 0.88, metalness: 0, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(plush.sheen) }));
-    const fur = furBody();
-    const furShell = own(furShellMaterial(plush.fur, kit.furNoise));
-    const faceMat = std(plush.face, 0.58);
-    // A little bounced warmth keeps the cream face readable in the moonlit room.
-    faceMat.emissive.setHex(plush.face);
-    faceMat.emissiveIntensity = 0.08;
-    const muzzleMat = std(role === 'male' ? 0xffe8ce : 0xfff8f0, 0.7);
-    muzzleMat.emissive.copy(faceMat.emissive);
-    muzzleMat.emissiveIntensity = 0.06;
-    const innerMat = std(plush.inner, 0.7);
-    const noseMat = std(plush.nose, 0.3);
-    const irisMat = std(role === 'male' ? 0x684330 : 0x654354, 0.24);
-    const stitchMat = own(new THREE.MeshBasicMaterial({ color: role === 'male' ? 0x694333 : 0x775767 }));
-    const padMat = std(plush.pad, 0.55);
-    this.armMat = { armL: furBody(), armR: furBody() };
-    this.armFur = { armL: own(furShellMaterial(plush.fur, kit.furNoise, ARM_FUR)), armR: own(furShellMaterial(plush.fur, kit.furNoise, ARM_FUR)) };
-    this.handFur = { armL: own(furShellMaterial(plush.fur, kit.furNoise)), armR: own(furShellMaterial(plush.fur, kit.furNoise)) };
-    /** 在 parent 上長一層毛(殼層幾何共用;parent 的縮放照樣套用) */
-    const furOn = (parent: THREE.Object3D, shell: THREE.BufferGeometry, mat: THREE.Material = furShell) => {
-      const m = new THREE.Mesh(shell, mat);
-      parent.add(m);
-      return m;
-    };
-    this.blushMat = own(new THREE.MeshBasicMaterial({ color: 0xff7f9e, transparent: true, opacity: 0.75, depthWrite: false }));
-
+    const toon = (color: number, glow = 0.035) => own(new THREE.MeshToonMaterial({ color, gradientMap: kit.ramp, emissive: color, emissiveIntensity: glow }));
+    const satin = (color: number) => own(new THREE.MeshPhysicalMaterial({ color, normalMap: kit.satinNormal, normalScale: new THREE.Vector2(0.24, 0.24), roughness: 0.36, metalness: 0.08, sheen: 0.85, sheenColor: new THREE.Color(female ? 0xf3eaff : 0x9eb7ec), sheenRoughness: 0.33, clearcoat: 0.12, clearcoatRoughness: 0.36, side: THREE.DoubleSide }));
+    const fabric = satin(female ? 0xcbb8e9 : 0x243d6d);
+    const lapelMat = satin(female ? 0xe4d3f9 : 0x426092);
+    const trim = own(new THREE.MeshStandardMaterial({ color: 0xe8c88c, roughness: 0.35, metalness: 0.55 }));
+    const lace = own(new THREE.MeshStandardMaterial({ color: 0xf3e9ff, roughness: 0.6, side: THREE.DoubleSide }));
+    const skin = toon(SKIN[role], 0.1);
+    this.skinColor = new THREE.Color(SKIN[role]);
+    this.armMat = { armL: toon(SKIN[role], 0.1), armR: toon(SKIN[role], 0.1) };
+    this.handMat = { armL: toon(SKIN[role], 0.1), armR: toon(SKIN[role], 0.1) };
+    const hairColor = female ? 0xb7a5db : 0x142a48;
+    const hairMat = toon(hairColor, 0.06);
+    const hairLight = toon(female ? 0xd7cbed : 0x3d587e, 0.08);
+    const hairShadow = toon(female ? 0x8676b2 : 0x0c1d35);
+    const ink = own(new THREE.MeshBasicMaterial({ color: female ? 0x473d62 : 0x253145, side: THREE.DoubleSide }));
+    const irisMat = toon(female ? 0x9466d3 : 0x598ab2, 0.22);
+    const irisLight = own(new THREE.MeshBasicMaterial({ color: female ? 0xd7baff : 0xa0deed }));
+    this.blushMat = own(new THREE.MeshBasicMaterial({ color: 0xf688a1, transparent: true, opacity: 0.5, depthWrite: false }));
     const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, parent: THREE.Object3D, x = 0, y = 0, z = 0) => {
       const m = new THREE.Mesh(geo, mat);
       m.position.set(x, y, z);
       parent.add(m);
       return m;
     };
+    const line = (parent: THREE.Object3D, mat: THREE.Material, points: readonly (readonly [number, number, number])[], radius = 0.003) =>
+      mesh(geometry(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p))), 22, radius, 5, false)), mat, parent);
+    const strand = (parent: THREE.Object3D, points: readonly (readonly [number, number, number])[], width: number, mat = hairMat, depth = 0.012) =>
+      mesh(geometry(hairLock(points, width, depth)), mat, parent);
 
     this.root.name = role;
     this.root.rotation.order = 'XYZ';
-    mesh(g.torso, torsoMat, this.root, 0, 0.38, 0);
-    this.chest = mesh(g.chest, chestMat, this.root, CHEST_POS.x, CHEST_POS.y, CHEST_POS.z);
+    const maleRings = [[0, 0.155, 0.105], [0.16, 0.145, 0.111], [0.3, 0.14, 0.115], [0.44, 0.17, 0.125], [0.56, 0.188, 0.128], [0.64, 0.19, 0.105], [0.71, 0.15, 0.076]] as const;
+    const skinRings = [[0.525, 0.144, 0.105], [0.56, 0.152, 0.107], [0.59, 0.158, 0.11], [0.65, 0.184, 0.092], [0.675, 0.184, 0.086], [0.71, 0.1, 0.066], [0.745, 0.048, 0.044]] as const;
+    const torso = mesh(geometry(profileGeometry(female ? skinRings : maleRings)), female ? skin : fabric, this.root);
+    const surfaceAt = (x: number, y: number) => {
+      let rx: number = maleRings[0][1];
+      let rz: number = maleRings[0][2];
+      for (let i = 1; i < maleRings.length; i++) {
+        if (y > maleRings[i][0] && i < maleRings.length - 1) continue;
+        const a = maleRings[i - 1];
+        const b = maleRings[i];
+        const t = THREE.MathUtils.clamp((y - a[0]) / (b[0] - a[0]), 0, 1);
+        rx = THREE.MathUtils.lerp(a[1], b[1], t);
+        rz = THREE.MathUtils.lerp(a[2], b[2], t);
+        break;
+      }
+      return Math.sqrt(Math.max(0, 1 - x * x / (rx * rx))) * rz + 0.008;
+    };
+    const lapelGeo = (points: readonly (readonly [number, number])[]) => {
+      const geo = geometry(patchGeometry(points));
+      const pos = geo.getAttribute('position');
+      for (let i = 0; i < pos.count; i++) pos.setZ(i, surfaceAt(pos.getX(i), pos.getY(i)) + 0.012);
+      geo.computeVertexNormals();
+      return geo;
+    };
+    const neck = mesh(g.neck, skin, this.root, 0, 0.735, 0);
+    neck.scale.set(female ? 0.84 : 1, 1, female ? 0.9 : 1);
+    this.chest = mesh(g.chest, fabric, this.root, CHEST_POS.x, CHEST_POS.y, CHEST_POS.z);
     this.chest.scale.copy(CHEST_SCALE);
-    const collar = mesh(g.collar, trim, this.root, 0, 0.7, 0.01);
-    collar.rotation.x = Math.PI / 2;
-    collar.scale.set(1.15, 1.15, 1.6);
-    // 鈕扣:領口下兩顆(露在被子外)+ 胸口下一顆;扁圓、略亮
-    for (const [y, z] of [
-      [0.64, 0.166],
-      [0.565, 0.171],
-      [0.3, 0.17],
-    ]) {
-      const b = mesh(g.button, buttonMat, this.root, 0, y, z);
-      b.scale.set(1, 1, 0.45);
+    // A hidden breath/gesture target, while the continuous cloth surface supplies the visible body.
+    this.chest.visible = false;
+
+    if (female) {
+      // Opaque satin follows the waist and hips; the scalloped neckline stays above the bust.
+      this.cloth = mesh(geometry(profileGeometry([[-0.26, 0.23, 0.195], [-0.16, 0.215, 0.18], [-0.02, 0.18, 0.138], [0.15, 0.146, 0.114], [0.3, 0.124, 0.104], [0.42, 0.156, 0.128], [0.51, 0.176, 0.152], [0.59, 0.166, 0.14]], true)), fabric, this.root);
+      // Thin satin shoulder straps and a fitted neckline make the silhouette read as a slip dress.
+      for (const side of [-1, 1]) {
+        line(this.root, lapelMat, [[side * 0.136, 0.582, 0.094], [side * 0.144, 0.684, 0.015], [side * 0.138, 0.587, -0.086]], 0.007);
+
+      }
+      const necklineLoop = geometry(new THREE.TorusGeometry(0.009, 0.0015, 4, 12));
+      const neckline: [number, number, number][] = [];
+      for (let i = -11; i <= 11; i++) {
+        const x = i * 0.014;
+        const c = Math.sqrt(1 - x * x / (0.166 * 0.166));
+        const y = 0.59 - 0.048 * Math.pow(c, 5);
+        const z = 0.14 * c + 0.008;
+        const loop = mesh(necklineLoop, lace, this.root, x, y - 0.003, z + 0.003);
+        const n = new THREE.Vector3(x / (0.166 * 0.166), 0, c / 0.14).normalize();
+        loop.quaternion.setFromUnitVectors(Z_AXIS, n);
+        loop.scale.y = 0.75;
+        neckline.push([x, y, z + 0.004]);
+      }
+      line(this.root, lace, neckline, 0.0016);
+      // Small loops are actual open lace along the hem, with no transparent clothing.
+      const laceLoop = new THREE.TorusGeometry(0.0115, 0.0017, 5, 12);
+      const hemParts: THREE.BufferGeometry[] = [];
+      for (let i = 0; i < 32; i++) {
+        const a = i / 32 * TAU;
+        const part = laceLoop.clone();
+        part.scale(1, 0.7, 1);
+        part.rotateY(a);
+        part.translate(Math.sin(a) * 0.228, -0.252, Math.cos(a) * 0.194 + 0.008);
+        hemParts.push(part);
+      }
+      const hemGeo = mergeGeometries(hemParts)!;
+      laceLoop.dispose();
+      for (const part of hemParts) part.dispose();
+      this.hem = mesh(geometry(hemGeo), lace, this.root);
+      this.hemBase = new Float32Array(hemGeo.getAttribute('position').array);
+      const pendant = mesh(g.moon, trim, this.root, 0, 0.518, 0.185);
+      pendant.scale.setScalar(0.42);
+      for (const side of [-1, 1]) line(this.root, trim, [[side * 0.07, 0.566, 0.149], [side * 0.035, 0.534, 0.169], [0, 0.52, 0.181]], 0.0014);
+    } else {
+      // A V-shaped opening, turned lapels, fine gold piping and a crescent pocket emblem.
+      this.cloth = torso;
+      this.hem = null;
+      this.hemBase = null;
+      const openPositions: number[] = [];
+      const openIndices: number[] = [];
+      for (let i = 0; i <= 8; i++) {
+        const y = 0.473 + i / 8 * 0.231;
+        const w = 0.003 + i / 8 * 0.061;
+        for (const side of [-1, 1]) openPositions.push(side * w, y, surfaceAt(side * w, y) + 0.004);
+        if (i < 8) { const k = i * 2; openIndices.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+      }
+      const opening = geometry(new THREE.BufferGeometry());
+      opening.setAttribute('position', new THREE.Float32BufferAttribute(openPositions, 3));
+      opening.setIndex(openIndices);
+      opening.computeVertexNormals();
+      mesh(opening, skin, this.root);
+      for (const side of [-1, 1]) {
+        mesh(lapelGeo([[side * 0.035, 0.708], [side * 0.137, 0.631], [side * 0.073, 0.565], [0, 0.47]]), lapelMat, this.root);
+        line(this.root, trim, [[side * 0.035, 0.708], [side * 0.137, 0.631], [side * 0.073, 0.565], [0, 0.47]].map(([x, y]) => [x, y, surfaceAt(x, y) + 0.018] as const), 0.0023);
+      }
+      line(this.root, trim, [[0, 0.466], [0, 0.35], [0, 0.17]].map(([x, y]) => [x, y, surfaceAt(x, y) + 0.008] as const), 0.002);
+      for (const y of [0.424, 0.335, 0.244]) {
+        const b = mesh(g.button, trim, this.root, 0, y, surfaceAt(0, y) + 0.014);
+        b.scale.set(0.65, 0.65, 0.35);
+      }
+      line(this.root, trim, [[0.064, 0.442], [0.096, 0.426], [0.135, 0.445]].map(([x, y]) => [x, y, surfaceAt(x, y) + 0.008] as const), 0.002);
+      const moon = mesh(g.moon, trim, this.root, 0.095, 0.481, surfaceAt(0.095, 0.481) + 0.015);
+      moon.scale.setScalar(0.35);
+    }
+    this.cloth.name = `${role}.${female ? 'nightdress' : 'pajamas'}`;
+    (this.cloth.geometry.getAttribute('position') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+    (this.cloth.geometry.getAttribute('normal') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+    if (this.hem) {
+      this.hem.name = `${role}.laceHem`;
+      (this.hem.geometry.getAttribute('position') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+      (this.hem.geometry.getAttribute('normal') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+    }
+    this.clothBase = new Float32Array(this.cloth.geometry.getAttribute('position').array);
+
+    this.head.position.set(0, 0.9, 0);
+    this.head.scale.set(HEAD_SCALE * (female ? 0.92 : 0.97), HEAD_SCALE * 1.04, HEAD_SCALE * 0.87);
+    this.root.add(this.head);
+    mesh(g.head, skin, this.head);
+    mesh(g.hairCap, hairMat, this.head);
+    for (const side of [-1, 1]) {
+      const ear = mesh(g.ear, skin, this.head, side * 0.139, -0.024, 0);
+      ear.scale.set(0.5, 1.3, 0.7);
+      if (female) {
+        const stud = mesh(g.button, trim, this.head, side * 0.147, -0.041, 0.009);
+        stud.scale.setScalar(0.34);
+      }
+    }
+    if (female) {
+      // Overlapping S-curves and tapered ends give the silver-lilac lengths a flowing silhouette.
+      for (let i = -3; i <= 3; i++) {
+        const x = i * 0.04;
+        const side = Math.sign(i) || 1;
+        const wave = i % 2 === 0 ? 1 : -1;
+        strand(this.head, [[x * 0.82, 0.113, -0.088], [x * 1.1, -0.045, -0.139], [x * 1.32 + side * 0.014, -0.2, -0.12], [x * 1.46 + wave * 0.017, -0.43, -0.08], [x * 1.12 - side * 0.012, -0.65 - Math.abs(i) * 0.018, -0.026]], 0.038, i % 2 ? hairShadow : hairMat, 0.021);
+        strand(this.head, [[x * 0.83, 0.112, -0.072], [x * 1.1, -0.042, -0.115], [x * 1.32 + side * 0.014, -0.2, -0.096], [x * 1.46 + wave * 0.017, -0.43, -0.056], [x * 1.12 - side * 0.012, -0.63 - Math.abs(i) * 0.018, -0.003]], 0.004, hairLight, 0.002);
+      }
+      for (const side of [-1, 1]) {
+        strand(this.head, [[side * 0.092, 0.113, 0.072], [side * 0.141, 0.027, 0.082], [side * 0.159, -0.13, 0.04], [side * 0.18, -0.248, 0.047], [side * 0.153, -0.396, 0.086], [side * 0.192, -0.505, 0.027]], 0.029);
+        strand(this.head, [[side * 0.089, 0.116, 0.086], [side * 0.132, 0.018, 0.101], [side * 0.154, -0.13, 0.06], [side * 0.173, -0.241, 0.067], [side * 0.15, -0.393, 0.104], [side * 0.19, -0.489, 0.044]], 0.004, hairLight, 0.002);
+        strand(this.head, [[side * 0.12, 0.071, -0.03], [side * 0.166, -0.082, -0.005], [side * 0.211, -0.263, -0.038], [side * 0.201, -0.434, -0.026], [side * 0.153, -0.614, 0.029]], 0.026, hairMat, 0.017);
+        strand(this.head, [[side * 0.126, 0.07, -0.009], [side * 0.171, -0.082, 0.015], [side * 0.216, -0.262, -0.018], [side * 0.203, -0.432, -0.006], [side * 0.159, -0.594, 0.048]], 0.003, hairLight, 0.0015);
+      }
+      // A swept fringe: pointed tips stop above the eyes.
+      strand(this.head, [[-0.049, 0.133, 0.072], [-0.071, 0.108, 0.127], [-0.095, 0.057, 0.144], [-0.105, 0.026, 0.117]], 0.03);
+      strand(this.head, [[-0.014, 0.139, 0.071], [0.034, 0.112, 0.129], [0.069, 0.075, 0.145], [0.097, 0.032, 0.12]], 0.045);
+      strand(this.head, [[-0.019, 0.136, 0.089], [0.025, 0.119, 0.141], [0.061, 0.085, 0.153], [0.08, 0.056, 0.142]], 0.008, hairLight, 0.003);
+      const pin = mesh(g.moon, trim, this.head, 0.115, 0.076, 0.105);
+      pin.rotation.z = -0.26;
+      pin.scale.setScalar(1.1);
+    } else {
+      // Layered short navy hair, asymmetrical side part and a few distinct pointed tips.
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 3; i++) strand(this.head, [[side * (0.078 + i * 0.012), 0.102 - i * 0.015, 0.07 - i * 0.022], [side * 0.142, 0.03 - i * 0.026, 0.045 - i * 0.024], [side * (0.135 + i * 0.006), -0.045 - i * 0.016, 0.027 - i * 0.024]], 0.025, i === 1 ? hairShadow : hairMat);
+      }
+      for (let i = 0; i < 5; i++) {
+        const x = -0.085 + i * 0.043;
+        strand(this.head, [[x * 0.48, 0.14, 0.052], [x - 0.023, 0.099, 0.133], [x - 0.015, 0.035 + Math.abs(x) * 0.18, 0.143]], 0.029);
+        if (i % 2 === 0) strand(this.head, [[x * 0.5, 0.14, 0.068], [x - 0.023, 0.103, 0.145], [x - 0.015, 0.052 + Math.abs(x) * 0.18, 0.154]], 0.005, hairLight, 0.002);
+      }
+      strand(this.head, [[0.026, 0.131, -0.025], [0.067, 0.165, 0.007], [0.096, 0.139, 0.042]], 0.03);
     }
 
-    // 頭:毛絨的頭 + 搪膠臉(臉的範圍不長毛)
-    this.head.position.set(0, 0.9, 0);
-    // 小熊的臉略寬、兔子略長;厚度收一點,保留側躺擁抱時的空間。
-    this.head.scale.set(HEAD_SCALE * (role === 'male' ? 1.06 : 1.02), HEAD_SCALE * (role === 'male' ? 1 : 1.05), HEAD_SCALE * 0.97);
-    this.root.add(this.head);
-    const headMesh = mesh(g.head, fur, this.head);
-    furOn(headMesh, kit.shells.head);
-    mesh(g.face, faceMat, this.head);
-    if (role === 'male') {
-      // 小熊:頭頂兩側的圓耳朵(正面朝前)
-      for (const s of [-1, 1]) {
-        const ear = mesh(g.earBear, fur, this.head, s * 0.126, 0.106, 0.035);
-        ear.rotation.set(-0.12, s * 0.12, -s * 0.3);
-        ear.scale.set(1.08, 1.03, 0.68);
-        furOn(ear, kit.shells.earBear);
-        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.002, 0.057);
-        inner.scale.set(0.92, 0.94, 0.22);
-      }
-    } else {
-      // 垂耳兔:從頭頂往兩側攤開、垂下來的長耳朵(粉紅內耳朝前)+ 蝴蝶結
-      for (const s of [-1, 1]) {
-        const pivot = new THREE.Group();
-        pivot.position.set(s * 0.112, 0.12, 0.018);
-        // One ear rests a little lower, like a well-loved, softly stuffed toy.
-        pivot.rotation.set(s < 0 ? -0.13 : -0.24, s * 0.12, s * (s < 0 ? 0.88 : 0.62));
-        this.head.add(pivot);
-        const ear = mesh(g.earLop, fur, pivot, 0, -0.112, 0);
-        ear.scale.set(0.78, s < 0 ? 2.22 : 2.42, 0.48);
-        furOn(ear, kit.shells.earLop);
-        const inner = mesh(g.innerEar, innerMat, ear, 0, -0.005, 0.055);
-        inner.scale.set(0.77, 1.22, 0.24);
-      }
-      const bow = new THREE.Group();
-      onHead(bow, 0.085, 0.105, 0.072, 0.162);
-      bow.rotateZ(-0.3);
-      this.head.add(bow);
-      const bowMat = std(BOW, 0.5);
-      for (const s of [-1, 1]) {
-        const loop = mesh(g.bowLoop, bowMat, bow, s * 0.032, 0, 0);
-        loop.scale.set(1.25, 0.8, 0.45);
-        loop.rotation.z = s * 0.35;
-      }
-      mesh(g.bowKnot, bowMat, bow);
-    }
-    for (const s of [-1, 1]) {
-      const eye = mesh(g.eye, irisMat, this.head);
-      onHead(eye, s * 0.058, 0.016, 0.14, 0.151);
-      eye.quaternion.identity();
+    for (const side of [-1, 1]) {
+      const eye = mesh(g.eye, kit.eyeWhiteMat, this.head, side * 0.058, 0.014, 0.139);
+      eye.rotation.y = side * 0.18;
       eye.scale.copy(EYE_SCALE);
-      const pupil = mesh(g.eye, kit.eyeMat, eye, 0, 0.001, 0.009);
-      pupil.scale.set(0.76, 0.86, 0.72);
-      this.eyeHi.push(mesh(g.eyeHi, kit.eyeHiMat, eye, -0.006, 0.009, 0.03));
-      const glint = mesh(g.eyeHi, kit.eyeHiMat, eye, 0.008, -0.009, 0.029);
-      glint.scale.setScalar(0.42);
+      const iris = mesh(g.iris, irisMat, eye, side * 0.002, 0.003, 0.003);
+      iris.scale.set(0.83, 1.08, 0.22);
+      const rim = mesh(g.iris, ink, eye, side * 0.002, 0.003, 0.002);
+      rim.scale.set(0.91, 1.14, 0.12);
+      const pupil = mesh(g.iris, kit.eyeMat, eye, side * 0.002, 0.005, 0.007);
+      pupil.scale.set(0.35, 0.65, 0.12);
+      const irisGlow = mesh(g.iris, irisLight, eye, side * 0.002, -0.006, 0.008);
+      irisGlow.scale.set(0.61, 0.24, 0.08);
+      const shine = mesh(g.eyeHi, kit.eyeHiMat, eye, -0.005, 0.012, 0.01);
+      shine.scale.set(0.7, 1, 0.28);
+      this.eyeHi.push(shine);
+      const glint = mesh(g.eyeHi, kit.eyeHiMat, eye, 0.007, -0.004, 0.01);
+      glint.scale.setScalar(0.35);
       this.eyeHi.push(glint);
       this.eyes.push(eye);
-      // Sleep has its own soft stitched arc instead of a flattened eyeball.
-      const lid = mesh(g.lid, stitchMat, this.head);
-      lid.position.copy(eye.position);
-      lid.position.z += 0.008;
+      // Dark upper eyeliner and eyelashes are parented to the open eye and disappear on closure.
+      line(eye, ink, [[-0.029, 0.003, 0.01], [-0.015, 0.016, 0.011], [0.011, 0.018, 0.011], [0.032, 0.007, 0.01]], female ? 0.0028 : 0.002);
+      if (female) {
+        for (let i = 0; i < 3; i++) line(eye, ink, [[side * (0.022 + i * 0.004), 0.013 - i * 0.002, 0.011], [side * (0.027 + i * 0.005), 0.02 - i * 0.001, 0.012]], 0.0018);
+      }
+      line(eye, ink, [[-0.024, -0.003, 0.009], [-0.004, -0.011, 0.009], [0.024, -0.003, 0.009]], 0.0008);
+      const lid = mesh(g.lid, ink, this.head, side * 0.058, 0.015, 0.143);
       lid.rotation.z = Math.PI;
-      lid.scale.y = 0.48;
+      lid.rotation.y = side * 0.18;
+      lid.scale.y = 0.35;
       lid.visible = false;
       this.lids.push(lid);
-      const browPivot = new THREE.Group();
-      onHead(browPivot, s * 0.057, 0.06, 0.14, 0.158);
-      this.head.add(browPivot);
-      const brow = mesh(g.brow, stitchMat, browPivot);
-      brow.scale.set(0.76, 0.28, 1);
+      const brow = mesh(g.brow, hairShadow, this.head, side * 0.058, 0.055, 0.135);
+      brow.scale.set(0.88, 0.2, 1);
+      brow.rotation.y = side * 0.18;
       this.brows.push(brow);
-      const b = mesh(g.blush, this.blushMat, this.head);
-      onHead(b, s * 0.092, -0.03, 0.125, 0.1525);
-      b.visible = false;
-      this.blush.push(b);
-      const hx = mesh(g.hatch, kit.hatchMat, this.head);
-      onHead(hx, s * 0.092, -0.03, 0.125, 0.1532);
-      hx.visible = false;
-      this.hatch.push(hx);
-      const d = mesh(g.dark, kit.darkMat, this.head);
-      onHead(d, s * 0.056, -0.024, 0.14, 0.1522);
-      d.scale.set(1.1, 0.75, 1);
-      d.visible = false;
-      this.dark.push(d);
+      const blush = mesh(g.blush, this.blushMat, this.head);
+      onHead(blush, side * 0.088, -0.035, 0.12, 0.144);
+      blush.scale.y = 0.58;
+      blush.visible = false;
+      this.blush.push(blush);
+      const hatch = mesh(g.hatch, kit.hatchMat, this.head);
+      onHead(hatch, side * 0.088, -0.035, 0.12, 0.145);
+      hatch.visible = false;
+      this.hatch.push(hatch);
+      const dark = mesh(g.dark, kit.darkMat, this.head);
+      onHead(dark, side * 0.058, -0.02, 0.136, 0.143);
+      dark.scale.set(1, 0.42, 1);
+      dark.visible = false;
+      this.dark.push(dark);
     }
-    const muzzlePivot = new THREE.Group();
-    onHead(muzzlePivot, 0, -0.039, 0.146, 0.152);
-    this.head.add(muzzlePivot);
-    const muzzle = mesh(g.muzzle, muzzleMat, muzzlePivot);
-    muzzle.scale.set(role === 'male' ? 1.18 : 1.04, 0.76, 0.44);
-    const nose = mesh(g.nose, noseMat, muzzlePivot, 0, 0.014, 0.022);
-    nose.scale.set(role === 'male' ? 1.32 : 1.05, 0.8, 0.8);
+    const nose = mesh(g.nose, skin, this.head, 0, -0.031, 0.143);
+    nose.scale.set(0.45, 0.75, 0.9);
+    const warmDetail = own(new THREE.MeshBasicMaterial({ color: female ? 0xd298a4 : 0xb78383 }));
+    line(this.head, warmDetail, [[-0.0035, -0.038, 0.148], [0, -0.04, 0.152], [0.004, -0.037, 0.148]], 0.00085);
     const mouthPivot = new THREE.Group();
-    mouthPivot.position.set(0, -0.018, 0.022);
-    muzzlePivot.add(mouthPivot);
-    this.mouth = mesh(g.mouth, stitchMat, mouthPivot);
-    for (const s of [-1, 1]) {
-      const w = mesh(g.mouthSmall, stitchMat, mouthPivot, s * 0.0118, 0.004, 0);
-      w.rotation.z = Math.PI; // ∪ ∪ = ω
-      this.mouthW.push(w);
-    }
+    mouthPivot.position.set(0, -0.075, 0.128);
+    this.head.add(mouthPivot);
+    const lip = mesh(g.nose, warmDetail, mouthPivot, 0, -0.006, 0.0007);
+    lip.scale.set(0.77, 0.15, 0.1);
+    this.mouth = mesh(g.mouth, ink, mouthPivot);
+    // A single delicate anime smile, using the same expression API as all other expressions.
+    const smile = mesh(g.mouth, ink, mouthPivot);
+    smile.rotation.z = Math.PI;
+    smile.scale.set(0.82, 0.35, 1);
+    this.mouthW.push(smile);
     this.setExpression('smile');
-    // 鼻涕泡泡(熟睡時隨呼吸脹縮,偶爾破掉)
     this.bubble = mesh(g.bubble, kit.bubbleMat, this.head);
-    onHead(this.bubble, 0.024, -0.034, 0.15, 0.172);
+    onHead(this.bubble, 0.022, -0.034, 0.15, 0.155);
     this.bubble.visible = false;
     this.bubble.renderOrder = 5;
-    // 毛球尾巴:後腰(仰躺時壓在身體下看不到,趴著、背對時露出來)
-    const tail = mesh(g.tail, fur, this.root, TAIL_POS.x, TAIL_POS.y, TAIL_POS.z);
-    furOn(tail, kit.shells.tail);
 
-    // 四肢(Group pivot = 肩 / 髖)
     const limb = (name: LimbName, x: number, y: number, z: number) => {
       const grp = new THREE.Group();
       grp.name = `${role}.${name}`;
@@ -481,44 +506,65 @@ export class Character {
       this.root.add(grp);
       return grp;
     };
-    const armL = limb('armL', 0.2, 0.65, 0.06);
-    const armR = limb('armR', -0.2, 0.65, 0.06);
+    const armL = limb('armL', ...SHOULDER.armL);
+    const armR = limb('armR', ...SHOULDER.armR);
     const legL = limb('legL', 0.1, 0.02, 0);
     const legR = limb('legR', -0.1, 0.02, 0);
     const buildArm = (grp: THREE.Group, name: ArmName): ArmRig => {
       const side = name === 'armL' ? 1 : -1;
-      const sleeve = new HoseGeometry(4, 16);
-      const arm = new HoseGeometry(10, 14);
-      this.ownGeo.push(sleeve, arm);
-      const sm = mesh(sleeve, sleeveMat, grp);
-      // A soft shoulder closes the open hose end and joins the sleeve to the torso.
-      const shoulder = mesh(g.shoulder, sleeveMat, grp, 0, 0.015, 0);
-      shoulder.scale.y = 0.7;
+      const sleeve = geometry(new HoseGeometry(6, 16));
+      const arm = geometry(new HoseGeometry(12, 14));
+      const sm = mesh(sleeve, fabric, grp);
+      sm.visible = !female;
+      const shoulder = mesh(g.shoulder, female ? this.armMat[name] : fabric, grp, 0, 0.006, 0);
+      shoulder.position.y = 0.015;
+      shoulder.scale.set(female ? 0.85 : 1.16, female ? 0.26 : 0.35, female ? 0.81 : 1);
       const am = mesh(arm, this.armMat[name], grp);
-      const af = new THREE.InstancedMesh(arm, this.armFur[name], ARM_FUR.layers);
-      grp.add(af);
-      this.ownInst.push(af);
-      sm.frustumCulled = am.frustumCulled = af.frustumCulled = false;
+      sm.frustumCulled = am.frustumCulled = false;
       const cuff = mesh(g.cuff, trim, grp);
+      cuff.visible = !female;
       const hand = new THREE.Group();
       grp.add(hand);
-      const palm = mesh(g.palm, this.armMat[name], hand, 0, -0.022, 0);
-      palm.scale.set(0.95, 1.18, 0.72);
-      furOn(palm, kit.shells.palm, this.handFur[name]);
-      const thumb = mesh(g.thumb, this.armMat[name], hand, -side * 0.043, -0.004, 0.022);
-      furOn(thumb, kit.shells.thumb, this.handFur[name]);
-      return { sleeve, arm, cuff, hand, side, lastS: NaN, lastB: NaN };
+      const palm = mesh(g.palm, this.handMat[name], hand, 0, -0.015, 0);
+      palm.scale.set(0.53, 0.67, 0.3);
+      // Four separated fingers and an angled thumb retain the original hand world target.
+      for (let i = 0; i < 4; i++) {
+        const length = [0.04, 0.05, 0.054, 0.043][i];
+        const finger = mesh(geometry(new THREE.CapsuleGeometry(0.007, length - 0.014, 4, 10)), this.handMat[name], hand, (i - 1.5) * 0.014, -0.049 - length / 2, 0);
+        finger.rotation.z = (1.5 - i) * 0.075;
+      }
+      const thumb = mesh(g.thumb, this.handMat[name], hand, -side * 0.033, -0.025, 0.005);
+      thumb.rotation.z = -side * 0.65;
+      return { sleeve, arm, cuff, hand, side, sleeveEnd: female ? 0 : 0.6, armStart: female ? 0 : 0.56, lastS: NaN, lastB: NaN };
     };
     this.arms = { armL: buildArm(armL, 'armL'), armR: buildArm(armR, 'armR') };
     for (const grp of [legL, legR]) {
-      mesh(g.leg, pantsMat, grp, 0, -0.33, 0);
-      const c = mesh(g.legCuff, trim, grp, 0, -0.535, 0);
-      c.rotation.x = Math.PI / 2;
-      const foot = mesh(g.foot, fur, grp, 0, -0.6, 0.02); // 圓腳丫(拉長會戳出被子)
-      furOn(foot, kit.shells.foot);
-      mesh(g.pads, padMat, foot); // 肉球(仰躺時腳底朝床尾 = 朝相機;被子被搶走或掉下床時看得到)
+      const leg = mesh(g.leg, female ? skin : fabric, grp);
+      if (!female) leg.scale.set(1.13, 1, 1.09);
+      if (!female) {
+        const cuff = mesh(g.legCuff, trim, grp, 0, -0.566, 0.005);
+        cuff.rotation.x = Math.PI / 2;
+        cuff.scale.set(0.67, 0.7, 1);
+      }
+      const foot = mesh(g.foot, skin, grp, 0, -0.615, 0.037);
+      foot.scale.set(0.7, 0.58, 1.48);
     }
     this.limbs = { armL, armR, legL, legR, head: this.head };
+
+    // Keep all gesture/expression/deforming meshes live; only static siblings share draw calls.
+    const dynamic = new Set<THREE.Object3D>([this.chest, this.cloth, ...this.eyes, ...this.eyeHi, ...this.lids, ...this.brows, ...this.blush, ...this.hatch, ...this.dark, this.mouth, ...this.mouthW, this.bubble, this.arms.armL.cuff, this.arms.armR.cuff]);
+    if (this.hem) dynamic.add(this.hem);
+    const batch = (parent: THREE.Object3D) => {
+      const sources = parent.children.filter((obj): obj is THREE.Mesh => obj instanceof THREE.Mesh && !dynamic.has(obj) && !(obj.geometry instanceof HoseGeometry));
+      this.ownGeo.push(...batchStaticMeshes(parent, sources).geometries);
+    };
+    for (const hand of [this.arms.armL.hand, this.arms.armR.hand]) batch(hand);
+    for (const eye of this.eyes) batch(eye);
+    batch(this.head);
+    batch(this.root);
+    batch(legL);
+    batch(legR);
+    retireUnusedGeometries(this.root, this.ownGeo);
 
     const k = (s: string, v = 0) => tweens.chan(`${role}.${s}`, v);
     this.cx = k('x');
@@ -639,7 +685,7 @@ export class Character {
     this.flopT[arm] = dur;
   }
 
-  /** 手(圓手掌)的世界座標;呼叫前 matrixWorld 要是新的 */
+  /** 手掌的世界座標;呼叫前 matrixWorld 要是新的 */
   handWorld(arm: ArmName, out: THREE.Vector3): THREE.Vector3 {
     return this.arms[arm].hand.getWorldPosition(out);
   }
@@ -688,7 +734,8 @@ export class Character {
     const L = Math.max(0, Math.min(3, Math.round(level)));
     for (const b of this.blush) {
       b.visible = L > 0;
-      b.scale.setScalar(L >= 3 ? 1.18 : 1);
+      const k = L >= 3 ? 1.18 : 1;
+      b.scale.set(k, k * 0.58, 1);
     }
     for (const h of this.hatch) h.visible = L >= 3;
     this.blushMat.opacity = BLUSH_ALPHA[L];
@@ -698,7 +745,7 @@ export class Character {
     for (const d of this.dark) d.visible = on;
   }
 
-  /** 笑 = ω、平 = 一條線、皺眉 = ∩ */
+  /** 笑 = 小弧線、平 = 一條線、皺眉 = ∩ */
   setExpression(e: Expression): void {
     this.mouth.visible = e !== 'smile';
     for (const w of this.mouthW) w.visible = e === 'smile';
@@ -715,7 +762,7 @@ export class Character {
     this.numb = n;
     const t = Math.min(1, Math.max(0, (n - 75) / 25));
     const k = n >= 75 ? 0.35 + 0.65 * t : 0;
-    for (const m of [this.armMat.armL, this.armFur.armL, this.handFur.armL]) m.color.copy(this.furColor).lerp(NUMB_COLOR, k);
+    for (const m of [this.armMat.armL, this.handMat.armL]) m.color.copy(this.skinColor).lerp(NUMB_COLOR, k);
   }
 
   setSnore(level: number): void {
@@ -782,7 +829,7 @@ export class Character {
     }
     const b = Math.sin(this.phase) * this.ampK;
     this.breath = b;
-    this.chest.scale.set(CHEST_SCALE.x * (1 + 0.05 * b), CHEST_SCALE.y * (1 + 0.18 * b), CHEST_SCALE.z * (1 + 0.5 * b));
+    this.chest.scale.set(CHEST_SCALE.x * (1 + 0.05 * b), CHEST_SCALE.y * (1 + 0.06 * b), CHEST_SCALE.z * (1 + 0.18 * b));
 
     if (this.shiverT > 0) this.shiverT -= dt;
     if (this.trembleT > 0) this.trembleT -= dt;
@@ -810,6 +857,7 @@ export class Character {
       const c = this.climbs[n];
       this.limbs[n].rotation.set(c[0].cur, c[1].cur, c[2].cur);
     }
+    this.updateCloth(b);
     this.head.rotation.x += HEAD_TILT;
     this.head.rotation.y += this.clook.cur - FACE_UP * Math.sin(this.croll.cur);
     // 打呼 level 3:每次呼氣頭微微抬起 0.01
@@ -872,6 +920,49 @@ export class Character {
     this.updateBubble(dt, b, open);
   }
 
+  /** The lower slip follows bent thighs while the waist and neckline stay fitted. */
+  private updateCloth(breath: number): void {
+    const pitchL = this.limbs.legL.rotation.x;
+    const pitchR = this.limbs.legR.rotation.x;
+    const poseChanged = !Number.isFinite(this.lastClothPitchL) || Math.abs(pitchL - this.lastClothPitchL) > 0.0001 || Math.abs(pitchR - this.lastClothPitchR) > 0.0001;
+    if (!poseChanged && Math.abs(breath - this.lastClothBreath) < 0.0001) return;
+    this.lastClothPitchL = pitchL;
+    this.lastClothPitchR = pitchR;
+    this.lastClothBreath = breath;
+    const pos = this.cloth.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      const x = this.clothBase[i * 3];
+      const y = this.clothBase[i * 3 + 1];
+      const z = this.clothBase[i * 3 + 2];
+      let yy = y;
+      let zz = z;
+      if (this.role === 'female' && y < 0.15) {
+        const weight = THREE.MathUtils.smoothstep(0.15 - y, 0, 0.38);
+        const localPitch = THREE.MathUtils.lerp(this.limbs.legR.rotation.x, this.limbs.legL.rotation.x, THREE.MathUtils.smoothstep(x, -0.14, 0.14));
+        const a = localPitch * weight;
+        yy = 0.02 + Math.cos(a) * (y - 0.02) - Math.sin(a) * z;
+        zz = Math.sin(a) * (y - 0.02) + Math.cos(a) * z;
+      }
+      if (z > 0 && y > 0.31 && y < 0.61) zz += Math.sin((y - 0.31) / 0.3 * Math.PI) * 0.004 * breath;
+      pos.setXYZ(i, x, yy, zz);
+    }
+    pos.needsUpdate = true;
+    this.cloth.geometry.computeVertexNormals();
+    if (this.hem && this.hemBase && poseChanged) {
+      const hemPos = this.hem.geometry.getAttribute('position');
+      for (let i = 0; i < hemPos.count; i++) {
+        const x = this.hemBase[i * 3];
+        const y = this.hemBase[i * 3 + 1];
+        const z = this.hemBase[i * 3 + 2];
+        const localPitch = THREE.MathUtils.lerp(this.limbs.legR.rotation.x, this.limbs.legL.rotation.x, THREE.MathUtils.smoothstep(x, -0.14, 0.14));
+        const a = localPitch * THREE.MathUtils.smoothstep(0.15 - y, 0, 0.38);
+        hemPos.setXYZ(i, x, 0.02 + Math.cos(a) * (y - 0.02) - Math.sin(a) * z, Math.sin(a) * (y - 0.02) + Math.cos(a) * z);
+      }
+      hemPos.needsUpdate = true;
+      this.hem.geometry.computeVertexNormals();
+    }
+  }
+
   /** 伸手動作:把手臂 Euler 往「指向目標」混過去(伸出 / 停留 / 收回),並算橡皮管伸長 */
   private applyGestures(dt: number, stretch: Record<ArmName, number>): void {
     if (!this.gestures.length) return;
@@ -929,11 +1020,11 @@ export class Character {
     this.p0.set(0, 0.015, 0);
     this.p2.set(0, -len, 0);
     this.p1.set(rig.side * BEND_OUT * k, -len / 2, -BEND_BACK * k);
-    rig.sleeve.update(this.p0, this.p1, this.p2, 0, SLEEVE_END, SLEEVE_R[0], SLEEVE_R[1], this.ref);
-    rig.arm.update(this.p0, this.p1, this.p2, SLEEVE_END - 0.06, 0.985, ARM_R[0], ARM_R[1], this.ref);
+    rig.sleeve.update(this.p0, this.p1, this.p2, 0, Math.max(0.01, rig.sleeveEnd), SLEEVE_R[0], SLEEVE_R[1], this.ref);
+    rig.arm.update(this.p0, this.p1, this.p2, rig.armStart, 0.985, ARM_R[0], ARM_R[1], this.ref);
     // 袖口滾邊
-    bezier(this.p0, this.p1, this.p2, SLEEVE_END, rig.cuff.position);
-    bezierTangent(this.p0, this.p1, this.p2, SLEEVE_END, this.tmpC);
+    bezier(this.p0, this.p1, this.p2, rig.sleeveEnd, rig.cuff.position);
+    bezierTangent(this.p0, this.p1, this.p2, rig.sleeveEnd, this.tmpC);
     rig.cuff.quaternion.setFromUnitVectors(Z_AXIS, this.tmpC);
     // 手掌:位置 = 末端,−y 對齊末端切線
     rig.hand.position.copy(this.p2);
@@ -986,44 +1077,25 @@ export class Character {
     a.setFromMatrixPosition(this.limbs.legR.matrixWorld);
     b.set(0, -(LEG_LEN - 0.04), 0).applyMatrix4(this.limbs.legR.matrixWorld);
     i = putSegment(out, i, a, b, LEG_COVER + thick, 0.2 + wide, 1);
-    // 毛球尾巴:趴著時朝上(毛尖比背高 0.07),仰躺時在身體下、這段比軀幹低 → 取 max 沒影響
-    a.copy(TAIL_POS).applyMatrix4(this.root.matrixWorld);
-    return putSegment(out, i, a, a, 0.08 + thick, 0.17 + wide, 1); // 寬一點,和背上的鼓包接得平順
+    // The fifth segment covers the slip hem as it follows the thighs, also when side sleeping.
+    if (this.role === 'female') {
+      const pitch = (this.limbs.legL.rotation.x + this.limbs.legR.rotation.x) / 2;
+      a.set(0, 0.15, 0.008).applyMatrix4(this.root.matrixWorld);
+      b.set(0, 0.02 - Math.cos(pitch) * 0.28 - Math.sin(pitch) * 0.008, -Math.sin(pitch) * 0.28 + Math.cos(pitch) * 0.008).applyMatrix4(this.root.matrixWorld);
+      const sin = Math.sin(this.croll.cur);
+      const cos = Math.cos(this.croll.cur);
+      const radius = Math.hypot(0.23 * sin, 0.195 * cos * Math.cos(pitch)) + 0.012;
+      return putSegment(out, i, a, b, radius + thick, 0.26 + wide, 1);
+    }
+    a.set(0, 0.06, 0).applyMatrix4(this.root.matrixWorld);
+    return putSegment(out, i, a, a, 0.14 + thick, 0.2 + wide, 1);
   }
 
   dispose(): void {
     for (const m of this.ownMats) m.dispose();
     for (const t of this.ownTex) t.dispose();
     for (const g of this.ownGeo) g.dispose();
-    for (const m of this.ownInst) m.dispose();
   }
-}
-
-/** 掌墊 + 三顆趾頭:沿腳丫(半徑 0.078)的腳底方向貼在表面,壓扁成軟軟的圓片 */
-function pawPads(): THREE.BufferGeometry {
-  const parts: THREE.BufferGeometry[] = [];
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const d = new THREE.Vector3();
-  const sc = new THREE.Vector3();
-  const list: [number, number, number, number, number][] = [
-    // 半徑, 方向 x y z, 前後壓扁
-    [0.028, 0, -1, 0.15, 0.85],
-    [0.012, -0.36, -0.86, 0.58, 1],
-    [0.012, 0, -0.8, 0.68, 1],
-    [0.012, 0.36, -0.86, 0.58, 1],
-  ];
-  for (const [r, x, y, z, flat] of list) {
-    const g = r > 0.02 ? new THREE.SphereGeometry(r, 12, 8) : new THREE.SphereGeometry(r, 10, 6);
-    d.set(x, y, z).normalize();
-    q.setFromUnitVectors(Y_AXIS, d);
-    g.applyMatrix4(m.compose(d.clone().multiplyScalar(0.077), q, sc.set(1, 0.4, flat)));
-    parts.push(g);
-  }
-  const merged = mergeGeometries(parts);
-  for (const g of parts) g.dispose();
-  if (!merged) throw new Error('paw pads: mergeGeometries failed');
-  return merged;
 }
 
 function putSegment(out: Float32Array, i: number, a: THREE.Vector3, b: THREE.Vector3, r: number, sigma: number, w: number): number {

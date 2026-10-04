@@ -3,3 +3,6 @@ dist
 .vercel
 .DS_Store
 *.log
+output/video/*
+!output/video/sleep-or-more-youtube-intro.mp4
+!output/video/youtube-thumbnail.png

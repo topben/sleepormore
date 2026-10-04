@@ -106,6 +106,10 @@ export class BedroomScene {
   private readonly realTimers: Timer[] = [];
   private raf = 0;
   private lastNow = -1;
+  /** Opt-in development profiling; normal play has no per-frame timing or DOM writes. */
+  private readonly renderStats = import.meta.env.DEV && new URLSearchParams(location.search).has('renderStats')
+    ? { frames: 0, cpuMs: 0, intervalMs: 0, previous: 0 }
+    : null;
   private wt = 0;
   private rtime = 0;
   private reduced = false;
@@ -883,10 +887,28 @@ export class BedroomScene {
 
   private readonly frame = (now: number): void => {
     this.raf = requestAnimationFrame(this.frame);
+    const stats = this.renderStats;
+    const started = stats ? performance.now() : 0;
     const dt = this.lastNow < 0 ? 0 : Math.min(0.05, Math.max(0, (now - this.lastNow) / 1000));
     this.lastNow = now;
     this.step(dt);
     this.renderer.render(this.scene, this.camera);
+    if (stats) {
+      stats.cpuMs += performance.now() - started;
+      if (stats.previous) stats.intervalMs += now - stats.previous;
+      stats.previous = now;
+      if (++stats.frames === 60) {
+        Object.assign(this.canvas.dataset, {
+          drawCalls: String(this.renderer.info.render.calls),
+          triangles: String(this.renderer.info.render.triangles),
+          geometries: String(this.renderer.info.memory.geometries),
+          textures: String(this.renderer.info.memory.textures),
+          cpuSubmitMs: (stats.cpuMs / 60).toFixed(2),
+          frameIntervalMs: (stats.intervalMs / 60).toFixed(2),
+        });
+        stats.frames = stats.cpuMs = stats.intervalMs = 0;
+      }
+    }
   };
 
   private readonly onVisibility = (): void => {

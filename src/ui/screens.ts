@@ -131,7 +131,7 @@ export function startScreen(opts: {
       h(
         'span',
         { class: 'role-portrait', 'aria-hidden': 'true' },
-        h('img', { class: 'role-art', src: `/characters/${r === 'male' ? 'bear' : 'bunny'}.png`, alt: '', 'aria-hidden': 'true', width: 320, height: 320, draggable: 'false' }),
+        h('img', { class: 'role-art', src: `/characters/anime-${r}.png`, alt: '', 'aria-hidden': 'true', width: 1254, height: 1254, draggable: 'false' }),
       ),
       h(
         'span',

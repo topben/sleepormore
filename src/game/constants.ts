@@ -154,6 +154,6 @@ export const HARD = {
 
 /** 困難模式的體質(男女不同):舒服的體溫範圍、睡得安穩要有的親密度 */
 export const COMFORT: Record<Role, { warmLo: number; warmHi: number; intimacy: number }> = {
-  male: { warmLo: 30, warmHi: 70, intimacy: 15 }, // 小熊怕熱
-  female: { warmLo: 55, warmHi: 100, intimacy: 30 }, // 垂耳兔怕冷,也要多一點安全感
+  male: { warmLo: 30, warmHi: 70, intimacy: 15 }, // 男方怕熱
+  female: { warmLo: 55, warmHi: 100, intimacy: 30 }, // 女方怕冷,也要多一點安全感
 };

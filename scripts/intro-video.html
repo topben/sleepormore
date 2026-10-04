@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>同床異夢 · 一分鐘介紹影片</title>
+    <link rel="icon" href="data:," />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: #100f1b; color: #f8efff; font-family: system-ui, "PingFang TC", sans-serif; }
+      main { max-width: 1450px; margin: 24px auto; padding: 0 20px; }
+      h1 { margin: 0 0 6px; font-size: 23px; font-weight: 650; }
+      p { margin: 0 0 18px; color: #b2a7c6; font-size: 14px; }
+      #stage { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid #40324f; border-radius: 14px; box-shadow: 0 20px 80px #0007; }
+      #scene { position: fixed; left: -4000px; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+      .controls, .chapters { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 15px; }
+      button, a.download { border: 1px solid #69547f; background: #31273e; color: #f4eaff; border-radius: 9px; padding: 11px 15px; font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; }
+      button:hover { background: #493955; }
+      button:disabled { opacity: 0.55; cursor: wait; }
+      #record { background: #d7bb8b; color: #261b35; border-color: #f1d7a8; font-weight: 650; }
+      .chapters button { padding: 8px 11px; font-size: 12px; color: #c9badb; }
+      .chapters button.active { color: #f6d9a6; border-color: #bb9267; }
+      #scrub { flex: 1; min-width: 180px; accent-color: #d6b889; }
+      #clock { width: 106px; font-variant-numeric: tabular-nums; font-size: 13px; color: #d8c8e6; }
+      #status { display: block; min-height: 25px; margin-top: 13px; color: #c6b6d4; font-size: 13px; }
+      .download { display: inline-block; margin-left: 10px; }
+      @media (max-width: 700px) { main { margin-top: 16px; padding: 0 12px; } h1 { font-size: 19px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>同床異夢 · 一分鐘介紹影片</h1>
+      <p>1920 × 1080 · 16:9 · 30 fps · 60 秒 · 原創配樂</p>
+      <canvas id="stage" width="1920" height="1080" aria-label="遊戲介紹影片預覽"></canvas>
+      <div class="controls">
+        <button id="preview" type="button">預覽</button>
+        <button id="restart" type="button">從頭播放</button>
+        <button id="record" type="button">錄製一分鐘 WebM</button>
+        <input id="scrub" aria-label="影片時間" type="range" min="0" max="60" step="0.1" value="0" />
+        <span id="clock">00:00 / 01:00</span>
+      </div>
+      <nav class="chapters" aria-label="分鏡預覽">
+        <button type="button" data-time="0">00:00 主標題</button>
+        <button type="button" data-time="10">00:10 選擇角色</button>
+        <button type="button" data-time="19">00:19 兩種目標</button>
+        <button type="button" data-time="29">00:29 3D 互動</button>
+        <button type="button" data-time="38">00:38 蓄力操作</button>
+        <button type="button" data-time="47">00:47 秘密目標</button>
+        <button type="button" data-time="56">00:56 結尾卡</button>
+      </nav>
+      <output id="status" aria-live="polite">正在準備角色與臥室場景…</output>
+    </main>
+    <div id="scene" aria-hidden="true"></div>
+    <script type="module">
+      import { BedroomScene } from '/src/scene/Scene.ts';
+      import { createGame } from '/src/game/turn.ts';
+
+      const W = 1920, H = 1080, DURATION = 60, FPS = 30;
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      const status = document.getElementById('status');
+      const clock = document.getElementById('clock');
+      const scrub = document.getElementById('scrub');
+      const preview = document.getElementById('preview');
+      const recordButton = document.getElementById('record');
+      const chapterButtons = [...document.querySelectorAll('[data-time]')];
+      const bedroom = new BedroomScene(document.getElementById('scene'));
+      bedroom.setMuted(true);
+      bedroom.setViewInsets({ top: 15, bottom: 25 });
+      const sceneCanvas = document.querySelector('#scene canvas');
+      const base = createGame('male', 20261004, { playerGoal: 'sleep', partnerGoal: 'intimacy' });
+      base.chars.male.mood = base.chars.female.mood = 85;
+      base.intimacy = 32;
+      let currentState = structuredClone(base);
+      bedroom.reset(currentState);
+
+      const loadImage = (src) => new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error(`無法載入角色插畫：${src}`));
+        image.src = src;
+      });
+      const portraits = await Promise.all([
+        loadImage('/characters/anime-male.png'), loadImage('/characters/anime-female.png'),
+      ]);
+      await document.fonts.ready;
+
+      const C = { ink: '#f7efff', muted: '#bdafd0', gold: '#e6c995', lilac: '#ccafea', pink: '#f6b9d0', mint: '#a3ddb8', dark: '#161120' };
+      const FONT = '"PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif';
+      const clamp = (n, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n));
+      const ease = (n) => { n = clamp(n); return n * n * (3 - 2 * n); };
+      const format = (time) => `${String(Math.floor(time / 60)).padStart(2, '0')}:${String(Math.floor(time % 60)).padStart(2, '0')}`;
+      const title = '華人AI 第一小黃遊';
+      const subtitle = '拯救台灣生育率';
+      const chapters = [0, 7, 15, 23, 34, 43, 51, 60];
+      const stars = Array.from({ length: 70 }, (_, i) => ({
+        x: (Math.sin(i * 77.17) * 0.5 + 0.5) * W,
+        y: (Math.cos(i * 32.23) * 0.5 + 0.5) * H,
+        r: 1 + (i % 3) * 0.6,
+        p: i * 0.9,
+      }));
+
+      const action = (who, name, noise = 8) => ({ type: 'action', who, action: name, force: 45, band: 'gentle', noise, success: true });
+      const timeline = [
+        { t: 15, change: (s) => { s.turn = 2; s.chars.male.eyes = 'closed'; s.chars.male.sleep = 58; }, events: [] },
+        { t: 23, change: (s) => { s.turn = 3; s.chars.male.eyes = 'open'; s.chars.male.sleep = 5; s.chars.male.posture = 'sideFacing'; }, events: [{ type: 'posture', who: 'male', posture: 'sideFacing' }] },
+        { t: 25, change: (s) => { s.chars.female.posture = 'sideFacing'; }, events: [{ type: 'posture', who: 'female', posture: 'sideFacing' }] },
+        { t: 27, change: (s) => { s.turn = 4; s.chars.male.lateral = -0.2; s.chars.female.lateral = 0.21; }, events: [action('male', 'scootIn')] },
+        { t: 29.1, change: () => {}, events: [action('male', 'whisper'), { type: 'speech', who: 'male', text: '晚安，再靠近一點。' }] },
+        { t: 31.2, change: (s) => { s.intimacy = 62; }, events: [action('female', 'caress'), { type: 'intimacy', delta: 10 }] },
+        { t: 34.6, change: (s) => { s.turn = 5; s.embrace = true; s.intimacy = 74; }, events: [action('male', 'hug'), { type: 'embrace', on: true }, { type: 'intimacy', delta: 12 }] },
+        { t: 38.3, change: (s) => { s.turn = 6; }, events: [action('female', 'hug'), { type: 'intimacy', delta: 6 }] },
+        { t: 40.6, change: () => {}, events: [action('female', 'whisper')] },
+        { t: 43, change: (s) => { s.turn = 7; s.embrace = false; s.chars.male.posture = 'sideAway'; s.chars.male.eyes = 'closed'; s.chars.male.sleep = 65; }, events: [{ type: 'eyes', who: 'male', eyes: 'closed' }] },
+        { t: 46.1, change: (s) => { s.chars.male.eyes = 'open'; s.chars.male.sleep = 15; }, events: [action('female', 'whisper'), { type: 'wake', who: 'male', by: 'female' }] },
+        { t: 48.6, change: (s) => { s.turn = 9; s.chars.male.posture = 'sideFacing'; s.chars.female.eyes = 'closed'; s.chars.female.sleep = 78; }, events: [action('male', 'pat')] },
+        { t: 51, change: (s) => { s.turn = 11; s.embrace = true; s.intimacy = 80; s.chars.male.eyes = 'open'; s.chars.female.eyes = 'open'; s.chars.female.sleep = 10; }, events: [{ type: 'embrace', on: true }, { type: 'intimacy', delta: 10 }] },
+        { t: 55, change: (s) => { s.turn = 12; }, events: [] },
+      ];
+      let lastEvent = -1;
+      function seekScene(t) {
+        currentState = structuredClone(base);
+        lastEvent = -1;
+        timeline.forEach((key, i) => { if (key.t <= t) { key.change(currentState); lastEvent = i; } });
+        bedroom.reset(currentState);
+      }
+      function updateScene(t) {
+        while (lastEvent + 1 < timeline.length && timeline[lastEvent + 1].t <= t) {
+          const key = timeline[++lastEvent];
+          currentState = structuredClone(currentState);
+          key.change(currentState);
+          bedroom.applyState(currentState, key.events);
+        }
+      }
+
+      function roundRect(x, y, w, h, r = 24, fill = null, stroke = null) {
+        ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.8; ctx.stroke(); }
+      }
+      function text(value, x, y, size = 32, color = C.ink, weight = 500, align = 'left') {
+        ctx.font = `${weight} ${size}px ${FONT}`;
+        ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = color;
+        ctx.fillText(value, x, y);
+      }
+      function line(x1, y1, x2, y2, color = '#bba3d855', width = 1.5) {
+        ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      }
+      function chip(label, x, y, w, color = C.gold) {
+        roundRect(x, y, w, 46, 23, '#ffffff09', `${color}77`);
+        text(label, x + w / 2, y + 31, 22, color, 550, 'center');
+      }
+      function moon(x, y, radius, t, alpha = 1) {
+        ctx.save(); ctx.globalAlpha *= alpha;
+        const glow = ctx.createRadialGradient(x, y, radius * 0.3, x, y, radius * 2.6);
+        glow.addColorStop(0, '#e7c99428'); glow.addColorStop(1, '#e7c99400');
+        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, radius * 2.6, 0, Math.PI * 2); ctx.fill();
+        ctx.translate(x, y); ctx.rotate(-0.28 + Math.sin(t / 10) * 0.035);
+        ctx.fillStyle = C.gold;
+        ctx.beginPath(); ctx.arc(0, 0, radius, 0.3 * Math.PI, 1.7 * Math.PI);
+        ctx.quadraticCurveTo(-radius * 0.08, 0, Math.cos(0.3 * Math.PI) * radius, Math.sin(0.3 * Math.PI) * radius); ctx.fill();
+        ctx.restore();
+      }
+      function background(t) {
+        const gradient = ctx.createLinearGradient(0, 0, W, H);
+        gradient.addColorStop(0, '#2a203d'); gradient.addColorStop(0.45, '#171320'); gradient.addColorStop(1, '#332139');
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, W, H);
+        const halo = ctx.createRadialGradient(1480, 250, 0, 1480, 250, 1050);
+        halo.addColorStop(0, '#b88ac629'); halo.addColorStop(1, '#a57ba900'); ctx.fillStyle = halo; ctx.fillRect(0, 0, W, H);
+        for (const star of stars) {
+          ctx.globalAlpha = 0.2 + 0.35 * (0.5 + 0.5 * Math.sin(t * 0.7 + star.p));
+          ctx.fillStyle = star.r > 2 ? C.gold : '#decce8'; ctx.beginPath(); ctx.arc(star.x, (star.y - t * 2 + H) % H, star.r, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#d2b58920'; ctx.lineWidth = 1; ctx.strokeRect(44, 44, W - 88, H - 88);
+        text('同床異夢', 88, 109, 31, C.gold, 650);
+        text('SLEEP OR MORE', 89, 142, 16, C.muted, 450);
+        text('一張床，兩個心思。', W - 88, 110, 22, C.muted, 450, 'right');
+      }
+      function sceneImage(x, y, w, h, t, strength = 1) {
+        ctx.save(); ctx.globalAlpha *= strength;
+        ctx.beginPath(); ctx.roundRect(x, y, w, h, 32); ctx.clip();
+        const zoom = 1.04 + 0.022 * Math.sin(t * 0.22);
+        const sourceW = sceneCanvas.width / zoom;
+        const sourceH = sourceW * h / w;
+        ctx.drawImage(sceneCanvas, (sceneCanvas.width - sourceW) / 2, Math.max(0, (sceneCanvas.height - sourceH) / 2), sourceW, Math.min(sceneCanvas.height, sourceH), x, y, w, h);
+        const shade = ctx.createLinearGradient(x, y, x, y + h);
+        shade.addColorStop(0, '#25163108'); shade.addColorStop(0.75, '#24172c00'); shade.addColorStop(1, '#161120bb');
+        ctx.fillStyle = shade; ctx.fillRect(x, y, w, h);
+        ctx.restore();
+        roundRect(x, y, w, h, 32, null, '#d8c2e333');
+      }
+      function portrait(image, x, y, w, h, t, female) {
+        ctx.save();
+        ctx.shadowColor = female ? '#b29ad132' : '#789ad132'; ctx.shadowBlur = 50;
+        roundRect(x, y, w, h, 28, '#2a2238', '#dcc4eb55');
+        ctx.shadowBlur = 0; ctx.beginPath(); ctx.roundRect(x, y, w, h, 28); ctx.clip();
+        const zoom = 1.04 + 0.028 * ease((t - 7) / 8);
+        const scale = Math.max(w / image.width, h / image.height) * zoom;
+        const dw = image.width * scale, dh = image.height * scale;
+        ctx.drawImage(image, x + (w - dw) / 2, y + (h - dh) / 2 - 13 * Math.sin(t * 0.18), dw, dh);
+        const bottom = ctx.createLinearGradient(0, y + h * 0.55, 0, y + h);
+        bottom.addColorStop(0, '#1d142500'); bottom.addColorStop(1, '#1d1425e8'); ctx.fillStyle = bottom; ctx.fillRect(x, y, w, h);
+        ctx.restore();
+      }
+      function footer(number, label) {
+        line(90, 968, 1830, 968);
+        text(`0${number}`, 91, 1013, 24, C.gold, 650);
+        text(label, 150, 1013, 24, C.muted, 500);
+        text('同床異夢 · 一分鐘介紹', 1828, 1013, 20, '#a192b3', 400, 'right');
+      }
+      function headline(kicker, a, b = null) {
+        text(kicker, 95, 240, 25, C.gold, 550);
+        text(a, 90, 343, 64, C.ink, 700);
+        if (b) text(b, 91, 421, 51, C.lilac, 650);
+      }
+
+      function drawHero(t, local, ending = false) {
+        sceneImage(80, 175, 1760, 755, t, 0.43);
+        ctx.fillStyle = '#17112180'; ctx.fillRect(80, 175, 1760, 755);
+        moon(955, 300, ending ? 71 : 82, t, 0.94);
+        const reveal = ease(local / 1.1);
+        ctx.save(); ctx.globalAlpha *= reveal; ctx.translate(0, (1 - reveal) * 30);
+        text(title, 960, 513, 100, C.ink, 750, 'center');
+        line(465, 557, 1455, 557, '#e5ca9555', 2);
+        text(subtitle, 960, 643, 57, C.gold, 650, 'center');
+        text('同床異夢', 960, 749, 42, C.lilac, 600, 'center');
+        text(ending ? '今晚，你們會迎來哪一種結局？' : '一張床。兩個目標。一整夜的心動博弈。', 960, 811, 30, C.muted, 450, 'center');
+        ctx.restore();
+        if (ending) chip('選擇你的角色，開始今晚的故事', 689, 861, 542);
+        else footer(1, '今晚的故事，從一張床開始');
+      }
+      function drawCharacters(t, local) {
+        text('選擇今晚的你', 960, 243, 62, C.ink, 700, 'center');
+        text('原創成年角色 · 日系幻想造型 · 月光睡衣', 960, 299, 26, C.muted, 450, 'center');
+        const enter = ease(local / 1.05);
+        ctx.save(); ctx.globalAlpha *= enter;
+        const x1 = 365 - (1 - enter) * 85, x2 = 1005 + (1 - enter) * 85;
+        portrait(portraits[0], x1, 347, 550, 565, t, false);
+        portrait(portraits[1], x2, 347, 550, 565, t, true);
+        text('男生', x1 + 275, 839, 37, C.ink, 650, 'center');
+        text('女生', x2 + 275, 839, 37, C.ink, 650, 'center');
+        text('今晚，我想好好睡。', x1 + 275, 883, 25, '#d6c8e4', 450, 'center');
+        text('今晚，我想再靠近你。', x2 + 275, 883, 25, '#e2cbe1', 450, 'center');
+        ctx.restore();
+        footer(2, '角色由你選，心思藏在夜裡');
+      }
+      function drawGoals(t, local) {
+        headline('你今晚的目標', '想睡覺，', '還是想親熱？');
+        text('選好你的心願，', 95, 515, 30, C.muted);
+        text('再試著讀懂對方的心。', 95, 565, 30, C.muted);
+        const x = 740, y = 212;
+        roundRect(x, y, 475, 446, 30, '#39324a99', '#bba4e955');
+        roundRect(x + 505, y, 475, 446, 30, '#482c4199', '#e7b5ce55');
+        moon(x + 237, y + 111, 58, t);
+        text('睡覺', x + 237, y + 258, 58, C.ink, 650, 'center');
+        text('安穩睡到天亮', x + 237, y + 324, 28, C.muted, 500, 'center');
+        heart(x + 742, y + 119, 0.95 + Math.sin(t * 2.4) * 0.04, C.pink);
+        text('親熱', x + 742, y + 258, 58, C.ink, 650, 'center');
+        text('讓親密度悄悄升溫', x + 742, y + 324, 28, C.muted, 500, 'center');
+        roundRect(740, 709, 980, 194, 26, '#ffffff08', '#dcc28f33');
+        text('12 回合', 785, 779, 35, C.gold, 650);
+        text('22:00', 790, 858, 45, C.ink, 600);
+        text('06:00', 1665, 858, 45, C.ink, 600, 'right');
+        const start = 1010, end = 1450;
+        line(start, 843, end, 843, '#ddc39555', 3);
+        for (let i = 0; i < 12; i++) {
+          ctx.fillStyle = i / 12 < clamp(local / 8) ? C.gold : '#8e779055';
+          ctx.beginPath(); ctx.arc(start + i / 11 * (end - start), 843, i / 12 < clamp(local / 8) ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+        }
+        footer(3, '從晚上十點，走到隔天六點');
+      }
+      function heart(x, y, scale = 1, color = C.pink) {
+        ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.fillStyle = color;
+        ctx.beginPath(); ctx.moveTo(0, 48); ctx.bezierCurveTo(-108, -17, -76, -101, 0, -53); ctx.bezierCurveTo(76, -101, 108, -17, 0, 48); ctx.fill(); ctx.restore();
+      }
+      function drawActions(t, local) {
+        headline('會呼吸、會翻身的 3D 臥室', '你的每個動作，', '都會讓夜晚不同。');
+        const actions = ['翻身', '挪近', '說悄悄話'];
+        const active = local < 3.8 ? 0 : local < 7 ? 1 : 2;
+        actions.forEach((label, i) => {
+          roundRect(95, 508 + i * 110, 432, 84, 20, i === active ? '#dfbb9030' : '#ffffff07', i === active ? '#e6c995aa' : '#bca5d333');
+          text(`0${i + 1}`, 126, 561 + i * 110, 23, i === active ? C.gold : '#a290b4', 600);
+          text(label, 204, 563 + i * 110, 34, i === active ? C.ink : C.muted, 550);
+        });
+        sceneImage(620, 197, 1205, 732, t);
+        chip('實際 3D 遊戲畫面', 666, 226, 244);
+        if (local > 6.3 && local < 10.3) {
+          roundRect(1050, 347, 551, 87, 24, '#f5eaf1ee');
+          text('「晚安，再靠近一點。」', 1325, 403, 29, '#49364c', 550, 'center');
+        }
+        footer(4, '翻身、挪近、悄悄話：讓心動變成動作');
+      }
+      function drawForce(t, local) {
+        headline('按住蓄力，鬆開出手', '親密的關鍵，', '是剛剛好的力道。');
+        text('讓指標落在綠區，', 96, 514, 29, C.muted);
+        text('溫柔地擁抱對方。', 96, 561, 29, C.muted);
+        sceneImage(655, 204, 1167, 721, t);
+        chip('溫柔擁抱', 704, 237, 176, C.pink);
+        roundRect(95, 655, 466, 217, 28, '#241b31ee', '#d5ba9055');
+        text('按住', 127, 710, 28, C.gold, 600);
+        text('蓄力 → 綠區 → 放開', 127, 751, 22, C.muted);
+        const bx = 126, by = 790, bw = 402;
+        roundRect(bx, by, bw, 27, 13, '#63516c');
+        roundRect(bx + bw * 0.32, by, bw * 0.3, 27, 3, '#92c9a6');
+        const cycle = local % 3.7;
+        const force = cycle < 2 ? Math.min(0.48, cycle / 2 * 0.48) : 0.48;
+        const pulse = cycle > 2 ? 0.65 + Math.sin(cycle * 8) * 0.35 : 1;
+        ctx.save(); ctx.globalAlpha *= pulse; ctx.fillStyle = '#fff6e7'; ctx.beginPath(); ctx.arc(bx + force * bw, by + 13, 16, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        text(cycle > 2 ? '漂亮！溫柔命中' : '慢慢來…', 328, 856, 23, cycle > 2 ? C.mint : C.muted, 600, 'center');
+        footer(5, '讀懂距離，也掌握力道');
+      }
+      function drawMystery(t, local) {
+        headline('對方的心願，是秘密', '他真的睡著了？', '她也想親熱嗎？');
+        text('從閉眼、反應和小動作，', 94, 510, 28, C.muted);
+        text('拼出今晚的答案。', 94, 558, 28, C.muted);
+        chip('觀察', 96, 658, 126);
+        chip('試探', 239, 658, 126);
+        chip('猜心', 382, 658, 126);
+        sceneImage(640, 203, 1184, 724, t);
+        const sleeping = local < 3.1;
+        roundRect(803, 254, 736, 104, 28, '#1b1529df', '#d0b8e566');
+        text(sleeping ? '閉上眼，是想睡……還是在裝睡？' : '每個反應，都是一條線索。', 1172, 320, 31, C.ink, 550, 'center');
+        if (sleeping) text('Z  z  z', 1440, 478 + Math.sin(t * 2) * 12, 48, '#d4c1ed', 550);
+        else {
+          heart(1470, 462, 0.36 + Math.sin(t * 2.8) * 0.025);
+          text('心思被你看見了', 1514, 546, 24, C.pink, 600, 'center');
+        }
+        footer(6, '不只選動作，更要讀懂身旁的人');
+      }
+      function drawEndings(t, local) {
+        if (local >= 4) { drawHero(t, local - 4, true); return; }
+        sceneImage(83, 176, 1754, 756, t, 0.32);
+        ctx.fillStyle = '#1b13278a'; ctx.fillRect(84, 176, 1752, 756);
+        const appear = ease(local / 0.75);
+        ctx.save(); ctx.globalAlpha *= appear; ctx.translate(0, (1 - appear) * 24);
+        text('64', 960, 472, 189, C.gold, 750, 'center');
+        text('種組合結局', 960, 558, 59, C.ink, 700, 'center');
+        text('你的選擇，寫下兩個人的早晨。', 960, 647, 34, C.muted, 450, 'center');
+        ['安穩入睡', '甜蜜升溫', '同床異夢', '意外收場'].forEach((label, i) => chip(label, 450 + i * 258, 754 + Math.sin(t * 1.5 + i) * 5, 240, i % 2 ? C.pink : C.gold));
+        ctx.restore(); footer(7, '一夜之間，許多可能');
+      }
+
+      const drawers = [drawHero, drawCharacters, drawGoals, drawActions, drawForce, drawMystery, drawEndings];
+      let playhead = 0, playing = false, startedAt = 0, startedFrom = 0, lastFrame = -100, recorder = null, stopTimer = 0;
+      let recording = false, chunks = [], downloadURL = null;
+      function render(t) {
+        background(t);
+        let chapter = chapters.findIndex((start, i) => i < 7 && t >= start && t < chapters[i + 1]);
+        if (chapter < 0) chapter = 6;
+        const local = t - chapters[chapter];
+        const fadeIn = chapter === 0 ? 1 : ease(local / 0.38);
+        const fadeOut = chapter === 6 ? 1 : ease((chapters[chapter + 1] - t) / 0.33);
+        ctx.save(); ctx.globalAlpha = fadeIn * fadeOut;
+        drawers[chapter](t, local); ctx.restore();
+      }
+
+      let audio = null, musicOut = null, musicMaster = null;
+      let musicNodes = [];
+      function stopMusic() {
+        for (const node of musicNodes) { try { node.stop(); } catch {} }
+        musicNodes = [];
+      }
+      async function prepareAudio() {
+        if (!audio) {
+          audio = new AudioContext({ sampleRate: 48000 });
+          musicOut = audio.createMediaStreamDestination();
+          musicMaster = audio.createGain(); musicMaster.gain.value = 0.78;
+          musicMaster.connect(musicOut); musicMaster.connect(audio.destination);
+        }
+        await audio.resume();
+      }
+      function music(offset) {
+        stopMusic();
+        if (!audio) return;
+        const start = audio.currentTime + 0.06;
+        const melody = [293.665, 369.994, 440, 493.883, 440, 369.994, 329.628, 293.665];
+        const note = (frequency, at, length, gain = 0.045, type = 'sine') => {
+          if (at < offset || at > 59.3) return;
+          const oscillator = audio.createOscillator(); const envelope = audio.createGain();
+          oscillator.type = type; oscillator.frequency.value = frequency;
+          const now = start + at - offset;
+          envelope.gain.setValueAtTime(0.0001, now);
+          envelope.gain.exponentialRampToValueAtTime(gain, now + 0.02);
+          envelope.gain.exponentialRampToValueAtTime(0.0001, now + length);
+          oscillator.connect(envelope); envelope.connect(musicMaster);
+          oscillator.start(now); oscillator.stop(now + length + 0.04);
+          oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); };
+          musicNodes.push(oscillator);
+        };
+        for (let i = 0; i < 30; i++) {
+          note(melody[i % 8], i * 2, 1.9, 0.039);
+          note(melody[(i + 2) % 8] * 2, i * 2 + 0.7, 1.35, 0.017);
+          if (i % 2 === 0) note([146.832, 123.471, 164.814, 110][Math.floor(i / 2) % 4], i * 2, 3.7, 0.022, 'triangle');
+        }
+        for (const at of [7, 15, 23, 34, 43, 51, 55]) {
+          note(587.33, at, 0.9, 0.027); note(739.99, at + 0.15, 1.1, 0.023); note(880, at + 0.3, 1.4, 0.021);
+        }
+      }
+      function setTime(t) {
+        playhead = clamp(t, 0, DURATION);
+        seekScene(playhead);
+        lastFrame = -100;
+        syncControls();
+      }
+      function syncControls() {
+        scrub.value = String(playhead);
+        clock.textContent = `${format(playhead)} / 01:00`;
+        preview.textContent = playing ? '暫停預覽' : '預覽';
+        const index = chapters.findIndex((v, i) => i < 7 && playhead >= v && playhead < chapters[i + 1]);
+        chapterButtons.forEach((button, i) => button.classList.toggle('active', i === index));
+      }
+      async function play(from = playhead) {
+        await prepareAudio();
+        if (from >= DURATION) from = 0;
+        setTime(from); startedFrom = from; startedAt = performance.now(); playing = true;
+        music(from); syncControls();
+      }
+      function pause() { playing = false; stopMusic(); syncControls(); }
+      function setRecordingControls(disabled) {
+        for (const button of document.querySelectorAll('button')) button.disabled = disabled;
+        scrub.disabled = disabled;
+      }
+      function finishRecording() {
+        if (!recording) return;
+        recording = false; clearTimeout(stopTimer);
+        playhead = DURATION; playing = false; stopMusic();
+        recorder.stop(); syncControls();
+        status.textContent = '正在完成一分鐘影片檔案…';
+      }
+      function loop(now) {
+        if (playing) {
+          playhead = Math.min(DURATION, startedFrom + (now - startedAt) / 1000);
+          updateScene(playhead);
+          if (playhead >= DURATION) {
+            if (recording) finishRecording();
+            else pause();
+          }
+        }
+        // BedroomScene schedules its frame before this compositor, keeping the WebGL buffer available.
+        if (now - lastFrame >= 1000 / FPS - 1) { render(Math.min(playhead, 59.999)); lastFrame = now; }
+        if (playing || recording) syncControls();
+        if (recording) status.textContent = `錄製中 ${format(playhead)} / 01:00 · 請讓此分頁保持開啟`;
+        requestAnimationFrame(loop);
+      }
+      preview.addEventListener('click', () => { if (playing) pause(); else play(); });
+      document.getElementById('restart').addEventListener('click', () => play(0));
+      scrub.addEventListener('input', () => { const target = Number(scrub.value); pause(); setTime(target); });
+      chapterButtons.forEach((button) => button.addEventListener('click', () => { pause(); setTime(Number(button.dataset.time)); }));
+      recordButton.addEventListener('click', async () => {
+        if (recording) return;
+        try {
+          await prepareAudio();
+          if (downloadURL) { URL.revokeObjectURL(downloadURL); downloadURL = null; }
+          const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((type) => MediaRecorder.isTypeSupported(type));
+          if (!mimeType) throw new Error('此瀏覽器不支援 WebM 錄製，請使用 Chrome。');
+          const stream = canvas.captureStream(FPS);
+          musicOut.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+          recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 9000000, audioBitsPerSecond: 192000 });
+          chunks = [];
+          recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+          recorder.onerror = (event) => { status.textContent = `錄製失敗：${event.error?.message || '未知錯誤'}`; setRecordingControls(false); };
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: mimeType });
+            downloadURL = URL.createObjectURL(blob);
+            const link = document.createElement('a'); link.href = downloadURL; link.download = 'sleep-or-more-intro.webm';
+            link.className = 'download'; link.textContent = '下載 1080p WebM';
+            status.textContent = `完成 · 60 秒 · 1920 × 1080 · ${(blob.size / 1024 / 1024).toFixed(1)} MB`;
+            status.append(link); setRecordingControls(false);
+            for (const track of stream.getVideoTracks()) track.stop();
+            link.click();
+          };
+          pause(); setTime(0); render(0);
+          recording = true; setRecordingControls(true);
+          recorder.start(1000);
+          startedFrom = 0; startedAt = performance.now(); playing = true; music(0);
+          stopTimer = setTimeout(finishRecording, DURATION * 1000);
+          status.textContent = '錄製中 00:00 / 01:00 · 請讓此分頁保持開啟';
+        } catch (error) {
+          recording = false; playing = false; setRecordingControls(false); status.textContent = error.message;
+        }
+      });
+      setTime(0); render(0); requestAnimationFrame(loop);
+      status.textContent = '已就緒 · 可點分鏡預覽，或錄製完整一分鐘影片。';
+      window.addEventListener('beforeunload', () => { bedroom.dispose(); stopMusic(); audio?.close(); });
+    </script>
+  </body>
+</html>
